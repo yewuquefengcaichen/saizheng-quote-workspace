@@ -1,0 +1,113 @@
+# AI智能报价系统配置文件
+# ================================
+
+# AI服务配置
+ai:
+  enabled: true                    # 是否启用AI功能
+  provider: "claude"               # AI提供商: claude, openai, local
+
+  # Claude API配置
+  claude:
+    api_key: ""                    # 在此填写Claude API密钥，或设置环境变量CLAUDE_API_KEY
+    model: "claude-sonnet-4-20250514"  # 模型选择
+    max_tokens: 2048               # 最大响应长度
+    temperature: 0.3               # 温度参数 (0-1，越低越确定性)
+
+  # OpenAI API配置（备用）
+  openai:
+    api_key: ""                    # 在此填写OpenAI API密钥，或设置环境变量OPENAI_API_KEY
+    model: "gpt-4o"
+    max_tokens: 2048
+    temperature: 0.3
+
+  # 本地模型配置（降级方案）
+  local:
+    enabled: true
+    model_type: "sentence-transformers"
+    model_name: "paraphrase-multilingual-MiniLM-L12-v2"  # 支持中文的多语言模型
+    cache_embeddings: true
+
+# 匹配增强配置
+matching:
+  use_ai_similarity: true          # 使用AI语义相似度
+  use_ai_category: true            # 使用AI分类识别
+  use_ai_brand: true               # 使用AI品牌识别
+
+  # 权重配置（AI + 传统融合）
+  weights:
+    traditional: 0.35              # 传统规则权重
+    semantic: 0.40                 # AI语义权重
+    category: 0.15                 # 分类权重
+    brand: 0.10                    # 品牌权重
+
+  # 阈值配置
+  thresholds:
+    auto_select: 0.60              # AI自动选择阈值
+    exact_match: 0.85              # AI精确匹配阈值
+    fuzzy_match: 0.40              # AI模糊匹配阈值
+
+# 成本优化配置
+cost_optimization:
+  cache_enabled: true              # 启用缓存
+  cache_ttl_days: 30               # 缓存有效期（天）
+  batch_size: 10                   # 批量处理大小
+  max_api_calls_per_minute: 20     # 每分钟API调用限制
+
+  # 智能调用策略
+  call_strategy:
+    low_confidence_only: false     # 仅低置信度时调用AI
+    first_match_ai: true           # 首次匹配使用AI
+    rematch_ai: true               # 重新匹配使用AI
+
+# 降级策略
+fallback:
+  enabled: true                    # 启用降级策略
+  retry_count: 3                   # API失败重试次数
+  retry_delay_ms: 1000             # 重试延迟（毫秒）
+  fallback_to_local: true          # API失败时降级到本地模型
+  fallback_to_traditional: true    # 本地模型失败时降级到传统规则
+
+# AI助手配置
+assistant:
+  enabled: true                    # 启用AI助手
+  system_prompt: |
+    你是赛正慧采商城的智能报价助手。你可以帮助用户：
+    1. 解释商品匹配结果和匹配分数
+    2. 推荐替代商品和说明推荐理由
+    3. 解答劳保用品相关的产品问题
+    4. 提供报价建议和价格分析
+
+    请用简洁专业的语言回复，必要时提供数据支持。回复使用中文。
+
+  max_history: 10                  # 保留对话历史数量
+
+# 商品知识库（劳保行业）
+knowledge:
+  # 产品分类体系
+  categories:
+    - "手部防护"
+    - "头部防护"
+    - "呼吸防护"
+    - "足部防护"
+    - "眼面防护"
+    - "听力防护"
+    - "身体防护"
+    - "坠落防护"
+    - "其他防护"
+
+  # 常见品牌
+  brands:
+    - "赛正"
+    - "星宇"
+    - "登升"
+    - "3M"
+    - "霍尼韦尔"
+    - "安尔康"
+    - "邦维"
+    - "海固"
+    - "华信"
+    - "盾牌"
+    - "稳健"
+    - "朝美"
+    - "可孚"
+    - "绿盾"

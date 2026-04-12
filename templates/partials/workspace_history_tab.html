@@ -1,0 +1,73 @@
+<div id="historyTab" class="tab-content"{% if initial_tab != 'history' %} style="display: none;"{% endif %}>
+    <section class="scene-panel scene-panel--history scene-panel--compact">
+        <div class="scene-panel-copy">
+            <div class="scene-panel-eyebrow"><i class="bi bi-clock-history"></i>History Ledger</div>
+            <div class="scene-panel-title">先看金额、客户和匹配率，再决定是否回放。</div>
+            <div class="scene-panel-description">历史页只保留值得判断的信号：客户、金额、匹配率和动作，不再把它做成另一张管理表。</div>
+            <div class="scene-panel-pills">
+                <span class="scene-panel-pill">金额先看</span>
+                <span class="scene-panel-pill">质量复核</span>
+                <span class="scene-panel-pill">删留判断</span>
+            </div>
+        </div>
+        <div class="scene-panel-side">
+            <div class="scene-panel-side-title">本页节奏</div>
+            <div class="scene-panel-side-list">
+                <div class="scene-panel-side-item"><strong>1.</strong><span>先扫金额和客户，确认是否值得打开。</span></div>
+                <div class="scene-panel-side-item"><strong>2.</strong><span>再看匹配率，决定是复用、复核还是删除。</span></div>
+                <div class="scene-panel-side-item"><strong>3.</strong><span>详情保留完整明细，列表只保留决定性信号。</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="history-metric-grid">
+        <article class="history-metric-card">
+            <span class="history-metric-label">总报价数</span>
+            <strong id="statTotalCount" class="history-metric-value">0</strong>
+            <small class="history-metric-copy">全部已归档报价批次</small>
+        </article>
+        <article class="history-metric-card">
+            <span class="history-metric-label">本月新增</span>
+            <strong id="statMonthCount" class="history-metric-value">0</strong>
+            <small class="history-metric-copy">本月新增的历史记录</small>
+        </article>
+        <article class="history-metric-card">
+            <span class="history-metric-label">累计金额</span>
+            <strong id="statTotalAmount" class="history-metric-value">¥0</strong>
+            <small class="history-metric-copy">历史报价累计金额</small>
+        </article>
+        <article class="history-metric-card">
+            <span class="history-metric-label">平均匹配率</span>
+            <strong id="statAvgRate" class="history-metric-value">0%</strong>
+            <small class="history-metric-copy">整体匹配质量健康度</small>
+        </article>
+    </section>
+
+    <section class="history-ledger-shell">
+        <div class="history-ledger-header">
+            <div>
+                <div class="history-ledger-kicker">History Archive</div>
+                <div class="history-ledger-heading">报价回放账本</div>
+                <div class="history-ledger-subtitle">列表只保留客户、金额、匹配率和动作，完整明细留给详情。</div>
+            </div>
+            <div class="history-ledger-header-note">
+                <i class="bi bi-stars"></i>
+                <span>高价值批次优先打开。</span>
+            </div>
+        </div>
+        <div id="historyList" class="history-ledger-list">
+            <div class="workspace-empty-orbit workspace-empty-orbit--history">
+                <div class="workspace-empty-orbit-visual">
+                    <i class="bi bi-hourglass-split"></i>
+                </div>
+                <div class="workspace-empty-orbit-title">历史台账正在整理中。</div>
+                <div class="workspace-empty-orbit-copy">系统正在把时间、客户、金额和质量信号重新排成更安静的回放视图。</div>
+                <div class="workspace-empty-orbit-pills">
+                    <span class="workspace-empty-orbit-pill">指标先看</span>
+                    <span class="workspace-empty-orbit-pill">明细后看</span>
+                    <span class="workspace-empty-orbit-pill">安静归档</span>
+                </div>
+            </div>
+        </div>
+    </section>
+</div>

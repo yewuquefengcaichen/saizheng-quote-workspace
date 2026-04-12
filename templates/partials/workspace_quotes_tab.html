@@ -1,0 +1,145 @@
+<div id="matchTab" class="tab-content"{% if initial_tab != 'match' %} style="display: none;"{% endif %}>
+    <section class="scene-panel scene-panel--quotes">
+        <div class="scene-panel-copy">
+            <div class="scene-panel-eyebrow"><i class="bi bi-layout-text-window"></i>Quotes Decision Deck</div>
+            <div class="scene-panel-title">报价确认应该像一条单焦点决策流。</div>
+            <div class="scene-panel-description">左侧排风险，中间只处理当前项，右侧保留搜索、核价与确认。报价页不再像传统后台长列表，而是像真正的决策工作台。</div>
+            <div class="scene-panel-pills">
+                <span class="scene-panel-pill">风险优先</span>
+                <span class="scene-panel-pill">证据同屏</span>
+                <span class="scene-panel-pill">确认即导出</span>
+            </div>
+        </div>
+        <div class="scene-panel-side">
+            <div class="scene-panel-side-title">本页节奏</div>
+            <div class="scene-panel-side-list">
+                <div class="scene-panel-side-item"><strong>1.</strong><span>先处理低分、异常和低置信度项。</span></div>
+                <div class="scene-panel-side-item"><strong>2.</strong><span>再核验候选、历史信号与人工搜索。</span></div>
+                <div class="scene-panel-side-item"><strong>3.</strong><span>确认完成后直接进入模板导出。</span></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="filter-bar quote-filter-bar">
+        <div class="d-flex justify-content-between align-items-start gap-3 flex-wrap">
+            <div class="match-toolbar-title mb-0">
+                <div class="match-toolbar-icon"><i class="bi bi-sliders2"></i></div>
+                <div class="match-toolbar-copy">
+                    <div class="match-toolbar-heading">报价决策控制台</div>
+                    <div class="match-toolbar-subtitle">搜索、筛选、排序、调价与导出都留在当前层，减少来回切换。</div>
+                </div>
+            </div>
+            <div class="quote-toolbar-actions">
+                <a href="{{ workspace_routes.catalog }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-grid-3x3-gap me-1"></i>商品资产
+                </a>
+                <a href="{{ workspace_routes.templates }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-files me-1"></i>模板中心
+                </a>
+            </div>
+        </div>
+        <div class="match-toolbar-divider"></div>
+        <div class="row g-3 align-items-end">
+            <div class="col-xl-3 col-md-6">
+                <label class="form-label">搜索报价项</label>
+                <div class="input-group">
+                    <span class="input-group-text"><i class="bi bi-search"></i></span>
+                    <input type="text" class="form-control" id="searchInput" placeholder="搜索产品、规格、备注或 OCR 关键词">
+                    <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="清空搜索">
+                        <i class="bi bi-x-lg"></i>
+                    </button>
+                </div>
+            </div>
+            <div class="col-xl-2 col-md-6">
+                <label class="form-label">状态筛选</label>
+                <select class="form-select" id="statusFilter">
+                    <option value="all">全部状态</option>
+                    <option value="pending">待确认</option>
+                    <option value="matched">已匹配</option>
+                    <option value="nomatch">无匹配</option>
+                </select>
+            </div>
+            <div class="col-xl-2 col-md-6">
+                <label class="form-label">排序方式</label>
+                <select class="form-select" id="sortFilter">
+                    <option value="default">默认排序</option>
+                    <option value="match-desc">匹配度高到低</option>
+                    <option value="match-asc">匹配度低到高</option>
+                    <option value="price-desc">价格高到低</option>
+                    <option value="price-asc">价格低到高</option>
+                </select>
+            </div>
+            <div class="col-xl-1 col-md-6">
+                <button class="btn btn-outline-secondary w-100" id="resetFilterBtn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>重置
+                </button>
+            </div>
+            <div class="col-xl-2 col-md-6">
+                <button class="btn btn-warning w-100" id="batchAdjustBtn">
+                    <i class="bi bi-percent me-1"></i>批量调价
+                </button>
+            </div>
+            <div class="col-xl-1 col-md-6">
+                <button class="btn btn-success w-100" id="exportBtn">
+                    <i class="bi bi-download me-1"></i>导出
+                </button>
+            </div>
+            <div class="col-xl-1 col-md-6">
+                <button class="btn btn-info w-100" id="shareBtn">
+                    <i class="bi bi-share me-1"></i>分享
+                </button>
+            </div>
+        </div>
+        <div class="row mt-3" id="priceAdjustNotice" style="display: none;">
+            <div class="col-12">
+                <div class="match-notice-card">
+                    <div class="match-notice-text"><i class="bi bi-info-circle me-2"></i><span id="adjustNoticeText"></span></div>
+                    <button class="btn btn-sm btn-outline-secondary" id="clearAdjustBtn">清除调整</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="matchResults">
+        <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
+            <div class="workspace-empty-orbit-visual">
+                <i class="bi bi-layout-text-window"></i>
+            </div>
+            <div class="workspace-empty-orbit-title">报价工作台正在等待第一份结果流入。</div>
+            <div class="workspace-empty-orbit-copy">先在总览页完成商品底座与报价来源导入。匹配启动后，这里会自动切换成队列、焦点与审核三栏工作台。</div>
+            <div class="workspace-empty-orbit-pills">
+                <span class="workspace-empty-orbit-pill">先导入商品库</span>
+                <span class="workspace-empty-orbit-pill">再上传报价单或 OCR 图片</span>
+                <span class="workspace-empty-orbit-pill">开始匹配后回到这里确认</span>
+            </div>
+            <div class="quote-empty-proof-grid">
+                <article class="quote-empty-proof-card">
+                    <span>Before</span>
+                    <strong>文件还没入流</strong>
+                    <small>当前页不再堆空表格，而是明确告诉你先完成哪一步准备。</small>
+                </article>
+                <article class="quote-empty-proof-card">
+                    <span>After Match</span>
+                    <strong>进入单焦点决策流</strong>
+                    <small>风险队列、当前项、人工搜索与确认会进入同一条连续视线。</small>
+                </article>
+                <article class="quote-empty-proof-card">
+                    <span>Close</span>
+                    <strong>确认后直接导出</strong>
+                    <small>模板选择与导出准备不再分散在别处，决策完成即可继续交付。</small>
+                </article>
+            </div>
+            <div class="quote-empty-actions">
+                <a href="{{ workspace_routes.dashboard }}" class="btn btn-primary">
+                    <i class="bi bi-arrow-up-right-circle me-2"></i>回到总览导入
+                </a>
+                <a href="{{ workspace_routes.catalog }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-grid-3x3-gap me-2"></i>先看商品资产
+                </a>
+                <a href="{{ workspace_routes.templates }}" class="btn btn-outline-secondary">
+                    <i class="bi bi-files me-2"></i>浏览模板中心
+                </a>
+            </div>
+        </div>
+    </div>
+</div>

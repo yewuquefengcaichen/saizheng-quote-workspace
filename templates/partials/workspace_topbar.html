@@ -1,0 +1,47 @@
+<nav class="workspace-topbar" aria-label="工作台顶部导航">
+    <div class="container-fluid workspace-topbar-inner">
+        <div class="workspace-brand-wrap">
+            <a href="{{ workspace_routes.dashboard }}" class="workspace-brand-mark" aria-label="返回总览">
+                <i class="bi bi-grid-1x2-fill"></i>
+            </a>
+            <div class="workspace-brand-copy">
+                <div class="workspace-brand-overline">Saizheng Quote Workspace</div>
+                <div class="workspace-brand-title">赛正报价工作台</div>
+                <div class="workspace-brand-subtitle">{{ page_meta.note }} · 场景化报价系统</div>
+            </div>
+        </div>
+
+        <div class="workspace-topbar-center">
+            <div class="workspace-topbar-nav" aria-label="主导航">
+                <a href="{{ workspace_routes.dashboard }}" class="workspace-topbar-link{% if current_page == 'dashboard' %} is-active{% endif %}">
+                    <i class="bi bi-house-door"></i><span>总览</span>
+                </a>
+                <a href="{{ workspace_routes.templates }}" class="workspace-topbar-link{% if current_page == 'templates' %} is-active{% endif %}">
+                    <i class="bi bi-files"></i><span>模板</span>
+                </a>
+                <a href="{{ workspace_routes.quotes }}" class="workspace-topbar-link{% if current_page == 'quotes' %} is-active{% endif %}">
+                    <i class="bi bi-layout-text-window"></i><span>报价</span>
+                </a>
+                <a href="{{ workspace_routes.catalog }}" class="workspace-topbar-link{% if current_page == 'catalog' %} is-active{% endif %}">
+                    <i class="bi bi-grid-3x3-gap"></i><span>商品库</span>
+                </a>
+                <a href="{{ workspace_routes.history }}" class="workspace-topbar-link{% if current_page == 'history' %} is-active{% endif %}">
+                    <i class="bi bi-clock-history"></i><span>历史</span>
+                </a>
+                <a href="{{ workspace_routes.synonyms }}" class="workspace-topbar-link{% if current_page == 'synonyms' %} is-active{% endif %}">
+                    <i class="bi bi-book"></i><span>词库</span>
+                </a>
+            </div>
+            <div class="workspace-topbar-signals">
+                <span class="workspace-topbar-chip workspace-topbar-chip--brand">
+                    <i class="bi bi-stars"></i>{{ page_meta.eyebrow }}
+                </span>
+                <span class="workspace-topbar-chip">
+                    <i class="bi bi-compass"></i>{{ page_meta.note }}
+                </span>
+            </div>
+        </div>
+
+        <div class="workspace-topbar-actions" aria-label="工作台动作"></div>
+    </div>
+</nav>

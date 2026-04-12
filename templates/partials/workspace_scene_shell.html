@@ -1,0 +1,190 @@
+<section class="workspace-scene-shell" aria-label="工作场景导航">
+    <aside class="workspace-scene-nav">
+        <div class="scene-nav-caption">Workspace Scenes</div>
+        <div class="scene-nav-title">把入口、浏览、确认与回看拆成独立场景，而不是继续塞进一个冗长首页。</div>
+        <div class="scene-nav-links">
+            <a href="{{ workspace_routes.dashboard }}" class="scene-nav-link{% if current_page == 'dashboard' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-house-door"></i></span>
+                <span class="scene-nav-link-copy">
+                    <span class="scene-nav-link-label">Overview</span>
+                    <strong>总览与导入</strong>
+                    <small>先确认准备度，再决定下一步进入哪个工作场景。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.templates }}" class="scene-nav-link{% if current_page == 'templates' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-files"></i></span>
+                <span class="scene-nav-link-copy">
+                    <span class="scene-nav-link-label">Templates</span>
+                    <strong>模板中心</strong>
+                    <small>把可交付单据、字段覆盖和导出方向独立展示出来。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.quotes }}" class="scene-nav-link{% if current_page == 'quotes' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-layout-text-window"></i></span>
+                <span class="scene-nav-link-copy">
+                    <span class="scene-nav-link-label">Quotes</span>
+                    <strong>报价决策台</strong>
+                    <small>在同一条连续视线里完成候选判断、确认与导出准备。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.catalog }}" class="scene-nav-link{% if current_page == 'catalog' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+                <span class="scene-nav-link-copy">
+                    <span class="scene-nav-link-label">Catalog</span>
+                    <strong>商品资产库</strong>
+                    <small>把图片、品牌、供应商与价格整理成更适合核查的资产视图。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.history }}" class="scene-nav-link{% if current_page == 'history' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-clock-history"></i></span>
+                <span class="scene-nav-link-copy">
+                    <span class="scene-nav-link-label">History</span>
+                    <strong>历史回放</strong>
+                    <small>只保留值得复盘的金额、质量和客户信号。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.synonyms }}" class="scene-nav-link{% if current_page == 'synonyms' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-book"></i></span>
+                <span class="scene-nav-link-copy">
+                    <span class="scene-nav-link-label">Vocabulary</span>
+                    <strong>词库知识层</strong>
+                    <small>把错别字、行业简称与内部叫法沉淀成长期资产。</small>
+                </span>
+            </a>
+        </div>
+    </aside>
+
+    <div class="workspace-scene-hero">
+        <div class="scene-hero-eyebrow">{{ page_meta.eyebrow }}</div>
+        <div class="scene-hero-title">{{ page_meta.title }}</div>
+        <div class="scene-hero-description">{{ page_meta.description }}</div>
+        <div class="scene-hero-pills">
+            {% for pill in page_meta.pills %}
+            <span class="scene-hero-pill">{{ pill }}</span>
+            {% endfor %}
+            <span class="scene-hero-pill scene-hero-pill--tone">Pearl Ledger / Obsidian Control</span>
+        </div>
+
+        <div class="scene-hero-actions">
+            {% if current_page == 'dashboard' %}
+            <a href="#workspaceIngress" class="scene-hero-action scene-hero-action--primary">进入首页入口</a>
+            <a href="{{ workspace_routes.templates }}" class="scene-hero-action">浏览模板中心</a>
+            {% elif current_page == 'templates' %}
+            <a href="#templatesBrowser" class="scene-hero-action scene-hero-action--primary">浏览模板目录</a>
+            <a href="{{ workspace_routes.quotes }}" class="scene-hero-action">前往报价决策台</a>
+            {% elif current_page == 'quotes' %}
+            <a href="{{ workspace_routes.catalog }}" class="scene-hero-action scene-hero-action--primary">查看商品资产</a>
+            <a href="{{ workspace_routes.templates }}" class="scene-hero-action">切换模板中心</a>
+            {% elif current_page == 'catalog' %}
+            <a href="{{ workspace_routes.quotes }}" class="scene-hero-action scene-hero-action--primary">回到报价决策台</a>
+            <a href="{{ workspace_routes.dashboard }}" class="scene-hero-action">返回总览</a>
+            {% elif current_page == 'history' %}
+            <a href="{{ workspace_routes.quotes }}" class="scene-hero-action scene-hero-action--primary">继续处理报价</a>
+            <a href="{{ workspace_routes.dashboard }}" class="scene-hero-action">回到总览</a>
+            {% else %}
+            <a href="{{ workspace_routes.quotes }}" class="scene-hero-action scene-hero-action--primary">在报价页应用词库</a>
+            <a href="{{ workspace_routes.history }}" class="scene-hero-action">回看历史记录</a>
+            {% endif %}
+        </div>
+
+        <div class="scene-hero-metrics">
+            {% if current_page == 'dashboard' %}
+            <div class="scene-hero-metric">
+                <span>Start</span>
+                <strong>首页只做准备入口</strong>
+                <small>模板、导入与下一步动作都被推到最前面，不再埋在长页面里。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Flow</span>
+                <strong>两步导入</strong>
+                <small>先建商品底座，再把报价单与 OCR 带入统一确认流。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Theme</span>
+                <strong>真分离双主题</strong>
+                <small>亮色偏暖纸感，暗色偏冷玻璃感，不再只是简单反色。</small>
+            </div>
+            {% elif current_page == 'templates' %}
+            <div class="scene-hero-metric">
+                <span>Catalog</span>
+                <strong>模板目录独立成页</strong>
+                <small>先看系统能交付什么，再决定执行时用哪种导出配置。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Browse</span>
+                <strong>字段与场景直接预览</strong>
+                <small>字段覆盖、适用场景和价格口径不再藏在深层弹窗里。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Bridge</span>
+                <strong>执行时再校验导出</strong>
+                <small>浏览与执行拆开，页面更轻，判断更清楚。</small>
+            </div>
+            {% elif current_page == 'quotes' %}
+            <div class="scene-hero-metric">
+                <span>Queue</span>
+                <strong>风险优先</strong>
+                <small>低分、异常与低置信度项先处理，减少回找和返工。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Evidence</span>
+                <strong>证据与搜索同屏</strong>
+                <small>候选、历史信号和人工搜索放进同一条连续视线里。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Close</span>
+                <strong>确认后直达导出</strong>
+                <small>导出不再是别处的孤立动作，而是本页自然终点。</small>
+            </div>
+            {% elif current_page == 'catalog' %}
+            <div class="scene-hero-metric">
+                <span>Visual</span>
+                <strong>图片优先浏览</strong>
+                <small>先看商品面貌，再决定是否深入核查价格与来源。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Verify</span>
+                <strong>品牌与供应商并排出现</strong>
+                <small>价格、供应商和分类构成连续证据，而不是零散字段。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Context</span>
+                <strong>服务报价页</strong>
+                <small>商品库是报价决策前的资产底座，而不是一张孤立数据表。</small>
+            </div>
+            {% elif current_page == 'history' %}
+            <div class="scene-hero-metric">
+                <span>Replay</span>
+                <strong>先看趋势，再看单据</strong>
+                <small>历史页只保留金额、客户和质量信号这些真正有价值的信息。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Signal</span>
+                <strong>复盘比翻表更重要</strong>
+                <small>值得回看的批次会被整理成更安静、更适合回放的视图。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Archive</span>
+                <strong>删留判断更轻</strong>
+                <small>细节交给展开层，列表只保留决定性的判断信息。</small>
+            </div>
+            {% else %}
+            <div class="scene-hero-metric">
+                <span>Layer</span>
+                <strong>词库成为知识资产</strong>
+                <small>命名变体、错别字和行业习惯被维护成可复用的语言层。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Patch</span>
+                <strong>先补高频词</strong>
+                <small>优先修补常见缺口，让自动匹配和人工搜索同时受益。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>Memory</span>
+                <strong>长期学习可追踪</strong>
+                <small>词库不再是一次性修补，而是可持续积累的业务语言层。</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</section>

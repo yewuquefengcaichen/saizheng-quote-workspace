@@ -1,0 +1,64 @@
+<div id="synonymsTab" class="tab-content"{% if initial_tab != 'synonyms' %} style="display: none;"{% endif %}>
+    <section class="scene-panel scene-panel--vocabulary scene-panel--compact">
+        <div class="scene-panel-copy">
+            <div class="scene-panel-eyebrow"><i class="bi bi-book"></i>Vocabulary Layer</div>
+            <div class="scene-panel-title">先补高频词，再扩展行业叫法。</div>
+            <div class="scene-panel-description">词库页只保留主词、覆盖范围和编辑动作，让高频修补和长期沉淀落在同一层。</div>
+            <div class="scene-panel-pills">
+                <span class="scene-panel-pill">高频修补</span>
+                <span class="scene-panel-pill">行业变体</span>
+                <span class="scene-panel-pill">长期沉淀</span>
+            </div>
+        </div>
+        <div class="scene-panel-side">
+            <div class="scene-panel-side-title">本页节奏</div>
+            <div class="scene-panel-side-list">
+                <div class="scene-panel-side-item"><strong>1.</strong><span>先修补高频错配词，让自动匹配马上受益。</span></div>
+                <div class="scene-panel-side-item"><strong>2.</strong><span>把行业简称、内部叫法和常见别名沉淀到同一处。</span></div>
+                <div class="scene-panel-side-item"><strong>3.</strong><span>优先维护高覆盖词，再补长尾词。</span></div>
+            </div>
+        </div>
+    </section>
+
+    <section class="history-metric-grid vocabulary-metric-grid">
+        <article class="history-metric-card">
+            <span class="history-metric-label">主词数</span>
+            <strong id="synonymMetricHeadword" class="history-metric-value">0</strong>
+            <small class="history-metric-copy">当前维护中的主词</small>
+        </article>
+        <article class="history-metric-card">
+            <span class="history-metric-label">变体数</span>
+            <strong id="synonymMetricVariant" class="history-metric-value">0</strong>
+            <small class="history-metric-copy">全部沉淀的叫法</small>
+        </article>
+        <article class="history-metric-card">
+            <span class="history-metric-label">平均覆盖</span>
+            <strong id="synonymMetricAverage" class="history-metric-value">0</strong>
+            <small class="history-metric-copy">每个主词的平均变体数</small>
+        </article>
+        <article class="history-metric-card">
+            <span class="history-metric-label">当前建议</span>
+            <strong id="synonymMetricHint" class="history-metric-value">等待建库</strong>
+            <small class="history-metric-copy">优先补齐高频错配词</small>
+        </article>
+    </section>
+
+    <section class="vocabulary-ledger-shell">
+        <div class="history-ledger-header">
+            <div>
+                <div class="history-ledger-kicker">Vocabulary Archive</div>
+                <div class="history-ledger-heading">词库知识卡组</div>
+                <div class="history-ledger-subtitle">每张卡只保留主词、覆盖范围和编辑动作，完整变体继续留在同一卡里。</div>
+            </div>
+            <div class="history-ledger-header-note history-ledger-header-note--actions">
+                <button class="btn btn-primary btn-sm" id="addSynonymBtn">
+                    <i class="bi bi-plus-lg me-1"></i>新增同义词
+                </button>
+                <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
+                    <i class="bi bi-layout-text-window me-1"></i>在报价页验证
+                </a>
+            </div>
+        </div>
+        <div id="synonymsList" class="vocabulary-card-grid"></div>
+    </section>
+</div>

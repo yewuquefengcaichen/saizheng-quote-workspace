@@ -1,0 +1,31 @@
+# 一键报价系统依赖
+
+# Web框架
+flask>=2.3.0
+
+# 数据处理
+pandas>=2.0.0
+numpy>=1.24.0
+openpyxl>=3.1.0
+xlrd>=2.0.0
+
+# 中文分词
+jieba>=0.42.0
+
+# AI服务依赖（可选）
+anthropic>=0.18.0      # Claude API
+openai>=1.0.0          # OpenAI API
+sentence-transformers  # 本地模型（降级方案）
+
+# 异步支持
+aiohttp>=3.9.0
+
+# 配置文件
+pyyaml>=6.0
+
+# PDF导出（可选）
+reportlab>=4.0.0       # PDF生成
+weasyprint>=60.0       # HTML转PDF（更美观）
+
+# OCR（可选）
+# easyocr>=1.7.0

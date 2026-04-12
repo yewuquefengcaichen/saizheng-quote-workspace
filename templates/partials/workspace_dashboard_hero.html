@@ -1,0 +1,45 @@
+<section class="hero-section hero-section--dashboard-compact">
+    <div class="hero-grid hero-grid--dashboard">
+        <div class="hero-copy-shell hero-copy-shell--dashboard">
+            <div class="hero-badge"><i class="bi bi-command"></i>Overview Deck</div>
+            <div class="hero-title">首页只负责把你送进正确的成交场景。</div>
+            <div class="hero-subtitle">不再重复解释系统，只保留三件高频动作：先看可交付模板、再建商品底座、再把报价来源送进统一确认链路。</div>
+
+            <div class="hero-actions">
+                <button class="btn btn-primary btn-lg" onclick="document.getElementById('workspaceIngress')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">
+                    <i class="bi bi-arrow-down-right-circle me-2"></i>进入首页入口
+                </button>
+                <a href="{{ workspace_routes.templates }}" class="btn btn-outline-primary btn-lg">
+                    <i class="bi bi-files me-2"></i>浏览模板中心
+                </a>
+                <button class="btn btn-outline-secondary btn-lg" onclick="document.getElementById('startMatchBtn')?.click()">
+                    <i class="bi bi-lightning-charge me-2"></i>继续报价确认
+                </button>
+            </div>
+
+            <div class="dashboard-proofline">
+                <span class="dashboard-proof-pill"><i class="bi bi-layout-text-window-reverse"></i>单焦点首页</span>
+                <span class="dashboard-proof-pill"><i class="bi bi-arrow-left-right"></i>两步导入</span>
+                <span class="dashboard-proof-pill"><i class="bi bi-circle-half"></i>明暗主题完全分离</span>
+            </div>
+        </div>
+
+        <aside class="dashboard-hero-stack">
+            <article class="dashboard-hero-card">
+                <span>Step 01</span>
+                <strong>先看可交付模板</strong>
+                <small>把单据、字段和导出能力放到独立场景，不让首页再堆长说明。</small>
+            </article>
+            <article class="dashboard-hero-card">
+                <span>Step 02</span>
+                <strong>先沉淀商品底座</strong>
+                <small>商品、图片、品牌、分类和供应商先成为稳定资产，再进入匹配判断。</small>
+            </article>
+            <article class="dashboard-hero-card">
+                <span>Step 03</span>
+                <strong>最后进入统一确认</strong>
+                <small>Excel 与 OCR 最终汇进同一条报价决策链路，确认后直接衔接导出。</small>
+            </article>
+        </aside>
+    </div>
+</section>

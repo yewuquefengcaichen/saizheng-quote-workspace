@@ -1,0 +1,41 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+
+# Virtual env / local tool cache
+.venv/
+venv/
+.playwright-cli/
+.claude/
+.codex/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+
+# Runtime logs / temp
+*.log
+*.tmp
+.tmp_*.log
+server_stdout.txt
+server_stderr.txt
+
+# Generated artifacts
+output/
+test-results/
+
+# Local databases / cache
+data/backups/
+data/ai_cache.db
+data/quote_history.db
+data/products.last_uploaded.json
+
+# Packaged / distribution artifacts
+安装包/
+
+# Misc temp files
+temp_ocr_test.png
+PROJECT_MEMORY.md
