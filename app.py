@@ -1118,7 +1118,7 @@ WORKSPACE_PAGE_META = {
         'tab': 'upload',
         'eyebrow': '入口',
         'title': '两步导入',
-        'description': '先导入商品库，再导入报价来源。完成后进入报价工作台确认与导出。',
+        'description': '先导入商品库，再导入报价来源。完成后进入报价确认台确认与导出。',
         'pills': ['商品底座', '报价来源', '确认导出'],
         'note': '总览'
     },
@@ -1133,10 +1133,10 @@ WORKSPACE_PAGE_META = {
     'quotes': {
         'tab': 'match',
         'eyebrow': '报价',
-        'title': '报价工作台',
+        'title': '报价确认台',
         'description': '直接上传、筛选、确认和导出。',
         'pills': ['上传报价单', '人工确认', '导出'],
-        'note': '报价工作台'
+        'note': '报价确认台'
     },
     'catalog': {
         'tab': 'catalog',
@@ -1164,11 +1164,11 @@ WORKSPACE_PAGE_META = {
     },
     'guide': {
         'tab': 'guide',
-        'eyebrow': '帮助',
-        'title': '使用说明',
+        'eyebrow': '说明',
+        'title': '说明',
         'description': '员工上手、模板选择和常见问题都集中在这里。',
         'pills': ['两步导入', '模板说明', '常见问题'],
-        'note': '使用说明'
+        'note': '说明'
     }
 }
 
@@ -1231,7 +1231,7 @@ def templates_page():
 
 @app.route('/quotes')
 def quotes_page():
-    """报价工作台"""
+    """报价确认台"""
     return render_template('index.html', **_build_workspace_context('quotes'))
 
 
@@ -1243,7 +1243,7 @@ def catalog_page():
 
 @app.route('/guide')
 def guide_page():
-    """使用说明"""
+    """说明"""
     return render_template('index.html', **_build_workspace_context('guide'))
 
 
@@ -2561,6 +2561,12 @@ def _stream_remote_image(response):
         response.close()
 
 
+def _placeholder_image_response():
+    response = Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml')
+    response.headers['Cache-Control'] = 'public, max-age=300'
+    return response
+
+
 @app.route('/api/product/image/<product_code>', methods=['GET'])
 def get_product_image(product_code):
     """获取商品图片URL"""
@@ -2582,16 +2588,16 @@ def proxy_product_image(product_code):
     global products_data
 
     if not products_data:
-        return Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml', status=404)
+        return _placeholder_image_response()
 
     product = ProductImageHandler.find_product_by_code(products_data, product_code)
     if not product:
-        return Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml', status=404)
+        return _placeholder_image_response()
 
     index = request.args.get('index', default=0, type=int)
     response, target_url = ProductImageHandler.resolve_image_response(product, index=index)
     if response is None:
-        return Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml', status=404)
+        return _placeholder_image_response()
 
     content_type = response.headers.get('content-type', 'image/jpeg')
     proxied = Response(stream_with_context(_stream_remote_image(response)), mimetype=content_type)
@@ -2610,16 +2616,16 @@ def proxy_product_image_by_id(product_id):
     global products_data
 
     if not products_data:
-        return Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml', status=404)
+        return _placeholder_image_response()
 
     product = ProductImageHandler.find_product_by_id(products_data, product_id)
     if not product:
-        return Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml', status=404)
+        return _placeholder_image_response()
 
     index = request.args.get('index', default=0, type=int)
     response, target_url = ProductImageHandler.resolve_image_response(product, index=index)
     if response is None:
-        return Response(ProductImageHandler.get_placeholder_svg(), mimetype='image/svg+xml', status=404)
+        return _placeholder_image_response()
 
     content_type = response.headers.get('content-type', 'image/jpeg')
     proxied = Response(stream_with_context(_stream_remote_image(response)), mimetype=content_type)

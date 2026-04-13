@@ -1,1 +1,421 @@
-<!-- workspace scene shell minimized for dense enterprise layout -->
+<section class="workspace-scene-shell workspace-scene-shell--pro" aria-label="工作区场景导航">
+    <aside class="workspace-scene-nav" aria-label="工作区主导航">
+        <div class="workspace-scene-nav-head">
+            <div class="scene-nav-caption">Saizheng Workspace</div>
+            <div class="scene-nav-title">把商品、报价、模板和知识库放回同一条清晰的工作流。</div>
+            <p class="scene-nav-copy">左侧负责切页，右侧只告诉你当前页面最该做什么，减少旧后台那种同时塞满信息的压迫感。</p>
+        </div>
+
+        <div class="scene-nav-links">
+            <a href="{{ workspace_routes.dashboard }}" class="scene-nav-link{% if current_page == 'dashboard' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-house-door"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>总览</strong>
+                    <small>先导入，再进入确认台。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.quotes }}" class="scene-nav-link{% if current_page == 'quotes' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-layout-text-window"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>报价台</strong>
+                    <small>上传、确认、导出在同一页完成。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.catalog }}" class="scene-nav-link{% if current_page == 'catalog' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-grid-3x3-gap"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>商品库</strong>
+                    <small>像资产库一样浏览、筛选、核对。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.templates }}" class="scene-nav-link{% if current_page == 'templates' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-files"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>模板</strong>
+                    <small>先锁定交付样式，再决定导出。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.history }}" class="scene-nav-link{% if current_page == 'history' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-clock-history"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>历史</strong>
+                    <small>只保留决定去留的关键线索。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.synonyms }}" class="scene-nav-link{% if current_page == 'synonyms' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-book"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>词库</strong>
+                    <small>先补高频词，再让匹配更稳。</small>
+                </span>
+            </a>
+            <a href="{{ workspace_routes.guide }}" class="scene-nav-link{% if current_page == 'guide' %} is-active{% endif %}">
+                <span class="scene-nav-link-icon"><i class="bi bi-journal-text"></i></span>
+                <span class="scene-nav-link-copy">
+                    <strong>说明</strong>
+                    <small>给同事看的上手页，不讲废话。</small>
+                </span>
+            </a>
+        </div>
+
+        <div class="scene-nav-stat">
+            {% if current_page == 'catalog' %}
+            <span class="scene-nav-stat-label">已载入商品</span>
+            <strong>{{ products_count }}</strong>
+            <small>商品底座越完整，报价匹配和模板导出就越顺。</small>
+            {% elif current_page == 'templates' %}
+            <span class="scene-nav-stat-label">可用模板</span>
+            <strong>{{ export_templates|length }}</strong>
+            <small>把高频模板放到前面，交付动作会明显更快。</small>
+            {% elif current_page == 'synonyms' %}
+            <span class="scene-nav-stat-label">主词数量</span>
+            <strong>{{ synonyms|length }}</strong>
+            <small>优先维护高频叫法，比铺得太宽更有效。</small>
+            {% else %}
+            <span class="scene-nav-stat-label">当前底座</span>
+            <strong>{% if products_loaded %}{{ products_count }}{% else %}待导入{% endif %}</strong>
+            <small>系统的美感不只来自颜色，也来自流程秩序和信息密度控制。</small>
+            {% endif %}
+        </div>
+    </aside>
+
+    <section class="workspace-scene-hero workspace-scene-hero--compact" aria-label="当前页面概览">
+        <div class="scene-hero-grid">
+            <div class="scene-hero-main">
+                <div class="scene-hero-eyebrow">{{ page_meta.eyebrow }}</div>
+
+                {% if current_page == 'dashboard' %}
+                <h1 class="scene-hero-title">把入口收干净，让导入和确认顺着往下走。</h1>
+                <p class="scene-hero-description">总览页不再像旧后台一样堆满按钮和长段说明，只保留两步导入、进入报价台，以及模板与说明两个辅助入口。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <button type="button" class="scene-hero-action scene-hero-action--primary" onclick="WorkspaceEntryActions.openProductsUpload()">
+                        <i class="bi bi-box-arrow-in-up-right"></i><span>上传商品库</span>
+                    </button>
+                    <button type="button" class="scene-hero-action" onclick="WorkspaceEntryActions.openQuoteUpload()">
+                        <i class="bi bi-file-earmark-arrow-up"></i><span>上传报价</span>
+                    </button>
+                    <a href="{{ workspace_routes.templates }}" class="scene-hero-action">
+                        <i class="bi bi-files"></i><span>模板中心</span>
+                    </a>
+                </div>
+                {% elif current_page == 'quotes' %}
+                <h1 class="scene-hero-title">把待处理报价拉进一个更安静、更明确的确认台。</h1>
+                <p class="scene-hero-description">报价页应该像工作台，不该像表单仓库。上传、筛选、候选判断和导出，都在同一条视线里连续完成。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <button type="button" class="scene-hero-action scene-hero-action--primary" onclick="WorkspaceEntryActions.openQuoteUpload()">
+                        <i class="bi bi-file-earmark-arrow-up"></i><span>上传报价单</span>
+                    </button>
+                    <button type="button" class="scene-hero-action" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
+                        <i class="bi bi-camera"></i><span>OCR 图片</span>
+                    </button>
+                    <a href="{{ workspace_routes.catalog }}" class="scene-hero-action">
+                        <i class="bi bi-grid-3x3-gap"></i><span>商品库</span>
+                    </a>
+                </div>
+                {% elif current_page == 'catalog' %}
+                <h1 class="scene-hero-title">把商品资产做成一眼能看懂的图库，而不是难读的清单。</h1>
+                <p class="scene-hero-description">商品库先服务浏览和核对，再服务维护。图片、分类、品牌和供应商应该变成自然的筛选维度，而不是藏在表格深处。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <button type="button" class="scene-hero-action scene-hero-action--primary" onclick="WorkspaceEntryActions.openProductsUpload()">
+                        <i class="bi bi-box-arrow-in-up-right"></i><span>更新商品库</span>
+                    </button>
+                    <a href="{{ workspace_routes.quotes }}" class="scene-hero-action">
+                        <i class="bi bi-layout-text-window"></i><span>去报价台</span>
+                    </a>
+                    <a href="{{ workspace_routes.guide }}" class="scene-hero-action">
+                        <i class="bi bi-journal-text"></i><span>说明</span>
+                    </a>
+                </div>
+                {% elif current_page == 'templates' %}
+                <h1 class="scene-hero-title">先锁定模板，再决定这份报价应该怎么交付出去。</h1>
+                <p class="scene-hero-description">模板页不是附件列表，而是交付策略页。把高频模板、下拉候选模板和商城链路分清楚，用户才不会在最后一步乱掉。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <button type="button" class="scene-hero-action scene-hero-action--primary" onclick="document.getElementById('openExportCenterBtn')?.click()">
+                        <i class="bi bi-box-arrow-up-right"></i><span>打开导出配置</span>
+                    </button>
+                    <a href="{{ workspace_routes.quotes }}" class="scene-hero-action">
+                        <i class="bi bi-layout-text-window"></i><span>回报价台</span>
+                    </a>
+                    <a href="{{ workspace_routes.guide }}" class="scene-hero-action">
+                        <i class="bi bi-journal-text"></i><span>说明</span>
+                    </a>
+                </div>
+                {% elif current_page == 'history' %}
+                <h1 class="scene-hero-title">历史页只做回放判断，不再重复一遍管理后台。</h1>
+                <p class="scene-hero-description">金额、客户、匹配质量和继续处理动作，才是历史页该先展示的东西。其余信息应该退到详情层，不抢第一屏。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <a href="{{ workspace_routes.quotes }}" class="scene-hero-action scene-hero-action--primary">
+                        <i class="bi bi-layout-text-window"></i><span>继续处理报价</span>
+                    </a>
+                    <a href="{{ workspace_routes.catalog }}" class="scene-hero-action">
+                        <i class="bi bi-grid-3x3-gap"></i><span>查看商品库</span>
+                    </a>
+                    <a href="{{ workspace_routes.guide }}" class="scene-hero-action">
+                        <i class="bi bi-journal-text"></i><span>说明</span>
+                    </a>
+                </div>
+                {% elif current_page == 'synonyms' %}
+                <h1 class="scene-hero-title">先补高频词，让自动匹配先变稳，再慢慢变聪明。</h1>
+                <p class="scene-hero-description">词库页不需要长篇概念解释，只需要让人迅速知道先修什么、补什么、哪些叫法最值得沉淀下来。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <button type="button" class="scene-hero-action scene-hero-action--primary" onclick="document.getElementById('addSynonymBtn')?.click()">
+                        <i class="bi bi-plus-lg"></i><span>新增同义词</span>
+                    </button>
+                    <a href="{{ workspace_routes.quotes }}" class="scene-hero-action">
+                        <i class="bi bi-layout-text-window"></i><span>去报价台验证</span>
+                    </a>
+                    <a href="{{ workspace_routes.catalog }}" class="scene-hero-action">
+                        <i class="bi bi-grid-3x3-gap"></i><span>查看商品库</span>
+                    </a>
+                </div>
+                {% else %}
+                <h1 class="scene-hero-title">把说明页做得像同事真的会看的上手说明书。</h1>
+                <p class="scene-hero-description">说明页只回答怎么导入、怎么确认、怎么导出，以及什么时候该选什么模板。它应该短、明确、可执行。</p>
+                <div class="scene-hero-pills">
+                    {% for pill in page_meta.pills %}
+                    <span class="scene-hero-pill">{{ pill }}</span>
+                    {% endfor %}
+                </div>
+                <div class="scene-hero-actions">
+                    <a href="{{ workspace_routes.dashboard }}" class="scene-hero-action scene-hero-action--primary">
+                        <i class="bi bi-house-door"></i><span>回总览</span>
+                    </a>
+                    <a href="{{ workspace_routes.quotes }}" class="scene-hero-action">
+                        <i class="bi bi-layout-text-window"></i><span>去报价台</span>
+                    </a>
+                    <a href="{{ workspace_routes.templates }}" class="scene-hero-action">
+                        <i class="bi bi-files"></i><span>模板中心</span>
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+
+            <div class="scene-hero-side">
+                {% if current_page == 'dashboard' %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>先商品，后报价，再导出。</strong>
+                    <span>主页不展示复杂细节，只保留真正高频的入口，降低第一次进入时的压迫感。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">界面方向</span>
+                    <strong>Apple 的秩序感 + Aura 的氛围层。</strong>
+                    <span>让层级更干净，留白更多，文案更短，白天和黑夜两个主题明显拉开。</span>
+                </div>
+                {% elif current_page == 'quotes' %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>一屏只做一件事。</strong>
+                    <span>左侧看队列，中部看当前项，右侧看候选与核对，减少来回切页和重复说明。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">导出前</span>
+                    <strong>先把未确认项清掉。</strong>
+                    <span>报价页视觉上要更像“确认台”，而不是传统的功能按钮堆栈。</span>
+                </div>
+                {% elif current_page == 'catalog' %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>优先补图、补品牌、补供应商。</strong>
+                    <span>这三类字段会直接提升自动匹配的可信度，也会让商品详情页看起来更像资产页。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">浏览优先级</span>
+                    <strong>先筛选，再看图卡，最后开详情。</strong>
+                    <span>这样用户不会一上来被过长表格拖垮节奏。</span>
+                </div>
+                {% elif current_page == 'templates' %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>把最常用模板直接抬到第一屏。</strong>
+                    <span>用户在这里做的是交付选择，不是阅读配置文档，所以高频模板必须更靠前。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">呈现方式</span>
+                    <strong>先展示结果，再展开规则。</strong>
+                    <span>模板卡先告诉用户适合什么场景，细节能力放到后面看。</span>
+                </div>
+                {% elif current_page == 'history' %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>历史页应该更安静。</strong>
+                    <span>保留客户、金额、匹配率和动作，弱化装饰和冗长说明，让回看判断更快。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">判断逻辑</span>
+                    <strong>先看价值，再看细节。</strong>
+                    <span>列表先帮你筛，详情再补足上下文，这才符合高频工作习惯。</span>
+                </div>
+                {% elif current_page == 'synonyms' %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>高频错配词优先。</strong>
+                    <span>不要一开始就堆一大批长尾词，先让自动匹配对最常见叫法稳定下来。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">维护逻辑</span>
+                    <strong>每次补词都应该能立刻受益。</strong>
+                    <span>词库页要让人明确知道，新增一个词之后会在哪个环节改善效果。</span>
+                </div>
+                {% else %}
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">当前建议</span>
+                    <strong>把说明写成可执行动作。</strong>
+                    <span>每一步都告诉用户先做什么，再做什么，避免长段大白话和设计术语。</span>
+                </div>
+                <div class="scene-hero-note">
+                    <span class="scene-hero-note-label">目标</span>
+                    <strong>给同事看，不给设计师看。</strong>
+                    <span>说明页只服务上手和交接，所以应该短、直、容易扫描。</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="scene-hero-metrics">
+            {% if current_page == 'dashboard' %}
+            <div class="scene-hero-metric">
+                <span>商品底座</span>
+                <strong>{% if products_loaded %}{{ products_count }}{% else %}待导入{% endif %}</strong>
+                <small>先让商品字段完整，再提高后续匹配效率。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>可用模板</span>
+                <strong>{{ export_templates|length }}</strong>
+                <small>把高频交付样式前置，减少最后一步的犹豫。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>推荐节奏</span>
+                <strong>2 步</strong>
+                <small>先导入底座，再导入报价来源，最后进入确认台。</small>
+            </div>
+            {% elif current_page == 'quotes' %}
+            <div class="scene-hero-metric">
+                <span>入口</span>
+                <strong>上传即进入</strong>
+                <small>不需要先回首页找入口，报价页本身就是工作台。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>确认方式</span>
+                <strong>人工收口</strong>
+                <small>把机器候选和人工判断放在同一条决策线上。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>导出准备</span>
+                <strong>{{ export_templates|length }} 套</strong>
+                <small>确认完成后再去模板中心，避免未确认项直接流出。</small>
+            </div>
+            {% elif current_page == 'catalog' %}
+            <div class="scene-hero-metric">
+                <span>商品数量</span>
+                <strong>{{ products_count }}</strong>
+                <small>图库化呈现能让大数量商品仍然保持可读性。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>筛选维度</span>
+                <strong>4 类</strong>
+                <small>关键词、分类、品牌、供应商，图片状态单独作为快速开关。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>浏览方式</span>
+                <strong>卡片优先</strong>
+                <small>先看图像和关键信息，再深入详情核对完整字段。</small>
+            </div>
+            {% elif current_page == 'templates' %}
+            <div class="scene-hero-metric">
+                <span>模板总数</span>
+                <strong>{{ export_templates|length }}</strong>
+                <small>按高频程度排序，让最常用模板先被看到。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>高频交付</span>
+                <strong>先上屏</strong>
+                <small>下拉候选模板和标准报价单应该永远放在前列。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>决策顺序</span>
+                <strong>先选模板</strong>
+                <small>先知道给谁、怎么交付，再决定字段和格式细节。</small>
+            </div>
+            {% elif current_page == 'history' %}
+            <div class="scene-hero-metric">
+                <span>优先信号</span>
+                <strong>金额</strong>
+                <small>列表页先给价值判断，避免所有信息同时抛给用户。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>回看重点</span>
+                <strong>客户</strong>
+                <small>按客户和时间回看，比先钻细节更符合使用习惯。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>下一动作</span>
+                <strong>复用 / 继续</strong>
+                <small>历史页最终是为了帮助继续处理，而不是只做存档。</small>
+            </div>
+            {% elif current_page == 'synonyms' %}
+            <div class="scene-hero-metric">
+                <span>主词数量</span>
+                <strong>{{ synonyms|length }}</strong>
+                <small>先把高频词做厚，再考虑长尾扩充。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>见效位置</span>
+                <strong>自动匹配</strong>
+                <small>词库每补一层，报价确认台就会更省人工。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>维护节奏</span>
+                <strong>持续沉淀</strong>
+                <small>把行业简称、内部叫法和客户别名留在同一处。</small>
+            </div>
+            {% else %}
+            <div class="scene-hero-metric">
+                <span>导入步骤</span>
+                <strong>2 步</strong>
+                <small>先商品底座，再报价来源，流程短而清楚。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>确认位置</span>
+                <strong>报价台</strong>
+                <small>所有候选判断和异常处理统一收口到报价页。</small>
+            </div>
+            <div class="scene-hero-metric">
+                <span>导出位置</span>
+                <strong>模板中心</strong>
+                <small>说明页只负责让同事迅速知道在哪一步做什么。</small>
+            </div>
+            {% endif %}
+        </div>
+    </section>
+</section>

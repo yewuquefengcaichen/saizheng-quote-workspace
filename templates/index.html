@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_meta.note }} - 赛正报价工作台@feng</title>
+    <title>{{ page_meta.note }} - 赛正报价工作台</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <!-- 使用国内CDN，避免代理影响 -->
     <link href="https://unpkg.com/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -142,6 +142,7 @@
         }
 
         .upload-zone {
+            display: block;
             border: 1.5px dashed rgba(59, 130, 246, 0.28);
             border-radius: 22px;
             padding: 42px 28px;
@@ -149,6 +150,8 @@
             cursor: pointer;
             transition: all 0.25s ease;
             background: linear-gradient(180deg, rgba(248, 250, 252, 0.96) 0%, rgba(239, 246, 255, 0.72) 100%);
+            color: inherit;
+            text-decoration: none;
         }
 
         .upload-zone:hover {
@@ -161,6 +164,40 @@
             border-color: rgba(37, 99, 235, 0.7);
             background: linear-gradient(180deg, rgba(219, 234, 254, 0.92) 0%, rgba(191, 219, 254, 0.82) 100%);
             transform: scale(1.01);
+        }
+
+        .upload-zone--native:focus-visible {
+            outline: 3px solid rgba(37, 99, 235, 0.26);
+            outline-offset: 4px;
+        }
+
+        .upload-zone--native input[type="file"] {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            margin: -1px;
+            padding: 0;
+            border: 0;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .upload-zone-cta {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            margin-top: 16px;
+            padding: 10px 18px;
+            border-radius: 999px;
+            background: rgba(37, 99, 235, 0.96);
+            color: #fff;
+            font-size: 0.92rem;
+            font-weight: 700;
+            box-shadow: 0 14px 28px -20px rgba(37, 99, 235, 0.65);
         }
 
         .upload-icon {
@@ -3519,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260412k" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260413a" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -4966,21 +5003,72 @@
 
 
         // =============== 上传功能 ===============
+        function handleProductsUploadSuccess(result) {
+            document.getElementById('productsStatus').innerHTML = `
+                <span class="status-badge status-matched">
+                    <i class="bi bi-check-circle me-1"></i>已加载 ${result.count} 个商品
+                </span>
+            `;
+            checkCanStartMatch();
+
+            const catalogTabLink = document.querySelector('#mainTabs .nav-link[data-tab="catalog"]');
+            if (catalogLoadedOnce || catalogTabLink?.classList.contains('active') || document.body?.dataset?.route === 'catalog') {
+                loadCatalogProducts();
+            }
+        }
+
+        window.handleProductsUploadSuccess = handleProductsUploadSuccess;
+
+        function activateUploadInput(inputId, actionName) {
+            const action = actionName && window.WorkspaceEntryActions && typeof window.WorkspaceEntryActions[actionName] === 'function'
+                ? window.WorkspaceEntryActions[actionName].bind(window.WorkspaceEntryActions)
+                : null;
+
+            if (action) {
+                action();
+                return;
+            }
+
+            const input = document.getElementById(inputId);
+            if (!input) return;
+
+            input.value = '';
+            input.click();
+        }
+
+        function bindUploadZoneKeyboard(zone, inputId, actionName) {
+            if (!zone) return;
+
+            zone.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                activateUploadInput(inputId, actionName);
+            });
+        }
+
+        function submitDroppedFiles(files, input, actionName, fallbackHandler) {
+            if (!files || !files.length) return;
+
+            const action = actionName && window.WorkspaceEntryActions && typeof window.WorkspaceEntryActions[actionName] === 'function'
+                ? window.WorkspaceEntryActions[actionName].bind(window.WorkspaceEntryActions)
+                : null;
+
+            if (action && action(files) !== false) {
+                return;
+            }
+
+            if (input) {
+                input.files = files;
+            }
+
+            if (typeof fallbackHandler === 'function') {
+                fallbackHandler(input);
+            }
+        }
+
         function initUpload() {
             // 商品库上传
-            setupUploadZone('productsUpload', 'productsFile', '/api/upload_products', function(result) {
-                document.getElementById('productsStatus').innerHTML = `
-                    <span class="status-badge status-matched">
-                        <i class="bi bi-check-circle me-1"></i>已加载 ${result.count} 个商品
-                    </span>
-                `;
-                checkCanStartMatch();
-
-                const catalogTabLink = document.querySelector('#mainTabs .nav-link[data-tab="catalog"]');
-                if (catalogLoadedOnce || catalogTabLink?.classList.contains('active')) {
-                    loadCatalogProducts();
-                }
-            });
+            setupUploadZone('productsUpload', 'productsFile', '/api/upload_products', handleProductsUploadSuccess);
 
             // 报价单上传 - 使用智能解析
             setupSmartUploadZone('quoteUpload', 'quoteFile');
@@ -5084,7 +5172,13 @@
             const zone = document.getElementById(zoneId);
             const input = document.getElementById(inputId);
 
-            zone.addEventListener('click', () => input.click());
+            if (!zone || !input) return;
+
+            if (!(zone.tagName === 'LABEL' && zone.getAttribute('for') === inputId)) {
+                zone.addEventListener('click', () => activateUploadInput(inputId, 'openQuoteUpload'));
+            }
+
+            bindUploadZoneKeyboard(zone, inputId, 'openQuoteUpload');
 
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -5099,8 +5193,7 @@
                 e.preventDefault();
                 zone.classList.remove('dragover');
                 if (e.dataTransfer.files.length) {
-                    input.files = e.dataTransfer.files;
-                    smartUploadFile(input);
+                    submitDroppedFiles(e.dataTransfer.files, input, 'submitQuoteFiles', smartUploadFile);
                 }
             });
 
@@ -5477,7 +5570,13 @@
             const zone = document.getElementById(zoneId);
             const input = document.getElementById(inputId);
 
-            zone.addEventListener('click', () => input.click());
+            if (!zone || !input) return;
+
+            if (!(zone.tagName === 'LABEL' && zone.getAttribute('for') === inputId)) {
+                zone.addEventListener('click', () => activateUploadInput(inputId, 'openProductsUpload'));
+            }
+
+            bindUploadZoneKeyboard(zone, inputId, 'openProductsUpload');
 
             zone.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -5492,8 +5591,9 @@
                 e.preventDefault();
                 zone.classList.remove('dragover');
                 if (e.dataTransfer.files.length) {
-                    input.files = e.dataTransfer.files;
-                    uploadFile(input, url, callback);
+                    submitDroppedFiles(e.dataTransfer.files, input, 'submitProductsFiles', (targetInput) => {
+                        uploadFile(targetInput, url, callback);
+                    });
                 }
             });
 
@@ -6170,8 +6270,8 @@
             if (!matchResults || matchResults.length === 0) {
                 container.innerHTML = renderMatchWorkbenchEmptyState(
                     'bi-layout-text-window',
-                    '报价工作台正在等待第一份结果流入',
-                    '先从总览页导入商品库和报价单，系统会把确认、人工搜索、学习信号和导出准备收进同一条连续工作流。',
+                    '报价确认台正在等待第一份结果流入',
+                    '先从总览页导入商品库，再上传报价单或 OCR 图片。系统会把筛选、人工确认、搜索核对和导出准备收进同一条连续工作流。',
                     ['先导入商品库', '再上传报价单或 OCR 图片', '开始匹配后回到这里确认']
                 );
                 updateStats();
@@ -8974,19 +9074,19 @@
     <!-- AI助手交互脚本 -->
     <script src="/static/js/ai_assistant.js"></script>
     <!-- 增强功能：深色模式、动画、快捷键、仪表盘 -->
-    <script src="/static/js/enhanced_features.js?v=20260412f"></script>
+    <script src="/static/js/enhanced_features.js?v=20260413a"></script>
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js"></script>
     <!-- 商品图片展示 -->
     <script src="/static/js/product_images.js?v=20260402c"></script>
     <!-- OCR图片识别 -->
-    <script src="/static/js/ocr_manager.js"></script>
+    <script src="/static/js/ocr_manager.js?v=20260413a"></script>
     <!-- 在线分享 -->
     <script src="/static/js/share_manager.js"></script>
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260412d"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260413a"></script>
 </body>
 </html>
 

@@ -2,12 +2,12 @@
     <div class="container-fluid workspace-topbar-inner">
         <div class="workspace-brand-wrap">
             <a href="{{ workspace_routes.dashboard }}" class="workspace-brand-mark" aria-label="返回总览">
-                <i class="bi bi-briefcase-fill"></i>
+                <i class="bi bi-stars"></i>
             </a>
             <div class="workspace-brand-copy">
-                <div class="workspace-brand-overline">企业内部报价系统</div>
-                <div class="workspace-brand-title">赛正报价工作台@feng</div>
-                <div class="workspace-brand-subtitle">{{ page_meta.note }} · 高密度工具界面</div>
+                <div class="workspace-brand-overline">Saizheng Workspace</div>
+                <div class="workspace-brand-title">赛正报价工作台</div>
+                <div class="workspace-brand-subtitle">{{ page_meta.note }} · 商品、报价与模板协同控制台</div>
             </div>
         </div>
 
@@ -17,16 +17,13 @@
                     <i class="bi bi-house-door"></i><span>总览</span>
                 </a>
                 <a href="{{ workspace_routes.quotes }}" class="workspace-topbar-link{% if current_page == 'quotes' %} is-active{% endif %}">
-                    <i class="bi bi-layout-text-window"></i><span>报价</span>
+                    <i class="bi bi-layout-text-window"></i><span>报价台</span>
                 </a>
                 <a href="{{ workspace_routes.catalog }}" class="workspace-topbar-link{% if current_page == 'catalog' %} is-active{% endif %}">
                     <i class="bi bi-grid-3x3-gap"></i><span>商品库</span>
                 </a>
                 <a href="{{ workspace_routes.templates }}" class="workspace-topbar-link{% if current_page == 'templates' %} is-active{% endif %}">
-                    <i class="bi bi-files"></i><span>模板中心</span>
-                </a>
-                <a href="{{ workspace_routes.guide }}" class="workspace-topbar-link{% if current_page == 'guide' %} is-active{% endif %}">
-                    <i class="bi bi-journal-text"></i><span>使用说明</span>
+                    <i class="bi bi-files"></i><span>模板</span>
                 </a>
                 <a href="{{ workspace_routes.history }}" class="workspace-topbar-link{% if current_page == 'history' %} is-active{% endif %}">
                     <i class="bi bi-clock-history"></i><span>历史</span>
@@ -34,6 +31,19 @@
                 <a href="{{ workspace_routes.synonyms }}" class="workspace-topbar-link{% if current_page == 'synonyms' %} is-active{% endif %}">
                     <i class="bi bi-book"></i><span>词库</span>
                 </a>
+                <a href="{{ workspace_routes.guide }}" class="workspace-topbar-link{% if current_page == 'guide' %} is-active{% endif %}">
+                    <i class="bi bi-journal-text"></i><span>说明</span>
+                </a>
+            </div>
+
+            <div class="workspace-topbar-signals" aria-label="当前状态">
+                <span class="workspace-topbar-chip workspace-topbar-chip--brand">
+                    <i class="bi bi-sparkles"></i><span>Apple 秩序 × Aura 氛围</span>
+                </span>
+                <span class="workspace-topbar-chip">
+                    <i class="bi bi-box-seam"></i>
+                    <span>{% if products_loaded %}{{ products_count }} 个商品已就绪{% else %}商品库待导入{% endif %}</span>
+                </span>
             </div>
         </div>
 

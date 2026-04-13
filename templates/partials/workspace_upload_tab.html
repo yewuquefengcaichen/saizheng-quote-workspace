@@ -2,68 +2,69 @@
     <section class="dashboard-focus-shell" id="workspaceIngress">
         <div class="dashboard-focus-header">
             <div>
-                <div class="dashboard-focus-kicker">总览入口</div>
-                <div class="dashboard-focus-title">两步导入</div>
-                <div class="dashboard-focus-subtitle">先导入商品库，再导入报价来源。完成后直接进入报价工作台确认与导出。</div>
+                <div class="dashboard-focus-kicker">导入控制台</div>
+                <div class="dashboard-focus-title">先把底座和来源放进来，再进入报价确认台。</div>
+                <div class="dashboard-focus-subtitle">主页只保留真正高频的两步动作。先导入商品库，再导入报价单或 OCR 图片，处理完成后再进入导出流程。</div>
             </div>
             <div class="dashboard-focus-links">
                 <a href="{{ workspace_routes.templates }}" class="dashboard-link-chip"><i class="bi bi-files"></i>模板中心</a>
-                <a href="{{ workspace_routes.guide }}" class="dashboard-link-chip"><i class="bi bi-journal-text"></i>使用说明</a>
+                <a href="{{ workspace_routes.guide }}" class="dashboard-link-chip"><i class="bi bi-journal-text"></i>说明</a>
             </div>
         </div>
 
         <div class="dashboard-focus-grid">
             <div class="card upload-panel focus-step-card focus-step-card--products">
                 <div class="card-header">
-                    <span><i class="bi bi-box-seam me-2"></i>第 1 步：商品库</span>
+                    <span><i class="bi bi-box-seam me-2"></i>步骤 1 · 商品底座</span>
                     <span class="upload-stage-step">STEP 1</span>
                 </div>
                 <div class="card-body">
                     <div class="focus-step-meta">
                         <div>
-                            <div class="focus-step-title">先建立商品底座</div>
-                            <div class="focus-step-copy">商品名、型号、品牌、供应商、图片和价格越完整，后面的匹配越省事。</div>
+                            <div class="focus-step-title">先把商品资产补完整</div>
+                            <div class="focus-step-copy">商品名称、规格、品牌、供应商、图片和价格越完整，后面的自动匹配就越轻松，界面也能更像真正的商品资产库。</div>
                         </div>
                         <div id="productsStatus" class="mb-0">
                         {% if products_loaded %}
                             <span class="status-badge status-matched">
-                                <i class="bi bi-check-circle me-1"></i>已加载 {{ products_count }} 个商品
+                                <i class="bi bi-check-circle me-1"></i>已载入 {{ products_count }} 个商品
                             </span>
                         {% else %}
                             <span class="status-badge status-pending">
-                                <i class="bi bi-exclamation-circle me-1"></i>尚未加载商品库
+                                <i class="bi bi-exclamation-circle me-1"></i>商品库尚未导入
                             </span>
                         {% endif %}
                         </div>
                     </div>
 
-                    <div class="upload-zone" id="productsUpload">
+                    <label class="upload-zone upload-zone--native" id="productsUpload" for="productsFile" tabindex="0" role="button" aria-controls="productsFile">
                         <div class="upload-icon">
                             <i class="bi bi-cloud-upload"></i>
                         </div>
                         <h4 class="fw-bold mb-2">上传商品库</h4>
-                        <p class="text-muted mb-0">支持 .xls / .xlsx</p>
-                        <input type="file" id="productsFile" accept=".xls,.xlsx" style="display: none;">
-                    </div>
+                        <p class="text-muted mb-0">支持 `.xls` / `.xlsx`，建议包含品牌、分类、供应商和图片列。</p>
+                        <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>点击选择商品库文件</span>
+                        <input type="file" id="productsFile" accept=".xls,.xlsx">
+                    </label>
 
                     <div class="focus-step-foot">
                         <span class="focus-step-pill"><i class="bi bi-tags"></i>品牌 / 分类 / 单位</span>
                         <span class="focus-step-pill"><i class="bi bi-building"></i>供应商与价格</span>
-                        <span class="focus-step-pill"><i class="bi bi-image"></i>商品图片</span>
+                        <span class="focus-step-pill"><i class="bi bi-image"></i>图片与详情</span>
                     </div>
                 </div>
             </div>
 
             <div class="card upload-panel focus-step-card focus-step-card--quotes">
                 <div class="card-header">
-                    <span><i class="bi bi-file-earmark-text me-2"></i>第 2 步：报价来源</span>
+                    <span><i class="bi bi-file-earmark-text me-2"></i>步骤 2 · 报价来源</span>
                     <span class="upload-stage-step">STEP 2</span>
                 </div>
                 <div class="card-body">
                     <div class="focus-step-meta">
                         <div>
-                            <div class="focus-step-title">再导入报价单或 OCR</div>
-                            <div class="focus-step-copy">Excel 报价和图片 OCR 都会进入同一个确认流程，不用来回跳页。</div>
+                            <div class="focus-step-title">再把报价单推进确认流程</div>
+                            <div class="focus-step-copy">无论是 Excel 报价单还是 OCR 图片，都会进入同一套确认台，不需要再回首页重新找入口。</div>
                         </div>
                         <div id="quoteStatus" class="mb-0">
                             <span class="status-badge status-pending">
@@ -72,20 +73,21 @@
                         </div>
                     </div>
 
-                    <div class="upload-zone" id="quoteUpload">
+                    <label class="upload-zone upload-zone--native" id="quoteUpload" for="quoteFile" tabindex="0" role="button" aria-controls="quoteFile">
                         <div class="upload-icon">
                             <i class="bi bi-file-earmark-plus"></i>
                         </div>
                         <h4 class="fw-bold mb-2">上传报价单</h4>
-                        <p class="text-muted mb-0">支持 .xls / .xlsx</p>
-                        <input type="file" id="quoteFile" accept=".xls,.xlsx" style="display: none;">
-                    </div>
+                        <p class="text-muted mb-0">支持 `.xls` / `.xlsx`，选中文件后会直接进入报价确认台。</p>
+                        <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>点击选择报价文件</span>
+                        <input type="file" id="quoteFile" accept=".xls,.xlsx">
+                    </label>
 
                     <div class="focus-step-inline-actions">
-                        <button type="button" class="btn btn-outline-info btn-lg" id="ocrUploadBtn">
+                        <button type="button" class="btn btn-outline-info btn-lg" id="ocrUploadBtn" data-ocr-entry="true">
                             <i class="bi bi-camera me-2"></i>OCR 图片识别
                         </button>
-                        <small class="text-muted">图片报价单也会进入报价工作台</small>
+                        <small class="text-muted">图片报价单也会进入同一个确认流程</small>
                         <input type="file" id="ocrFile" accept="image/*" style="display: none;">
                     </div>
 
@@ -100,11 +102,11 @@
 
         <div class="dashboard-enter-bar">
             <div class="dashboard-enter-copy">
-                <div class="dashboard-enter-title">准备好后直接进入报价工作台</div>
-                <div class="dashboard-enter-note">导出时可选 <strong>待选报价单（下拉框）</strong>，适合发给客服或销售做二次筛选。</div>
+                <div class="dashboard-enter-title">准备好后，直接进入报价确认台。</div>
+                <div class="dashboard-enter-note">确认完成后再去模板中心选择交付方式。常用模板建议优先使用 <strong>待选报价单（下拉候选）</strong> 与 <strong>标准报价单</strong>。</div>
             </div>
             <button class="btn btn-primary btn-lg" id="startMatchBtn" disabled>
-                <i class="bi bi-lightning-charge me-2"></i>进入报价工作台
+                <i class="bi bi-lightning-charge me-2"></i>进入报价确认台
             </button>
         </div>
     </section>

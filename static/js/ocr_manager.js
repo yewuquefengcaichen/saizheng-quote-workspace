@@ -6,10 +6,15 @@
 const OCRManager = {
     // OCR服务状态
     available: false,
+    statusMessage: 'OCR服务不可用，请先安装 easyocr: pip install easyocr',
+    lastHintAt: 0,
+    observer: null,
 
     async init() {
         await this.checkStatus();
         this.bindEvents();
+        this.syncEntryButtons();
+        this.observeEntryButtons();
     },
 
     async checkStatus() {
@@ -17,6 +22,9 @@ const OCRManager = {
             const response = await fetch('/api/ocr/status');
             const data = await response.json();
             this.available = data.available;
+            this.statusMessage = this.available
+                ? ''
+                : 'OCR服务不可用，请先安装 easyocr: pip install easyocr';
 
             if (!this.available) {
                 console.warn('OCR服务不可用，请安装easyocr');
@@ -24,7 +32,49 @@ const OCRManager = {
         } catch (error) {
             console.error('检查OCR状态失败:', error);
             this.available = false;
+            this.statusMessage = 'OCR状态检查失败，请确认 OCR 依赖已安装';
+        } finally {
+            this.syncEntryButtons();
         }
+    },
+
+    syncEntryButtons() {
+        document.body.dataset.ocrAvailable = this.available ? 'true' : 'false';
+        document.querySelectorAll('[data-ocr-entry="true"]').forEach(button => {
+            if (!(button instanceof HTMLButtonElement)) {
+                return;
+            }
+
+            button.disabled = !this.available;
+            button.classList.toggle('ocr-entry-disabled', !this.available);
+            button.setAttribute('aria-disabled', this.available ? 'false' : 'true');
+            if (this.available) {
+                button.removeAttribute('title');
+            } else {
+                button.setAttribute('title', this.statusMessage);
+            }
+        });
+    },
+
+    showUnavailableHint() {
+        const now = Date.now();
+        if (now - this.lastHintAt < 2500) {
+            return;
+        }
+
+        this.lastHintAt = now;
+        showToast('warning', this.statusMessage);
+    },
+
+    observeEntryButtons() {
+        if (this.observer || !document.body) {
+            return;
+        }
+
+        this.observer = new MutationObserver(() => {
+            this.syncEntryButtons();
+        });
+        this.observer.observe(document.body, { childList: true, subtree: true });
     },
 
     bindEvents() {
@@ -38,7 +88,7 @@ const OCRManager = {
                 e.stopPropagation();
                 console.log('OCR button clicked, available =', this.available);
                 if (!this.available) {
-                    showToast('warning', 'OCR服务不可用，请先安装easyocr: pip install easyocr');
+                    this.showUnavailableHint();
                     return;
                 }
                 ocrFile.value = '';

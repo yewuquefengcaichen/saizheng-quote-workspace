@@ -1,40 +1,56 @@
 <div id="synonymsTab" class="tab-content"{% if initial_tab != 'synonyms' %} style="display: none;"{% endif %}>
-    <section class="scene-panel scene-panel--vocabulary scene-panel--compact">
-        <div class="scene-panel-copy">
-            <div class="scene-panel-eyebrow"><i class="bi bi-book"></i>Vocabulary Layer</div>
-            <div class="scene-panel-title">先补高频词，再扩展行业叫法。</div>
-            <div class="scene-panel-description">词库页只保留主词、覆盖范围和编辑动作，让高频修补和长期沉淀落在同一层。</div>
-            <div class="scene-panel-pills">
-                <span class="scene-panel-pill">高频修补</span>
-                <span class="scene-panel-pill">行业变体</span>
-                <span class="scene-panel-pill">长期沉淀</span>
-            </div>
+    <section class="workspace-page-head workspace-page-head--synonyms">
+        <div>
+            <div class="workspace-page-head-kicker">词库维护</div>
+            <div class="workspace-page-head-title">先修高频词，再让自动匹配和人工搜索一起变稳。</div>
+            <div class="workspace-page-head-subtitle">词库页只保留主词、覆盖范围和编辑动作。先把最常见错配词、行业简称和内部叫法沉淀下来，后面的报价确认台会立刻受益。</div>
         </div>
-        <div class="scene-panel-side">
-            <div class="scene-panel-side-title">本页节奏</div>
-            <div class="scene-panel-side-list">
-                <div class="scene-panel-side-item"><strong>1.</strong><span>先修补高频错配词，让自动匹配马上受益。</span></div>
-                <div class="scene-panel-side-item"><strong>2.</strong><span>把行业简称、内部叫法和常见别名沉淀到同一处。</span></div>
-                <div class="scene-panel-side-item"><strong>3.</strong><span>优先维护高覆盖词，再补长尾词。</span></div>
-            </div>
+        <div class="workspace-page-head-actions">
+            <button class="btn btn-primary btn-sm" id="addSynonymBtn" type="button">
+                <i class="bi bi-plus-lg me-1"></i>新增同义词
+            </button>
+            <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-layout-text-window me-1"></i>去报价台验证
+            </a>
+            <a href="{{ workspace_routes.catalog }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-grid-3x3-gap me-1"></i>商品库
+            </a>
         </div>
+    </section>
+
+    <section class="workspace-guidance-grid workspace-guidance-grid--synonyms">
+        <article class="workspace-guidance-card">
+            <span class="workspace-guidance-kicker">Fix First</span>
+            <strong class="workspace-guidance-title">先补最常见错配词</strong>
+            <p class="workspace-guidance-copy">优先沉淀最容易导致误匹配和搜不到的叫法，让系统先在高频场景里稳定下来。</p>
+        </article>
+        <article class="workspace-guidance-card">
+            <span class="workspace-guidance-kicker">Coverage</span>
+            <strong class="workspace-guidance-title">把行业简称和内部叫法放在一起</strong>
+            <p class="workspace-guidance-copy">同一个主词下同时维护行业简称、客户叫法和内部俗称，后续搜索和候选理解会更连贯。</p>
+        </article>
+        <article class="workspace-guidance-card">
+            <span class="workspace-guidance-kicker">Feedback</span>
+            <strong class="workspace-guidance-title">每次补词都要能立刻验证</strong>
+            <p class="workspace-guidance-copy">新增后直接回报价台复核效果，避免词库变成只维护不验证的孤立配置页。</p>
+        </article>
     </section>
 
     <section class="history-metric-grid vocabulary-metric-grid">
         <article class="history-metric-card">
             <span class="history-metric-label">主词数</span>
             <strong id="synonymMetricHeadword" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">当前维护中的主词</small>
+            <small class="history-metric-copy">当前维护中的主词数量</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">变体数</span>
             <strong id="synonymMetricVariant" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">全部沉淀的叫法</small>
+            <small class="history-metric-copy">全部已沉淀的别名与简称</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">平均覆盖</span>
             <strong id="synonymMetricAverage" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">每个主词的平均变体数</small>
+            <small class="history-metric-copy">每个主词平均挂接的变体数</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">当前建议</span>
@@ -43,22 +59,49 @@
         </article>
     </section>
 
+    <section class="workspace-guidance-grid workspace-guidance-grid--synonyms-snapshot">
+        <article class="workspace-guidance-card workspace-guidance-card--stat">
+            <span class="workspace-guidance-kicker">Snapshot</span>
+            <strong class="workspace-guidance-title" id="synonymHeadwordCount">0</strong>
+            <p class="workspace-guidance-copy">当前主词快照</p>
+        </article>
+        <article class="workspace-guidance-card workspace-guidance-card--stat">
+            <span class="workspace-guidance-kicker">Variants</span>
+            <strong class="workspace-guidance-title" id="synonymVariantCount">0</strong>
+            <p class="workspace-guidance-copy">全部变体数量</p>
+        </article>
+        <article class="workspace-guidance-card workspace-guidance-card--stat">
+            <span class="workspace-guidance-kicker">Largest Group</span>
+            <strong class="workspace-guidance-title" id="synonymLargestHeadword">-</strong>
+            <p class="workspace-guidance-copy">当前覆盖最广的主词</p>
+        </article>
+    </section>
+
     <section class="vocabulary-ledger-shell">
         <div class="history-ledger-header">
             <div>
                 <div class="history-ledger-kicker">Vocabulary Archive</div>
                 <div class="history-ledger-heading">词库知识卡组</div>
-                <div class="history-ledger-subtitle">每张卡只保留主词、覆盖范围和编辑动作，完整变体继续留在同一卡里。</div>
+                <div class="history-ledger-subtitle">每张卡只保留主词、覆盖信号和编辑动作。完整变体继续留在同一张卡里，方便快速浏览和直接修改。</div>
             </div>
-            <div class="history-ledger-header-note history-ledger-header-note--actions">
-                <button class="btn btn-primary btn-sm" id="addSynonymBtn">
-                    <i class="bi bi-plus-lg me-1"></i>新增同义词
-                </button>
-                <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
-                    <i class="bi bi-layout-text-window me-1"></i>在报价页验证
-                </a>
+            <div class="history-ledger-header-note">
+                <i class="bi bi-stars"></i>
+                <span>优先维护覆盖广、错配高频的主词。</span>
             </div>
         </div>
-        <div id="synonymsList" class="vocabulary-card-grid"></div>
+        <div id="synonymsList" class="vocabulary-card-grid">
+            <div class="workspace-empty-orbit workspace-empty-orbit--vocabulary">
+                <div class="workspace-empty-orbit-visual">
+                    <i class="bi bi-book"></i>
+                </div>
+                <div class="workspace-empty-orbit-title">词库卡组正在载入。</div>
+                <div class="workspace-empty-orbit-copy">系统会把主词、变体数量和覆盖情况整理成可编辑卡片。建立好词库后，自动匹配和人工搜索都会更稳。</div>
+                <div class="workspace-empty-orbit-pills">
+                    <span class="workspace-empty-orbit-pill">修补错别字</span>
+                    <span class="workspace-empty-orbit-pill">沉淀行业简称</span>
+                    <span class="workspace-empty-orbit-pill">保存内部叫法</span>
+                </div>
+            </div>
+        </div>
     </section>
 </div>

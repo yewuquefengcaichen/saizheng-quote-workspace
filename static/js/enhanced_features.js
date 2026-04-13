@@ -157,6 +157,183 @@ document.addEventListener('DOMContentLoaded', function() {
     setWorkspacePageContext(activeTab);
 });
 
+const WorkspaceEntryActions = {
+    ocrUnavailableToastTs: 0,
+
+    triggerExistingInput(inputId) {
+        const input = document.getElementById(inputId);
+        if (!input) {
+            return false;
+        }
+
+        input.value = '';
+        input.click();
+        return true;
+    },
+
+    openTransientFilePicker({ accept = '', multiple = false, onChange }) {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = accept;
+        input.multiple = !!multiple;
+        input.tabIndex = -1;
+        input.setAttribute('aria-hidden', 'true');
+        input.style.position = 'fixed';
+        input.style.left = '-9999px';
+        input.style.top = '0';
+        input.style.opacity = '0';
+
+        const cleanup = () => {
+            window.setTimeout(() => input.remove(), 0);
+        };
+
+        const cleanupOnFocus = () => {
+            window.setTimeout(() => {
+                if (!input.files?.length) {
+                    cleanup();
+                }
+            }, 0);
+            window.removeEventListener('focus', cleanupOnFocus, true);
+        };
+
+        input.addEventListener('change', () => {
+            if (typeof onChange === 'function' && input.files?.length) {
+                onChange(input);
+            }
+            cleanup();
+        }, { once: true });
+
+        document.body.appendChild(input);
+        window.addEventListener('focus', cleanupOnFocus, true);
+        input.click();
+    },
+
+    submitQuoteFiles(files) {
+        if (!files?.length) {
+            return false;
+        }
+
+        if (typeof smartUploadFile === 'function') {
+            smartUploadFile({ files });
+            return true;
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('warning', '报价上传入口尚未初始化');
+        }
+        return false;
+    },
+
+    submitProductsFiles(files) {
+        if (!files?.length) {
+            return false;
+        }
+
+        if (typeof uploadFile === 'function') {
+            uploadFile({ files }, '/api/upload_products', (result) => {
+                if (typeof handleProductsUploadSuccess === 'function') {
+                    handleProductsUploadSuccess(result);
+                }
+            });
+            return true;
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('warning', '商品库上传入口尚未初始化');
+        }
+        return false;
+    },
+
+    openQuoteUpload() {
+        if (this.triggerExistingInput('quoteFile')) {
+            return;
+        }
+
+        this.openTransientFilePicker({
+            accept: '.xls,.xlsx',
+            onChange: (input) => {
+                this.submitQuoteFiles(input.files);
+            }
+        });
+    },
+
+    openProductsUpload() {
+        if (this.triggerExistingInput('productsFile')) {
+            return;
+        }
+
+        this.openTransientFilePicker({
+            accept: '.xls,.xlsx',
+            onChange: (input) => {
+                this.submitProductsFiles(input.files);
+            }
+        });
+    },
+
+    openOCRUpload() {
+        if (!window.OCRManager) {
+            this.showOcrUnavailableHint('OCR 模块尚未初始化，请稍后重试');
+            return;
+        }
+
+        if (!window.OCRManager.available) {
+            this.showOcrUnavailableHint(window.OCRManager.statusMessage || 'OCR服务不可用，请先安装 easyocr: pip install easyocr');
+            return;
+        }
+
+        if (this.triggerExistingInput('ocrFile')) {
+            return;
+        }
+
+        this.openTransientFilePicker({
+            accept: 'image/*',
+            onChange: (input) => {
+                const file = input.files?.[0];
+                if (!file) {
+                    return;
+                }
+                window.OCRManager.processImage(file);
+            }
+        });
+    },
+
+    goTo(path) {
+        if (path) {
+            window.location.href = path;
+        }
+    },
+
+    goToQuotes() {
+        this.goTo('/quotes');
+    },
+
+    goToCatalog() {
+        this.goTo('/catalog');
+    },
+
+    goToTemplates() {
+        this.goTo('/templates');
+    },
+
+    goToGuide() {
+        this.goTo('/guide');
+    },
+
+    showOcrUnavailableHint(message) {
+        const now = Date.now();
+        if (now - this.ocrUnavailableToastTs < 2500) {
+            return;
+        }
+
+        this.ocrUnavailableToastTs = now;
+        if (typeof showToast === 'function') {
+            showToast('warning', message);
+        }
+    }
+};
+
+window.WorkspaceEntryActions = WorkspaceEntryActions;
+
 // =============== 顶部快捷动作 ===============
 const WorkspaceQuickActions = {
     init() {
@@ -175,32 +352,32 @@ const WorkspaceQuickActions = {
         switch (route) {
             case 'quotes':
                 return [
-                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" },
-                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: "WorkspaceQuickActions.triggerControl('ocrUploadBtn')" },
-                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '商品库', handler: "WorkspaceQuickActions.triggerControl('productsFile')" }
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: 'WorkspaceEntryActions.openQuoteUpload()' },
+                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: 'WorkspaceEntryActions.openOCRUpload()', dataAttrs: 'data-ocr-entry="true"' },
+                    { id: 'quick-products-page', kind: 'link', icon: 'bi-grid-3x3-gap', label: '商品库', href: '/catalog' }
                 ];
             case 'catalog':
                 return [
-                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '更新商品库', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('productsFile')" },
-                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '传报价', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" }
+                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '更新商品库', tone: 'primary', handler: 'WorkspaceEntryActions.openProductsUpload()' },
+                    { id: 'quick-quote-page', kind: 'link', icon: 'bi-layout-text-window', label: '去报价台', href: '/quotes' }
                 ];
             case 'templates':
                 return [
                     { id: 'quick-export-center', kind: 'button', icon: 'bi-box-arrow-up-right', label: '导出配置', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('openExportCenterBtn')" },
-                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '传报价', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" }
+                    { id: 'quick-quote-page', kind: 'link', icon: 'bi-layout-text-window', label: '去报价台', href: '/quotes' }
                 ];
             case 'history':
             case 'synonyms':
                 return [
-                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" },
-                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '商品库', handler: "WorkspaceQuickActions.triggerControl('productsFile')" }
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: 'WorkspaceEntryActions.openQuoteUpload()' },
+                    { id: 'quick-products-page', kind: 'link', icon: 'bi-grid-3x3-gap', label: '商品库', href: '/catalog' }
                 ];
             case 'dashboard':
             default:
                 return [
-                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '上传商品库', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('productsFile')" },
-                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" },
-                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: "WorkspaceQuickActions.triggerControl('ocrUploadBtn')" }
+                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '上传商品库', tone: 'primary', handler: 'WorkspaceEntryActions.openProductsUpload()' },
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', handler: 'WorkspaceEntryActions.openQuoteUpload()' },
+                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: 'WorkspaceEntryActions.openOCRUpload()', dataAttrs: 'data-ocr-entry="true"' }
                 ];
         }
     },
@@ -218,7 +395,7 @@ const WorkspaceQuickActions = {
         }
 
         return `
-            <button type="button" class="workspace-quick-btn${toneClass}" onclick="${action.handler}">
+            <button type="button" class="workspace-quick-btn${toneClass}" ${action.dataAttrs || ''} onclick="${action.handler}">
                 <i class="bi ${action.icon}"></i>
                 <span>${action.label}</span>
             </button>
@@ -304,9 +481,8 @@ const ShortcutManager = {
     },
 
     triggerUpload() {
-        const uploadInput = document.getElementById('quoteFile') || document.querySelector('input[type="file"]');
-        if (uploadInput) {
-            uploadInput.click();
+        if (window.WorkspaceEntryActions?.openQuoteUpload) {
+            window.WorkspaceEntryActions.openQuoteUpload();
             showToast('info', '请选择要上传的文件');
         }
     },
@@ -469,14 +645,9 @@ const DragDropManager = {
         }
 
         // 默认拖拽到报价单上传入口，避免误发到商品库接口
-        const uploadInput = document.getElementById('quoteFile') || document.querySelector('input[type="file"]');
-        if (uploadInput) {
-            const dt = new DataTransfer();
-            dt.items.add(file);
-            uploadInput.files = dt.files;
-
-            const event = new Event('change', { bubbles: true });
-            uploadInput.dispatchEvent(event);
+        const dt = new DataTransfer();
+        dt.items.add(file);
+        if (window.WorkspaceEntryActions?.submitQuoteFiles?.(dt.files)) {
 
             showToast('success', `已选择文件: ${file.name}`);
         }

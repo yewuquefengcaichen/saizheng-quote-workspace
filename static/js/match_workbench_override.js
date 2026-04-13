@@ -174,45 +174,6 @@
     return !result?.confirmed;
   }
 
-  function refreshQuotesPreludeCopy() {
-    if (document.body?.dataset?.route !== 'quotes') {
-      return;
-    }
-
-    const scenePanel = document.querySelector('#matchTab .scene-panel--quotes');
-    if (scenePanel) {
-      const title = scenePanel.querySelector('.scene-panel-title');
-      const description = scenePanel.querySelector('.scene-panel-description');
-      const sideTitle = scenePanel.querySelector('.scene-panel-side-title');
-      const pillNodes = scenePanel.querySelectorAll('.scene-panel-pill');
-      const stepNodes = scenePanel.querySelectorAll('.scene-panel-side-item span');
-
-      if (title) title.textContent = '报价确认应该像一条单焦点决策流。';
-      if (description) description.textContent = '左侧先排风险，中间只处理当前项，右侧保留搜索、核价与确认。';
-      if (sideTitle) sideTitle.textContent = '本页节奏';
-
-      ['风险优先', '证据同屏', '确认即导出'].forEach((text, index) => {
-        if (pillNodes[index]) pillNodes[index].textContent = text;
-      });
-
-      [
-        '先处理低分、异常和低置信度项。',
-        '再核验候选、历史信号与人工搜索。',
-        '确认完成后直接进入模板导出。'
-      ].forEach((text, index) => {
-        if (stepNodes[index]) stepNodes[index].textContent = text;
-      });
-    }
-
-    const filterBar = document.querySelector('#matchTab .quote-filter-bar');
-    if (filterBar) {
-      const heading = filterBar.querySelector('.match-toolbar-heading');
-      const subtitle = filterBar.querySelector('.match-toolbar-subtitle');
-      if (heading) heading.textContent = '报价决策控制台';
-      if (subtitle) subtitle.textContent = '搜索、筛选、排序与导出都留在当前层。';
-    }
-  }
-
   function setQuotesWorkbenchState(state = 'ready') {
     if (document.body?.dataset?.route !== 'quotes') {
       return;
@@ -222,54 +183,6 @@
     if (matchTab) {
       matchTab.setAttribute('data-match-state', state);
     }
-  }
-
-  function renderQuotesLandingEmpty() {
-    return `
-      <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
-        <div class="workspace-empty-orbit-visual">
-          <i class="bi bi-layout-text-window"></i>
-        </div>
-        <div class="workspace-empty-orbit-title">报价工作台正在等待第一份结果流入。</div>
-        <div class="workspace-empty-orbit-copy">这里就能直接上传报价单、OCR 图片，或者补传商品库。准备好后，本页会自动切换成队列、焦点与审核工作台。</div>
-        <div class="workspace-empty-orbit-pills">
-          <span class="workspace-empty-orbit-pill">本页直接上传报价单</span>
-          <span class="workspace-empty-orbit-pill">OCR 图片也能直接进入</span>
-          <span class="workspace-empty-orbit-pill">商品库不完整时就地补传</span>
-        </div>
-        <div class="quote-empty-proof-grid">
-          <article class="quote-empty-proof-card">
-            <span>Upload</span>
-            <strong>上传入口留在本页</strong>
-            <small>报价页不是死胡同，而是能直接接文件的真正工作入口。</small>
-          </article>
-          <article class="quote-empty-proof-card">
-            <span>After Match</span>
-            <strong>进入单焦点决策流</strong>
-            <small>风险队列、当前项、人工搜索与确认会进入同一条连续视线。</small>
-          </article>
-          <article class="quote-empty-proof-card">
-            <span>Close</span>
-            <strong>确认后直接导出</strong>
-            <small>模板选择与导出准备不再分散在别处，决策完成即可继续交付。</small>
-          </article>
-        </div>
-        <div class="quote-empty-actions">
-          <button class="btn btn-primary" type="button" onclick="document.getElementById('quoteFile')?.click()">
-            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
-          </button>
-          <button class="btn btn-outline-info" type="button" onclick="document.getElementById('ocrUploadBtn')?.click()">
-            <i class="bi bi-camera me-2"></i>OCR 图片
-          </button>
-          <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('productsFile')?.click()">
-            <i class="bi bi-box-arrow-in-up-right me-2"></i>补传商品库
-          </button>
-          <a href="/templates" class="btn btn-outline-secondary">
-            <i class="bi bi-files me-2"></i>模板中心
-          </a>
-        </div>
-      </div>
-    `;
   }
 
   function renderQuotesFilteredEmpty() {
@@ -1521,31 +1434,61 @@
     if (!filterBar) return;
     const heading = filterBar.querySelector('.match-toolbar-heading');
     const subtitle = filterBar.querySelector('.match-toolbar-subtitle');
-    if (heading) heading.textContent = '报价工作台';
-    if (subtitle) subtitle.textContent = '本页可直接上传报价单、OCR 和补传商品库。';
+    if (heading) heading.textContent = '筛选器';
+    if (subtitle) subtitle.textContent = '先筛掉噪音，再进入人工确认。把最影响判断的字段放到第一排，减少视觉干扰。';
   }
 
   function renderQuotesLandingEmpty() {
     return `
       <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
-        <div class="workspace-empty-orbit-visual">
-          <i class="bi bi-layout-text-window"></i>
-        </div>
-        <div class="workspace-empty-orbit-title">还没有报价结果</div>
-        <div class="workspace-empty-orbit-copy">上传报价单或 OCR 后，这里会显示待处理队列、当前报价项和核查面板。</div>
-        <div class="quote-empty-actions">
-          <button class="btn btn-primary" type="button" onclick="document.getElementById('quoteFile')?.click()">
-            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
-          </button>
-          <button class="btn btn-outline-info" type="button" onclick="document.getElementById('ocrUploadBtn')?.click()">
-            <i class="bi bi-camera me-2"></i>OCR 图片
-          </button>
-          <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('productsFile')?.click()">
-            <i class="bi bi-box-arrow-in-up-right me-2"></i>补传商品库
-          </button>
-          <a href="/templates" class="btn btn-outline-secondary">
-            <i class="bi bi-files me-2"></i>模板中心
-          </a>
+        <div class="quote-empty-layout">
+          <div class="quote-empty-primary">
+            <div class="workspace-empty-orbit-visual">
+              <i class="bi bi-layout-text-window"></i>
+            </div>
+            <div class="workspace-empty-orbit-title">这里还没有待确认的报价结果</div>
+            <div class="workspace-empty-orbit-copy">上传 Excel 报价单或 OCR 图片后，这里会切换成待处理队列、当前报价项和候选核对区。整个流程尽量不再要求你来回切页。</div>
+            <div class="workspace-empty-orbit-pills">
+              <span class="workspace-empty-orbit-pill">本页直接上传</span>
+              <span class="workspace-empty-orbit-pill">统一确认</span>
+              <span class="workspace-empty-orbit-pill">确认后再导出</span>
+            </div>
+            <div class="quote-empty-primary-note">
+              <strong>当前建议</strong>
+              <span>先把报价来源推进来，再处理候选与异常，最后再去模板中心做交付选择。</span>
+            </div>
+          </div>
+          <div class="quote-empty-card quote-empty-stage">
+            <span class="quote-empty-card-kicker">Direct Upload</span>
+            <strong class="quote-empty-card-title">就在报价页开始，不再返回首页找入口</strong>
+            <span class="quote-empty-card-copy">这页本身就是报价确认台。选中文件之后，系统会立即进入解析和待确认流程，避免旧界面那种多层跳转。</span>
+            <div class="quote-empty-actions">
+              <button class="btn btn-primary" type="button" onclick="WorkspaceEntryActions.openQuoteUpload()">
+                <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
+              </button>
+              <button class="btn btn-outline-info" type="button" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
+                <i class="bi bi-camera me-2"></i>OCR 图片
+              </button>
+            </div>
+            <div class="quote-empty-helper">支持 \`.xls\` / \`.xlsx\` 和图片报价单，进入后统一做人工收口。</div>
+          </div>
+          <div class="quote-empty-shortcuts">
+            <a href="/catalog" class="quote-empty-shortcut-card">
+              <span class="quote-empty-card-kicker">Catalog</span>
+              <strong class="quote-empty-card-title">先补商品库</strong>
+              <span class="quote-empty-card-copy">品牌、规格、供应商和图片越完整，自动匹配越稳，候选也更像人会选的结果。</span>
+            </a>
+            <a href="/templates" class="quote-empty-shortcut-card">
+              <span class="quote-empty-card-kicker">Templates</span>
+              <strong class="quote-empty-card-title">模板中心</strong>
+              <span class="quote-empty-card-copy">确认完成后再去模板页选交付方式，把“确认”和“导出”明确拆开。</span>
+            </a>
+            <a href="/guide" class="quote-empty-shortcut-card">
+              <span class="quote-empty-card-kicker">Guide</span>
+              <strong class="quote-empty-card-title">上手说明</strong>
+              <span class="quote-empty-card-copy">给同事看的短说明会放在这里，帮助快速理解字段、流程和模板差异。</span>
+            </a>
+          </div>
         </div>
       </div>
     `;
