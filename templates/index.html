@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260413b" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260413h" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -3816,6 +3816,23 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="quoteCatalogSearchModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-xl modal-dialog-scrollable">
+            <div class="modal-content quote-search-modal-shell">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title">
+                            <i class="bi bi-search text-primary me-2"></i><span id="quoteCatalogSearchModalTitle">全商城人工搜索</span>
+                        </h5>
+                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">在全商城里找更接近当前报价项的 SKU。</div>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body" id="quoteCatalogSearchModalBody"></div>
             </div>
         </div>
     </div>
@@ -4263,6 +4280,8 @@
         let catalogLoadedOnce = false;
         let catalogKeywordTimer = null;
         let quoteCatalogSearchState = {};
+        let activeQuoteCatalogModalItemIndex = null;
+        let quoteCatalogSearchModalInstance = null;
         const exportTemplates = {{ export_templates|tojson|safe }};
         const exportTemplateDefaults = {{ export_template_defaults|tojson|safe }};
         let currentExportTemplateKey = '';
@@ -6365,11 +6384,16 @@
             bindMatchWorkbenchInteractions();
         }
 
-        function renderQuoteCatalogSearchPanel(queryItem, itemIndex) {
+        function getQuoteCatalogDefaultKeyword(queryItem, itemIndex) {
             const state = quoteCatalogSearchState[itemIndex] || {};
-            const defaultKeyword = state.keyword !== undefined
+            return state.keyword !== undefined
                 ? state.keyword
                 : (queryItem.name || queryItem.spec || queryItem.remark || '');
+        }
+
+        function renderQuoteCatalogSearchPanel(queryItem, itemIndex) {
+            const state = quoteCatalogSearchState[itemIndex] || {};
+            const defaultKeyword = getQuoteCatalogDefaultKeyword(queryItem, itemIndex);
             const loading = !!state.loading;
             const searched = !!state.searched;
             const results = Array.isArray(state.results) ? state.results : [];
@@ -6377,14 +6401,15 @@
             const error = state.error || '';
             const currentResult = Array.isArray(matchResults) ? (matchResults[itemIndex] || {}) : {};
             const selectedProduct = currentResult.selected_product || {};
+            const selectedProductInfo = selectedProduct?.product || {};
             const selectedProductCode = [
-                selectedProduct?.product?.code,
-                selectedProduct?.product?.product_code,
-                selectedProduct?.product?.item_code,
-                selectedProduct?.product?.sku
+                selectedProductInfo?.code,
+                selectedProductInfo?.product_code,
+                selectedProductInfo?.item_code,
+                selectedProductInfo?.sku
             ].map(value => String(value || '').trim()).find(Boolean) || '';
             const manualSelected = !!(selectedProduct?.manual_selected || selectedProduct?.source === 'catalog_search');
-            let stateBadge = '<span class="quote-search-state-badge">搜全商城</span>';
+            let stateBadge = '<span class="quote-search-state-badge">未打开</span>';
             if (loading) {
                 stateBadge = '<span class="quote-search-state-badge is-loading">搜索中</span>';
             } else if (manualSelected && selectedProductCode) {
@@ -6392,30 +6417,27 @@
             } else if (searched) {
                 stateBadge = `<span class="quote-search-state-badge is-searched">已搜 ${total} 个</span>`;
             }
-            const searchButtonClass = loading || searched ? 'btn-primary is-active' : 'btn-outline-primary';
-            const searchButtonLabel = loading
-                ? '<span class="spinner-border spinner-border-sm"></span>'
-                : (searched ? '<i class="bi bi-arrow-repeat me-1"></i>重新搜索' : '<i class="bi bi-search me-1"></i>搜全商城');
+
+            const selectedSummary = selectedProductCode || selectedProductInfo?.name
+                ? `${escapeHtml(selectedProductInfo?.name || '未命名商品')} · ${escapeHtml(selectedProductCode || '未提供')}${selectedProductInfo?.supplier ? ` · ${escapeHtml(selectedProductInfo.supplier)}` : ''}${selectedProductInfo?.market_price ? ` · ¥${formatPrice(selectedProductInfo.market_price)}` : ''}`
+                : (searched ? `已搜 ${total} 个结果，打开弹窗继续筛 SKU。` : '还没有人工搜索结果');
 
             return `
-                <div class="quote-search-panel mt-3" id="quote-search-panel-${itemIndex}">
-                    <div class="quote-search-panel-head">
-                        <div>
-                            <div class="fw-semibold"><i class="bi bi-search me-1"></i>全商城人工搜索</div>
-                            <div class="small text-muted">不依赖当前候选，直接在全部商品里找更像的 SKU。</div>
-                        </div>
+                <div class="quote-search-summary" id="quote-search-panel-${itemIndex}">
+                    <div class="quote-search-summary-head">
+                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>全商城人工搜索</div>
                         ${stateBadge}
                     </div>
-                    <div class="input-group input-group-sm mb-2">
-                        <span class="input-group-text"><i class="bi bi-search"></i></span>
-                        <input type="text" class="form-control quote-catalog-keyword" data-item-index="${itemIndex}" value="${escapeHtmlAttr(defaultKeyword)}" placeholder="输入名称、型号、编码或规格搜索">
-                        <button class="btn ${searchButtonClass} quote-catalog-search-btn" data-item-index="${itemIndex}" type="button">
-                            ${searchButtonLabel}
-                        </button>
+                    <div class="quote-search-summary-inline">
+                        <span class="quote-search-summary-inline-item"><i class="bi bi-funnel"></i>${escapeHtml(defaultKeyword || '未设置搜索词')}</span>
+                        <span class="quote-search-summary-inline-item">${selectedSummary}</span>
                     </div>
-                    ${error ? `<div class="small text-danger mb-2">${escapeHtml(error)}</div>` : ''}
-                    <div class="quote-search-results" id="quote-search-results-${itemIndex}">
-                        ${renderQuoteCatalogSearchResults(itemIndex, results, total, searched, loading)}
+                    ${error ? `<div class="small text-danger">${escapeHtml(error)}</div>` : ''}
+                    <div class="quote-search-summary-actions">
+                        <button class="btn btn-primary btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" type="button">
+                            <i class="bi bi-search me-1"></i>${searched ? '查看搜索结果' : '全商城搜索'}
+                        </button>
+                        ${results.length ? `<span class="quote-search-summary-hint">缓存 ${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">结果只在弹窗里看</span>'}
                     </div>
                 </div>
             `;
@@ -6424,24 +6446,39 @@
         function renderQuoteCatalogSearchResults(itemIndex, results, total, searched, loading) {
             if (loading) {
                 return `
-                    <div class="text-muted small py-2">
+                    <div class="text-muted small py-3">
                         <span class="spinner-border spinner-border-sm me-2"></span>正在搜索商品库...
                     </div>
                 `;
             }
 
             if (!searched) {
-                return '<div class="small text-muted py-2">输入关键词后可快速查看商品图片、价格和供应商，帮助人工审核。</div>';
+                return `
+                    <div class="quote-search-modal-empty">
+                        <strong>还没有开始搜索</strong>
+                        <span>输入名称、型号、规格或编码后，直接在弹窗里选 SKU。</span>
+                    </div>
+                `;
             }
 
             if (!results || results.length === 0) {
-                return '<div class="small text-muted py-2">没有找到可供人工审核的商品。</div>';
+                return `
+                    <div class="quote-search-modal-empty">
+                        <strong>没有找到结果</strong>
+                        <span>换个关键词，或者保留当前自动候选后继续处理下一项。</span>
+                    </div>
+                `;
             }
 
-            const cards = results.slice(0, 6).map(item => renderQuoteCatalogSearchCard(item, itemIndex)).join('');
+            const cards = results.slice(0, 12).map(item => renderQuoteCatalogSearchCard(item, itemIndex)).join('');
             return `
-                <div class="small text-muted mb-2">共找到 ${total} 个结果，当前展示前 ${Math.min(results.length, 6)} 个</div>
-                ${cards}
+                <div class="quote-search-modal-results-head">
+                    <span>共找到 ${total} 个结果</span>
+                    <span>当前展示前 ${Math.min(results.length, 12)} 个</span>
+                </div>
+                <div class="quote-search-modal-grid">
+                    ${cards}
+                </div>
             `;
         }
 
@@ -6499,6 +6536,120 @@
                     </div>
                 </div>
             `;
+        }
+
+        function ensureQuoteCatalogSearchModal() {
+            const modalEl = document.getElementById('quoteCatalogSearchModal');
+            if (!modalEl || typeof bootstrap === 'undefined') {
+                return null;
+            }
+
+            if (!quoteCatalogSearchModalInstance) {
+                quoteCatalogSearchModalInstance = bootstrap.Modal.getOrCreateInstance(modalEl);
+                modalEl.addEventListener('hidden.bs.modal', () => {
+                    activeQuoteCatalogModalItemIndex = null;
+                });
+            }
+
+            return {
+                modalEl,
+                modal: quoteCatalogSearchModalInstance
+            };
+        }
+
+        function renderQuoteCatalogSearchModal(itemIndex) {
+            const modalBody = document.getElementById('quoteCatalogSearchModalBody');
+            const modalTitle = document.getElementById('quoteCatalogSearchModalTitle');
+            const modalMeta = document.getElementById('quoteCatalogSearchModalMeta');
+            if (!modalBody || !modalTitle || !modalMeta) return;
+
+            const result = matchResults[itemIndex] || {};
+            const queryItem = result.query_item || {};
+            const state = quoteCatalogSearchState[itemIndex] || {};
+            const loading = !!state.loading;
+            const searched = !!state.searched;
+            const results = Array.isArray(state.results) ? state.results : [];
+            const total = Number(state.total || 0);
+            const error = state.error || '';
+            const keyword = getQuoteCatalogDefaultKeyword(queryItem, itemIndex);
+            const selectedProduct = result.selected_product?.product || {};
+            const selectedCode = [
+                selectedProduct?.code,
+                selectedProduct?.product_code,
+                selectedProduct?.item_code,
+                selectedProduct?.sku
+            ].map(value => String(value || '').trim()).find(Boolean) || '';
+            const queryReferenceCode = [
+                queryItem.product_code,
+                queryItem.item_code,
+                queryItem.sku,
+                queryItem.code,
+                queryItem.material_code,
+                queryItem.product_sku
+            ].map(value => String(value || '').trim()).find(Boolean) || '';
+            const searchButtonClass = loading || searched ? 'btn-primary is-active' : 'btn-outline-primary';
+            const searchButtonLabel = loading
+                ? '<span class="spinner-border spinner-border-sm"></span>'
+                : (searched ? '<i class="bi bi-arrow-repeat me-1"></i>重新搜索' : '<i class="bi bi-search me-1"></i>开始搜索');
+
+            modalTitle.textContent = `ITEM ${itemIndex + 1} · ${queryItem.name || '未命名报价项'}`;
+            modalMeta.innerHTML = `
+                <span>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
+                <span>规格 ${escapeHtml(queryItem.spec || '未提供')}</span>
+                <span>当前候选 ${escapeHtml(selectedCode || '未选择')}</span>
+            `;
+
+            modalBody.innerHTML = `
+                <div class="quote-search-modal-query">
+                    <div class="quote-search-modal-query-item">
+                        <span class="quote-search-modal-query-label">原始报价</span>
+                        <strong>${escapeHtml(queryItem.name || '未命名报价项')}</strong>
+                        <div class="quote-search-modal-query-copy">${escapeHtml(queryItem.remark || queryItem.spec || '没有附加备注')}</div>
+                    </div>
+                    <div class="quote-search-modal-query-item">
+                        <span class="quote-search-modal-query-label">当前搜索词</span>
+                        <div class="input-group input-group-sm">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="text" class="form-control quote-catalog-keyword" data-item-index="${itemIndex}" value="${escapeHtmlAttr(keyword)}" placeholder="输入名称、型号、编码或规格搜索">
+                            <button class="btn ${searchButtonClass} quote-catalog-search-btn" data-item-index="${itemIndex}" type="button">
+                                ${searchButtonLabel}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                ${error ? `<div class="small text-danger mb-3">${escapeHtml(error)}</div>` : ''}
+                <div class="quote-search-results" id="quote-search-results-${itemIndex}">
+                    ${renderQuoteCatalogSearchResults(itemIndex, results, total, searched, loading)}
+                </div>
+            `;
+
+            initCandidateActions();
+        }
+
+        function syncQuoteCatalogSearchModal(itemIndex) {
+            if (activeQuoteCatalogModalItemIndex !== itemIndex) return;
+            renderQuoteCatalogSearchModal(itemIndex);
+        }
+
+        function openQuoteCatalogSearchModal(itemIndex) {
+            activeQuoteCatalogModalItemIndex = itemIndex;
+            renderQuoteCatalogSearchModal(itemIndex);
+            const modalRef = ensureQuoteCatalogSearchModal();
+            if (!modalRef) return;
+            modalRef.modal.show();
+            requestAnimationFrame(() => {
+                const input = modalRef.modalEl.querySelector(`.quote-catalog-keyword[data-item-index="${itemIndex}"]`);
+                if (!input) return;
+                input.focus();
+                const valueLength = String(input.value || '').length;
+                input.setSelectionRange(valueLength, valueLength);
+            });
+        }
+
+        function closeQuoteCatalogSearchModal() {
+            const modalRef = ensureQuoteCatalogSearchModal();
+            if (!modalRef) return;
+            modalRef.modal.hide();
         }
 
         function buildManualCatalogMatch(item, itemIndex) {
@@ -6560,16 +6711,17 @@
 
         function updateQuoteCatalogSearchPanel(itemIndex) {
             const panel = document.getElementById(`quote-search-panel-${itemIndex}`);
-            if (!panel) return;
-
-            panel.outerHTML = renderQuoteCatalogSearchPanel(matchResults[itemIndex]?.query_item || {}, itemIndex);
+            if (panel) {
+                panel.outerHTML = renderQuoteCatalogSearchPanel(matchResults[itemIndex]?.query_item || {}, itemIndex);
+            }
+            syncQuoteCatalogSearchModal(itemIndex);
             initCandidateActions();
         }
 
         function searchCatalogForQuoteItem(itemIndex, keyword = null) {
             const result = matchResults[itemIndex] || {};
             const queryItem = result.query_item || {};
-            const input = document.querySelector(`.quote-catalog-keyword[data-item-index="${itemIndex}"]`);
+            const input = document.querySelector(`#quoteCatalogSearchModal .quote-catalog-keyword[data-item-index="${itemIndex}"]`);
             const nextKeyword = String(keyword !== null ? keyword : (input?.value || '')).trim();
 
             quoteCatalogSearchState[itemIndex] = {
@@ -9119,7 +9271,7 @@
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260413b"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260413h"></script>
 </body>
 </html>
 

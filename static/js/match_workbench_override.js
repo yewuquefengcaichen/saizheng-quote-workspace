@@ -591,89 +591,7 @@
   }
 
   function renderWorkbenchSummary() {
-    const totalCount = matchResults.length;
-    const confirmedCount = matchResults.filter(item => item.confirmed && item.action === 'select').length;
-    const pendingCount = matchResults.filter(item => !item.confirmed).length;
-    const issueCount = matchResults.filter(item => item.action === 'no_match' || item.action === 'ask_boss').length;
-    const completionRate = totalCount > 0 ? Math.round((confirmedCount / totalCount) * 100) : 0;
-    const primaryFocus = matchResults.find(item => !item.confirmed) || matchResults[0] || null;
-    const focusName = primaryFocus?.query_item?.name || '等待焦点项';
-    const nextAction = issueCount > 0
-      ? `优先消灭 ${issueCount} 个异常项，避免导出后返工。`
-      : (pendingCount > 0
-        ? `继续完成 ${pendingCount} 个待确认项，就可以进入最终导出。`
-        : '当前确认已基本完成，可以直接检查模板与导出配置。');
-    const readinessTone = issueCount > 0 ? 'is-alert' : (pendingCount > 0 ? 'is-warm' : 'is-strong');
-
-    return `
-      <div class="match-workspace-summary">
-        <div class="workspace-summary-card workspace-summary-card--hero">
-          <div class="workspace-summary-kicker">Decision Brief</div>
-          <div class="workspace-summary-title">报价决策台已进入确认阶段。</div>
-          <div class="workspace-summary-subtitle">先消灭异常，再收尾待确认项，最后直接把结果送进模板导出。每个报价项都是一个独立决策单元。</div>
-          <div class="workspace-summary-progress-shell">
-            <div class="workspace-summary-progress-head">
-              <span>当前确认进度</span>
-              <strong>${completionRate}%</strong>
-            </div>
-            <div class="workspace-summary-progress-track">
-              <span style="width:${Math.min(Math.max(completionRate, 0), 100)}%;"></span>
-            </div>
-          </div>
-          <div class="workspace-summary-stats">
-            <div class="workspace-summary-stat"><strong>${totalCount}</strong><span>本次报价项</span></div>
-            <div class="workspace-summary-stat"><strong>${confirmedCount}</strong><span>已确认商品</span></div>
-            <div class="workspace-summary-stat"><strong>${pendingCount + issueCount}</strong><span>待处理项</span></div>
-          </div>
-          <div class="workspace-summary-inline-grid">
-            <div class="workspace-summary-inline-card">
-              <span>当前焦点</span>
-              <strong>${escapeHtml(focusName)}</strong>
-            </div>
-            <div class="workspace-summary-inline-card">
-              <span>下一动作</span>
-              <strong>${escapeHtml(nextAction)}</strong>
-            </div>
-          </div>
-          <div class="workspace-summary-actions">
-            <button class="btn btn-primary btn-sm" type="button" onclick="showExportOptionsForCurrentMatch()"><i class="bi bi-box-arrow-up-right me-1"></i>检查导出配置</button>
-            <button class="btn btn-outline-secondary btn-sm" type="button" onclick="window.location.href='/catalog'"><i class="bi bi-grid-3x3-gap me-1"></i>查看商品资产库</button>
-          </div>
-        </div>
-        <div class="workspace-summary-card workspace-summary-card--status">
-          <div class="workspace-summary-kicker">Export Readiness</div>
-          <div class="workspace-summary-title">导出准备状态</div>
-          <div class="workspace-summary-subtitle">模板、价格口径与导出动作已经被独立成中心；这里只负责判断你是否可以无阻塞地进入交付。</div>
-          <div class="workspace-summary-readiness ${readinessTone}">
-            <span>准备判断</span>
-            <strong>${issueCount > 0 ? '先解异常' : (pendingCount > 0 ? '继续确认' : '可以导出')}</strong>
-          </div>
-          <div class="workspace-summary-status-list">
-            <div class="workspace-summary-status-item">
-              <div>
-                <strong>已确认可导出</strong>
-                <span>当前已完成确认、可直接进入模板导出的项目数量。</span>
-              </div>
-              <div class="workspace-summary-status-value">${confirmedCount}</div>
-            </div>
-            <div class="workspace-summary-status-item">
-              <div>
-                <strong>待人工确认</strong>
-                <span>仍需从候选、替代品或人工搜索里做最终判断。</span>
-              </div>
-              <div class="workspace-summary-status-value is-warning">${pendingCount}</div>
-            </div>
-            <div class="workspace-summary-status-item">
-              <div>
-                <strong>风险与异常</strong>
-                <span>无匹配、需问老板、低置信度项优先处理，避免导出后返工。</span>
-              </div>
-              <div class="workspace-summary-status-value is-danger">${issueCount}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    `;
+    return '';
   }
 
   renderCandidates = function renderCompactCandidates(matches, itemIndex, selectedProduct, expandAll = false, budgetPrice = null) {
@@ -927,6 +845,32 @@
       marginClass = margin >= 0 ? 'text-success' : 'text-danger';
     }
 
+    const currentSelectionName = primaryProduct.name || '暂无稳定候选';
+    const currentSelectionSupplier = primaryProduct.supplier || '供应商待补充';
+    const currentSelectionPrice = adjustedPrice > 0 ? `¥${adjustedPrice.toFixed(2)}` : '待补充';
+    const currentSelectionState = manualSearchSelection
+      ? '人工搜索已回写当前项'
+      : (confirmedSelection ? '当前商城 SKU 已确认' : '右侧候选框内可直接切换');
+    const referenceMetaCards = [
+      {
+        label: '数量',
+        value: `${escapeHtml(String(queryItem.quantity || '-'))} ${escapeHtml(queryItem.unit || '')}`.trim()
+      },
+      queryItem.price ? {
+        label: '预算',
+        value: `¥${escapeHtml(String(queryItem.price))}`
+      } : null,
+      queryItem.spec ? {
+        label: '规格',
+        value: escapeHtml(queryItem.spec)
+      } : null,
+      isOcrItem ? {
+        label: 'OCR',
+        value: ocrConfidence ? `${Math.round(ocrConfidence * 100)}%` : '待补充'
+      } : null
+    ].filter(Boolean);
+    const remarkText = String(queryItem.remark || '').trim();
+
     return `
       <article class="quote-item-card ${statusMeta.cardClass}" data-item-index="${itemIndex}">
         <div class="quote-item-shell-top">
@@ -944,121 +888,67 @@
           </div>
           <span class="status-badge ${statusMeta.badgeClass}">${statusMeta.statusText}</span>
         </div>
-        <div class="quote-item-body">
-          <div class="quote-item-side">
-            <div class="quote-item-context">
-              <div class="quote-item-meta-grid">
-                <div class="quote-item-meta-card">
-                  <span class="label">需求数量</span>
-                  <span class="value">${escapeHtml(String(queryItem.quantity || '-'))} ${escapeHtml(queryItem.unit || '')}</span>
+        <div class="quote-item-body quote-item-body--split">
+          <div class="quote-item-context-column">
+            <div class="quote-origin-panel quote-reference-panel">
+              <div class="quote-mini-section-head">
+                <div class="quote-mini-section-title">报价单对照</div>
+                <span class="quote-mini-section-tag">${manualSearchSelection ? '人工已选' : (isOcrItem ? `OCR ${ocrConfidence ? Math.round(ocrConfidence * 100) + '%' : ''}` : 'Excel 导入')}</span>
+              </div>
+              <div class="quote-item-meta-grid quote-item-meta-grid--dense">
+                ${referenceMetaCards.map(item => `
+                  <div class="quote-item-meta-card">
+                    <span class="label">${item.label}</span>
+                    <span class="value">${item.value || '-'}</span>
+                  </div>
+                `).join('')}
+              </div>
+              <div class="quote-reference-state">${currentSelectionState}</div>
+              <div class="quote-reference-compare">
+                <div class="quote-selection-row">
+                  <span>SKU 对照</span>
+                  <strong>${escapeHtml(queryReferenceCode || '未提供')} → ${escapeHtml(selectedReferenceCode || '未选择')}</strong>
                 </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">预算单价</span>
-                  <span class="value">${queryItem.price ? '¥' + escapeHtml(String(queryItem.price)) : '-'}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">规格要求</span>
-                  <span class="value">${escapeHtml(queryItem.spec || '-')}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">OCR置信度</span>
-                  <span class="value">${isOcrItem && ocrConfidence ? Math.round(ocrConfidence * 100) + '%' : (isOcrItem ? '待补充' : '非OCR项')}</span>
+                <div class="quote-selection-row">
+                  <span>当前报价</span>
+                  <strong class="${marginClass}">${escapeHtml(currentSelectionName)} · ${escapeHtml(currentSelectionSupplier)} · ${currentSelectionPrice}${marginText !== '待补充' ? ` · ${marginText}` : ''}</strong>
                 </div>
               </div>
-              <p class="mb-0 text-muted small">${escapeHtml(queryItem.remark || '当前询价项暂无额外备注。')}</p>
-              ${renderMatchInsights(result)}
+              ${remarkText ? `<div class="quote-origin-note">${escapeHtml(remarkText)}</div>` : ''}
             </div>
-            ${renderRecommendationBrief(result, itemIndex)}
-            ${isOcrItem ? `
-              <div class="quote-reference-card mt-3">
-                <div class="small fw-semibold mb-1"><i class="bi bi-eye me-1"></i>OCR识别参考</div>
-                <div class="small text-muted">名称：${escapeHtml(queryItem.name || '-')}</div>
-                <div class="small text-muted">规格：${escapeHtml(queryItem.spec || '-')}</div>
-                <div class="small text-muted">单位/数量：${escapeHtml(queryItem.unit || '-')} / ${escapeHtml(String(queryItem.quantity || '-'))}</div>
-              </div>
-            ` : ''}
+            ${renderQuoteCatalogSearchPanel(queryItem, itemIndex)}
           </div>
-          <div class="quote-item-candidates">
+          <div class="quote-item-candidates quote-item-candidates-frame">
             <div class="quote-item-section-head">
               <div>
-                <div class="quote-item-section-title">推荐候选</div>
-                <div class="quote-item-section-copy">当前项共找到 <strong>${matches.length}</strong> 个候选，先处理最可能的一组。</div>
+                <div class="quote-item-section-title">候选商品</div>
+                <div class="quote-item-section-copy">左边看原始报价单，右边在固定选择框里切换候选，不再整页展开搜索结果。</div>
               </div>
-              <span class="quote-item-section-pill">${primary ? `首选 ${Math.round((primary.score || 0) * 100)}%` : '待人工检索'}</span>
+              <span class="quote-item-section-pill">${primary ? `${manualSearchSelection ? '人工已选' : '首选'} ${Math.round((primary.score || 0) * 100)}%` : '待人工检索'}</span>
             </div>
-            <div class="candidate-list" id="candidate-list-${itemIndex}">
-              ${renderCandidates(matches, itemIndex, result?.selected_product, false, queryItem.price)}
+            <div class="quote-candidate-focus-bar">
+              ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动推荐，请打开全商城搜索</span>'}
+              ${primaryProduct.code ? `<button class="btn btn-sm btn-outline-secondary match-detail-btn" data-product-code="${escapeHtmlAttr(primaryProduct.code || '')}" type="button"><i class="bi bi-eye me-1"></i>商品详情</button>` : ''}
+              ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>更多候选 (${matches.length})</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>当前候选已全部展示</span>'}
+              <button class="btn btn-sm ${noMatchActive ? 'btn-danger is-active' : 'btn-outline-danger'} mark-no-match" data-index="${itemIndex}" type="button" aria-pressed="${noMatchActive ? 'true' : 'false'}"><i class="bi bi-x-circle me-1"></i>无匹配</button>
+              <button class="btn btn-sm ${askBossActive ? 'btn-warning is-active' : 'btn-outline-warning'} mark-ask-boss" data-index="${itemIndex}" type="button" aria-pressed="${askBossActive ? 'true' : 'false'}"><i class="bi bi-question-circle me-1"></i>问老板</button>
             </div>
-            ${showAlternatives ? `
-              <div class="alternatives-section mt-2">
-                <div class="alternatives-header">
-                  <i class="bi bi-lightbulb text-warning me-1"></i>
-                  <span>推荐替代品 (${alternatives.length}个)</span>
-                  <small class="text-muted ms-2">相似商品，可作为备选</small>
-                </div>
-                <div class="alternatives-list" id="alternatives-list-${itemIndex}">
-                  ${renderAlternatives(alternatives, itemIndex, result?.selected_product, queryItem.price)}
-                </div>
+            <div class="quote-candidate-scrollbox">
+              <div class="candidate-list" id="candidate-list-${itemIndex}">
+                ${renderCandidates(matches, itemIndex, result?.selected_product, false, queryItem.price)}
               </div>
-            ` : ''}
-            <div class="match-actions-bar">
-              <div class="match-actions-group">
-                ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动推荐，请使用下方人工搜索</span>'}
-                ${primaryProduct.code ? `<button class="btn btn-sm btn-outline-secondary match-detail-btn" data-product-code="${escapeHtmlAttr(primaryProduct.code || '')}" type="button"><i class="bi bi-eye me-1"></i>商品详情</button>` : ''}
-              </div>
-              <div class="match-actions-group">
-                ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>展开全部 (${matches.length}个)</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>当前候选已全部展示</span>'}
-                <button class="btn btn-sm ${noMatchActive ? 'btn-danger is-active' : 'btn-outline-danger'} mark-no-match" data-index="${itemIndex}" type="button" aria-pressed="${noMatchActive ? 'true' : 'false'}"><i class="bi bi-x-circle me-1"></i>无匹配</button>
-                <button class="btn btn-sm ${askBossActive ? 'btn-warning is-active' : 'btn-outline-warning'} mark-ask-boss" data-index="${itemIndex}" type="button" aria-pressed="${askBossActive ? 'true' : 'false'}"><i class="bi bi-question-circle me-1"></i>问老板</button>
-              </div>
-            </div>
-          </div>
-          <div class="quote-item-review-grid">
-            <div class="quote-item-review-card">
-              <div class="quote-item-section-head">
-                <div>
-                  <div class="quote-item-section-title">当前确认结果</div>
-                  <div class="quote-item-section-copy">把 Excel 原始项和准备确认的商城 SKU 放在同一张卡里看，避免来回盯侧栏。</div>
+              ${showAlternatives ? `
+                <div class="alternatives-section mt-2">
+                  <div class="alternatives-header">
+                    <i class="bi bi-lightbulb text-warning me-1"></i>
+                    <span>替代候选 (${alternatives.length})</span>
+                    <small class="text-muted ms-2">自动候选不稳时优先看看这里</small>
+                  </div>
+                  <div class="alternatives-list" id="alternatives-list-${itemIndex}">
+                    ${renderAlternatives(alternatives, itemIndex, result?.selected_product, queryItem.price)}
+                  </div>
                 </div>
-                <span class="quote-item-section-pill">${statusMeta.statusText}</span>
-              </div>
-              <div class="quote-item-meta-grid">
-                <div class="quote-item-meta-card">
-                  <span class="label">Excel SKU / 编码</span>
-                  <span class="value">${escapeHtml(queryReferenceCode || '未提供')}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">商城 SKU / 编码</span>
-                  <span class="value">${escapeHtml(selectedReferenceCode || '未选择')}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">当前建议商品</span>
-                  <span class="value">${escapeHtml(primaryProduct.name || '暂无稳定候选')}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">供应商</span>
-                  <span class="value">${escapeHtml(primaryProduct.supplier || '待补充')}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">建议售价</span>
-                  <span class="value">${adjustedPrice > 0 ? `¥${adjustedPrice.toFixed(2)}` : '待补充'}</span>
-                </div>
-                <div class="quote-item-meta-card">
-                  <span class="label">利润 / 倒挂</span>
-                  <span class="value ${marginClass}">${marginText}</span>
-                </div>
-              </div>
-              <div class="quote-item-review-note">如果 Excel 原始编码、规格和商城 SKU 对不上，就先人工搜索，不要急着点确认。</div>
-            </div>
-            <div class="quote-item-review-card quote-item-review-card--search">
-              <div class="quote-item-section-head">
-                <div>
-                  <div class="quote-item-section-title">人工搜索与补充</div>
-                  <div class="quote-item-section-copy">自动候选不对时，直接在当前项下面搜索商品库并回写，不再切去右侧悬浮区。</div>
-                </div>
-                <span class="quote-item-section-pill">${manualSearchSelection && selectedProductCode ? `当前已选 ${escapeHtml(selectedProductCode)}` : '按当前项搜索'}</span>
-              </div>
-              ${renderQuoteCatalogSearchPanel(queryItem, itemIndex)}
+              ` : ''}
             </div>
           </div>
         </div>
@@ -1408,6 +1298,18 @@
       };
     });
 
+    document.querySelectorAll('.quote-catalog-open-btn').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const itemIndex = parseInt(this.dataset.itemIndex, 10);
+        activeWorkbenchIndex = itemIndex;
+        workbenchUserPinnedFocus = true;
+        if (typeof openQuoteCatalogSearchModal === 'function') {
+          openQuoteCatalogSearchModal(itemIndex);
+        }
+      };
+    });
+
     document.querySelectorAll('.quote-catalog-search-btn').forEach(btn => {
       btn.onclick = function(e) {
         e.stopPropagation();
@@ -1447,6 +1349,9 @@
         try {
           const match = JSON.parse(decodeURIComponent(encodedMatch));
           selectProduct(itemIndex, match);
+          if (typeof closeQuoteCatalogSearchModal === 'function') {
+            closeQuoteCatalogSearchModal();
+          }
         } catch (error) {
           showToast('error', '人工选择数据解析失败');
         }
