@@ -199,6 +199,16 @@
     }
   }
 
+  function notifyAssistantContextChange(state = 'ready') {
+    document.dispatchEvent(new CustomEvent('ai-assistant-context-change', {
+      detail: {
+        state,
+        activeWorkbenchIndex,
+        total: Array.isArray(matchResults) ? matchResults.length : 0
+      }
+    }));
+  }
+
   function renderQuotesFilteredEmpty() {
     return `
       <div class="workspace-empty-orbit workspace-empty-orbit--quotes">
@@ -1192,6 +1202,7 @@
       setQuotesWorkbenchState('empty');
       container.innerHTML = renderQuotesLandingEmpty();
       updateStats();
+      notifyAssistantContextChange('empty');
       return;
     }
 
@@ -1207,6 +1218,7 @@
       container.innerHTML = renderQuotesFilteredEmpty();
       updateStats();
       rebindWorkbenchFilterEvents();
+      notifyAssistantContextChange('filtered-empty');
       return;
     }
 
@@ -1220,6 +1232,7 @@
     updateStats();
     initCandidateActions();
     rebindWorkbenchFilterEvents();
+    notifyAssistantContextChange('ready');
   };
 
   renderMatchResultsInternal = function renderMatchResultsInternalOverride() {

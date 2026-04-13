@@ -160,6 +160,11 @@ document.addEventListener('DOMContentLoaded', function() {
 const WorkspaceEntryActions = {
     ocrUnavailableToastTs: 0,
 
+    shouldPreferTransientPicker(inputId) {
+        const route = document.body?.dataset?.route || '';
+        return route === 'quotes' && inputId === 'quoteFile';
+    },
+
     triggerExistingInput(inputId) {
         const input = document.getElementById(inputId);
         if (!input) {
@@ -245,7 +250,7 @@ const WorkspaceEntryActions = {
     },
 
     openQuoteUpload() {
-        if (this.triggerExistingInput('quoteFile')) {
+        if (!this.shouldPreferTransientPicker('quoteFile') && this.triggerExistingInput('quoteFile')) {
             return;
         }
 

@@ -3551,7 +3551,7 @@
 
     </style>
     <!-- AI助手样式 -->
-    <link href="/static/css/ai_assistant.css" rel="stylesheet">
+    <link href="/static/css/ai_assistant.css?v=20260413c" rel="stylesheet">
     <!-- 增强样式：深色模式、动画、现代化设计 -->
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
@@ -9218,48 +9218,68 @@
     <!-- AI助手组件 -->
     <div class="ai-assistant-panel" id="aiAssistantPanel">
         <div class="ai-panel-header">
-            <div class="ai-status-indicator">
-                <span class="ai-status-dot inactive" id="aiStatusDot"></span>
-                <span id="aiProviderName">AI助手</span>
+            <div class="ai-panel-heading">
+                <div class="ai-panel-kicker">报价助手</div>
+                <div class="ai-status-indicator">
+                    <span class="ai-status-dot inactive" id="aiStatusDot"></span>
+                    <span id="aiProviderName">离线辅助模式</span>
+                </div>
             </div>
-            <button class="ai-toggle-btn" onclick="toggleAI()">
-                <i class="bi bi-power"></i>
-            </button>
+            <div class="ai-panel-header-actions">
+                <button class="ai-header-btn" type="button" onclick="refreshAIAssistantContext(true)" title="刷新助手" aria-label="刷新助手">
+                    <i class="bi bi-arrow-clockwise"></i>
+                </button>
+                <button class="ai-header-btn ai-close-btn" type="button" onclick="closeAIPanel()" title="关闭助手" aria-label="关闭助手">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div class="ai-panel-context">
+            <div class="ai-panel-context-head">
+                <div class="ai-panel-context-copy">
+                    <div class="ai-panel-context-title" id="aiAssistantContextTitle">等待新的报价单</div>
+                    <div class="ai-panel-context-meta" id="aiAssistantContextMeta">可直接在当前页重新上传报价单，或继续处理现有确认队列。</div>
+                </div>
+                <span class="ai-mode-pill" id="aiModePill">离线辅助</span>
+            </div>
+            <div class="ai-summary-grid" id="aiAssistantSummary"></div>
         </div>
         <div class="ai-chat-container" id="aiChatContainer">
             <div class="ai-welcome-message">
                 <h5><i class="bi bi-robot me-2"></i>AI报价助手</h5>
-                <p>我可以帮助您：</p>
+                <p>我会优先结合当前报价单和当前焦点项给出可执行建议。</p>
                 <ul>
-                    <li><i class="bi bi-check-circle text-success me-1"></i>解释商品匹配结果</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i>推荐替代商品</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i>解答产品问题</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i>优化报价方案</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>解释当前报价项为什么匹到这些候选</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>列出当前最该优先处理的待确认项</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>检查现在是否已经适合导出</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>在没有在线模型时继续提供本地辅助结论</li>
                 </ul>
             </div>
         </div>
         <div class="ai-quick-actions">
-            <button onclick="askExplainMatch()"><i class="bi bi-lightbulb me-1"></i>解释匹配</button>
-            <button onclick="askRecommend()"><i class="bi bi-star me-1"></i>推荐替代</button>
-            <button onclick="askProductInfo()"><i class="bi bi-info-circle me-1"></i>商品查询</button>
+            <button type="button" onclick="askExplainMatch()"><i class="bi bi-lightbulb me-1"></i>当前项分析</button>
+            <button type="button" onclick="askRecommend()"><i class="bi bi-stars me-1"></i>候选建议</button>
+            <button type="button" onclick="askQueueSummary()"><i class="bi bi-list-check me-1"></i>待处理清单</button>
+            <button type="button" onclick="askExportReadiness()"><i class="bi bi-box-arrow-up-right me-1"></i>导出检查</button>
         </div>
         <div class="ai-input-area">
-            <input type="text" id="aiInput" placeholder="输入问题...">
-            <button onclick="sendAIMessage()">
+            <input type="text" id="aiInput" placeholder="问我：当前还差哪些没确认、这条为什么匹到它、现在能不能导出">
+            <button type="button" onclick="sendAIMessage()" aria-label="发送给报价助手">
                 <i class="bi bi-send"></i>
             </button>
         </div>
     </div>
 
     <!-- AI浮动按钮 -->
-    <button class="ai-float-btn" onclick="toggleAIPanel()">
+    <button class="ai-float-btn" type="button" onclick="toggleAIPanel()" aria-controls="aiAssistantPanel" aria-expanded="false" aria-label="打开报价助手">
         <i class="bi bi-robot"></i>
+        <span class="badge" id="aiFloatBadge" hidden>0</span>
     </button>
 
     <!-- AI助手交互脚本 -->
-    <script src="/static/js/ai_assistant.js"></script>
+    <script src="/static/js/ai_assistant.js?v=20260413c"></script>
     <!-- 增强功能：深色模式、动画、快捷键、仪表盘 -->
-    <script src="/static/js/enhanced_features.js?v=20260413a"></script>
+    <script src="/static/js/enhanced_features.js?v=20260413b"></script>
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js"></script>
     <!-- 商品图片展示 -->
