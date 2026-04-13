@@ -30,6 +30,9 @@
                 <button class="btn btn-warning btn-sm" id="batchAdjustBtn">
                     <i class="bi bi-percent me-1"></i>批量调价
                 </button>
+                <button class="btn btn-outline-primary btn-sm" type="button" onclick="showExportOptions('dropdown_default')">
+                    <i class="bi bi-list-check me-1"></i>候选报价单
+                </button>
                 <button class="btn btn-success btn-sm" id="exportBtn">
                     <i class="bi bi-download me-1"></i>导出
                 </button>
@@ -76,7 +79,7 @@
                 </button>
             </div>
             <div class="col-xxl-2 col-xl-12 col-md-12">
-                <div class="quote-filter-note">建议节奏：先用筛选把范围收窄，再按报价单顺序一路往下确认。每张卡里直接看 Excel 项、待确认 SKU、候选和人工搜索。</div>
+                <div class="quote-filter-note">建议节奏：先筛选，再顺着报价单一直往下确认。每张卡直接看 Excel SKU、待确认 SKU、候选和全商城人工搜索；需要给客服二次补选时，可以直接导出“候选报价单”。</div>
             </div>
         </div>
         <div class="row mt-3" id="priceAdjustNotice" style="display: none;">

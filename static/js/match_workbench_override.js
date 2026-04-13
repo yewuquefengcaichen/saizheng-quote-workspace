@@ -60,12 +60,26 @@
       return { cardClass: 'no-match', badgeClass: 'status-nomatch', statusText: '无匹配' };
     }
     if (result?.action === 'ask_boss') {
-      return { cardClass: 'no-match', badgeClass: 'status-nomatch', statusText: '需问老板' };
+      return { cardClass: 'needs-review', badgeClass: 'status-ask-boss', statusText: '需问老板' };
     }
     if (matches.length > 0) {
       return { cardClass: 'pending', badgeClass: 'status-pending', statusText: '待选择' };
     }
     return { cardClass: 'no-match', badgeClass: 'status-nomatch', statusText: '无匹配' };
+  }
+
+  function isManualSearchSelection(result) {
+    const selectedProduct = result?.selected_product || null;
+    return !!(selectedProduct?.manual_selected || selectedProduct?.source === 'catalog_search');
+  }
+
+  function getSelectedProductCode(result) {
+    return [
+      result?.selected_product?.product?.code,
+      result?.selected_product?.product?.product_code,
+      result?.selected_product?.product?.item_code,
+      result?.selected_product?.product?.sku
+    ].map(value => String(value || '').trim()).find(Boolean) || '';
   }
 
   function focusWorkbenchItem(itemIndex, shouldScroll = false) {
@@ -891,6 +905,14 @@
       primaryProduct.item_code,
       primaryProduct.sku
     ].map(value => String(value || '').trim()).find(Boolean) || '';
+    const selectedProductCode = getSelectedProductCode(result);
+    const manualSearchSelection = isManualSearchSelection(result);
+    const noMatchActive = result?.action === 'no_match';
+    const askBossActive = result?.action === 'ask_boss';
+    const confirmedSelection = isMatchedResult(result);
+    const confirmButtonLabel = confirmedSelection
+      ? (manualSearchSelection ? '已确认人工选择' : '已确认当前商品')
+      : (manualSearchSelection ? '确认人工选择' : '确认当前推荐');
     const marketPrice = parseNumericPrice(primaryProduct.market_price) || 0;
     const adjustedPrice = getAdjustedPrice(marketPrice, itemIndex) || marketPrice;
     const budgetPrice = parseNumericPrice(queryItem.price) || adjustedPrice || marketPrice;
@@ -914,6 +936,7 @@
               <span class="quote-item-source-pill"><i class="bi ${isOcrItem ? 'bi-camera' : 'bi-card-checklist'}"></i>${isOcrItem ? 'OCR来源' : '表格来源'}</span>
               <span class="quote-item-source-pill"><i class="bi bi-file-earmark-spreadsheet"></i>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
               <span class="quote-item-source-pill"><i class="bi bi-upc-scan"></i>待确认 SKU ${escapeHtml(selectedReferenceCode || '未选择')}</span>
+              ${manualSearchSelection ? '<span class="quote-item-source-pill quote-item-source-pill--accent"><i class="bi bi-search"></i>人工搜索已选中</span>' : ''}
               ${primary ? `<span class="quote-item-score-pill"><i class="bi bi-bullseye"></i>${Math.round((primary.score || 0) * 100)}% 推荐度</span>` : ''}
             </div>
             <div class="quote-item-title">${escapeHtml(queryItem.name || '未命名询价项')}</div>
@@ -980,13 +1003,13 @@
             ` : ''}
             <div class="match-actions-bar">
               <div class="match-actions-group">
-                ${primary ? `<button class="btn btn-sm ${isMatchedResult(result) ? 'btn-success' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button"><i class="bi bi-check2-circle me-1"></i>${isMatchedResult(result) ? '重新确认当前商品' : '确认当前推荐'}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动推荐，请使用右侧人工搜索</span>'}
+                ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动推荐，请使用下方人工搜索</span>'}
                 ${primaryProduct.code ? `<button class="btn btn-sm btn-outline-secondary match-detail-btn" data-product-code="${escapeHtmlAttr(primaryProduct.code || '')}" type="button"><i class="bi bi-eye me-1"></i>商品详情</button>` : ''}
               </div>
               <div class="match-actions-group">
                 ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>展开全部 (${matches.length}个)</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>当前候选已全部展示</span>'}
-                <button class="btn btn-sm btn-outline-danger mark-no-match" data-index="${itemIndex}" type="button"><i class="bi bi-x-circle me-1"></i>无匹配</button>
-                <button class="btn btn-sm btn-outline-warning mark-ask-boss" data-index="${itemIndex}" type="button"><i class="bi bi-question-circle me-1"></i>问老板</button>
+                <button class="btn btn-sm ${noMatchActive ? 'btn-danger is-active' : 'btn-outline-danger'} mark-no-match" data-index="${itemIndex}" type="button" aria-pressed="${noMatchActive ? 'true' : 'false'}"><i class="bi bi-x-circle me-1"></i>无匹配</button>
+                <button class="btn btn-sm ${askBossActive ? 'btn-warning is-active' : 'btn-outline-warning'} mark-ask-boss" data-index="${itemIndex}" type="button" aria-pressed="${askBossActive ? 'true' : 'false'}"><i class="bi bi-question-circle me-1"></i>问老板</button>
               </div>
             </div>
           </div>
@@ -1033,7 +1056,7 @@
                   <div class="quote-item-section-title">人工搜索与补充</div>
                   <div class="quote-item-section-copy">自动候选不对时，直接在当前项下面搜索商品库并回写，不再切去右侧悬浮区。</div>
                 </div>
-                <span class="quote-item-section-pill">按当前项搜索</span>
+                <span class="quote-item-section-pill">${manualSearchSelection && selectedProductCode ? `当前已选 ${escapeHtml(selectedProductCode)}` : '按当前项搜索'}</span>
               </div>
               ${renderQuoteCatalogSearchPanel(queryItem, itemIndex)}
             </div>
