@@ -6336,3 +6336,497 @@ body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions .btn {
     display: none !important;
   }
 }
+
+/* ===== Quotes SKU Workspace Polish 20260413i ===== */
+body[data-route="quotes"] .workspace-shell {
+  grid-template-columns: 176px minmax(0, 1fr) !important;
+  gap: 10px !important;
+  padding-top: 12px !important;
+}
+
+body[data-route="quotes"] .workspace-scene-nav,
+body[data-route="quotes"] .workspace-scene-hero {
+  overflow: visible !important;
+}
+
+body[data-route="quotes"] .workspace-scene-nav {
+  top: 64px;
+  gap: 6px;
+  padding: 10px 8px !important;
+  border-radius: 20px;
+}
+
+body[data-route="quotes"] .scene-nav-links {
+  gap: 6px;
+}
+
+body[data-route="quotes"] .scene-nav-link {
+  min-height: 44px;
+  padding: 8px 10px !important;
+  border-radius: 14px !important;
+}
+
+body[data-route="quotes"] .scene-nav-link-icon {
+  width: 30px !important;
+  height: 30px !important;
+}
+
+body[data-route="quotes"] .scene-nav-link strong {
+  font-size: 0.88rem !important;
+}
+
+body[data-route="quotes"] .quote-filter-bar {
+  top: 64px;
+  margin-bottom: 6px !important;
+  padding: 7px 9px !important;
+  border-radius: 18px !important;
+}
+
+body[data-route="quotes"] .quote-filter-inline {
+  grid-template-columns: minmax(230px, 1.3fr) 104px 114px auto minmax(0, max-content) !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+body[data-route="quotes"] .quote-filter-inline .input-group-text,
+body[data-route="quotes"] .quote-filter-inline .form-control,
+body[data-route="quotes"] .quote-filter-inline .form-select,
+body[data-route="quotes"] .quote-filter-inline .btn,
+body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions .btn {
+  min-height: 32px !important;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+body[data-route="quotes"] .quote-filter-reset,
+body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions .btn {
+  border-radius: 12px !important;
+}
+
+body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions {
+  gap: 5px;
+}
+
+body[data-route="quotes"] #priceAdjustNotice {
+  margin-top: 8px !important;
+}
+
+body[data-route="quotes"] .match-stream-list.quote-sheet-list {
+  gap: 8px;
+}
+
+body[data-route="quotes"] .quote-item-card {
+  padding: 9px 11px;
+  border-radius: 20px;
+}
+
+body[data-route="quotes"] .quote-item-shell-top {
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+body[data-route="quotes"] .quote-item-shell-row {
+  gap: 4px;
+}
+
+body[data-route="quotes"] .quote-item-title {
+  font-size: 0.96rem !important;
+}
+
+body[data-route="quotes"] .quote-item-statusline {
+  margin-top: 3px;
+  font-size: 0.74rem;
+}
+
+body[data-route="quotes"] .quote-item-body--split {
+  grid-template-columns: minmax(262px, 312px) minmax(0, 1fr) !important;
+  gap: 8px !important;
+}
+
+body[data-route="quotes"] .quote-origin-panel,
+body[data-route="quotes"] .quote-search-summary,
+body[data-route="quotes"] .quote-item-candidates-frame {
+  padding: 9px;
+  border-radius: 14px;
+}
+
+body[data-route="quotes"] .quote-mini-section-head,
+body[data-route="quotes"] .quote-item-section-head {
+  gap: 6px;
+  margin-bottom: 5px;
+}
+
+body[data-route="quotes"] .quote-mini-section-title,
+body[data-route="quotes"] .quote-item-section-title {
+  font-size: 0.78rem;
+}
+
+body[data-route="quotes"] .quote-item-section-copy,
+body[data-route="quotes"] .quote-search-summary-hint,
+body[data-route="quotes"] .quote-reference-state,
+body[data-route="quotes"] .quote-origin-note {
+  font-size: 0.7rem;
+  line-height: 1.42;
+}
+
+body[data-route="quotes"] .quote-item-meta-grid--dense,
+body[data-route="quotes"] .quote-reference-compare,
+body[data-route="quotes"] .quote-search-summary-inline {
+  gap: 6px;
+}
+
+body[data-route="quotes"] .quote-item-meta-grid--dense .quote-item-meta-card,
+body[data-route="quotes"] .quote-selection-row,
+body[data-route="quotes"] .quote-search-summary-inline-item {
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+
+body[data-route="quotes"] .quote-search-summary-actions {
+  gap: 6px;
+}
+
+body[data-route="quotes"] .quote-search-summary-actions .btn {
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 12px;
+}
+
+body[data-route="quotes"] .quote-candidate-focus-bar {
+  gap: 4px;
+}
+
+body[data-route="quotes"] .quote-candidate-focus-bar .btn,
+body[data-route="quotes"] .quote-candidate-focus-bar .match-actions-hint {
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.72rem;
+}
+
+body[data-route="quotes"] .quote-candidate-scrollbox {
+  max-height: 190px;
+  padding-right: 2px;
+}
+
+body[data-route="quotes"] .candidate-list,
+body[data-route="quotes"] .alternatives-list {
+  gap: 6px;
+}
+
+body[data-route="quotes"] .product-card,
+body[data-route="quotes"] .alternative-card {
+  padding: 7px 8px;
+  border-radius: 14px;
+}
+
+body[data-route="quotes"] .product-card-layout,
+body[data-route="quotes"] .alternative-layout {
+  grid-template-columns: 46px 40px minmax(0, 1fr) 102px 34px !important;
+  gap: 6px;
+}
+
+body[data-route="quotes"] .candidate-visual,
+body[data-route="quotes"] .alternative-visual {
+  width: 46px;
+  min-width: 46px;
+  padding: 2px;
+  border-radius: 12px;
+}
+
+body[data-route="quotes"] .match-score,
+body[data-route="quotes"] .alt-score {
+  min-height: 30px;
+  font-size: 0.74rem;
+}
+
+body[data-route="quotes"] .candidate-rank-badge,
+body[data-route="quotes"] .alternative-rank-badge,
+body[data-route="quotes"] .candidate-selection-indicator {
+  font-size: 0.62rem;
+}
+
+body[data-route="quotes"] .candidate-main,
+body[data-route="quotes"] .alternative-main {
+  gap: 2px;
+}
+
+body[data-route="quotes"] .candidate-title,
+body[data-route="quotes"] .alternative-title {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.78rem;
+  line-height: 1.28;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+body[data-route="quotes"] .candidate-subtitle,
+body[data-route="quotes"] .alternative-subtitle,
+body[data-route="quotes"] .candidate-price-meta,
+body[data-route="quotes"] .alternative-price-meta,
+body[data-route="quotes"] .profit-info,
+body[data-route="quotes"] .candidate-proofline,
+body[data-route="quotes"] .alternative-proofline {
+  font-size: 0.68rem;
+  line-height: 1.35;
+}
+
+body[data-route="quotes"] .candidate-price-panel,
+body[data-route="quotes"] .alternative-price-panel {
+  padding: 5px 7px;
+  border-radius: 12px;
+}
+
+body[data-route="quotes"] .candidate-price-label {
+  font-size: 0.62rem;
+}
+
+body[data-route="quotes"] .price-highlight {
+  font-size: 0.9rem;
+}
+
+body[data-route="quotes"] .candidate-actions .btn {
+  min-height: 28px;
+  width: 28px;
+  padding: 0;
+  border-radius: 10px;
+}
+
+body[data-route="quotes"] .quote-search-modal-shell {
+  border-radius: 24px;
+  overflow: hidden;
+}
+
+body[data-route="quotes"] .quote-search-modal-subtitle {
+  margin-top: 2px;
+  font-size: 0.76rem;
+  line-height: 1.45;
+}
+
+body[data-route="quotes"] .quote-search-modal-query {
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 420px);
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-item {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-item--search {
+  justify-content: center;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-item strong {
+  margin-top: 3px;
+  font-size: 0.96rem;
+  line-height: 1.35;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-label {
+  font-size: 0.64rem;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 26px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface);
+  color: var(--ws-text-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+body[data-route="quotes"] .quote-search-modal-query-copy,
+body[data-route="quotes"] .quote-search-modal-search-hint {
+  margin-top: 6px;
+  color: var(--ws-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+body[data-route="quotes"] .quote-search-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+body[data-route="quotes"] .quote-search-modal-results-head {
+  margin-bottom: 8px;
+  font-size: 0.74rem;
+}
+
+body[data-route="quotes"] .quote-search-result-card {
+  padding: 8px 10px;
+  border-radius: 14px;
+}
+
+body[data-route="quotes"] .quote-search-result-row {
+  display: grid;
+  grid-template-columns: 48px minmax(0, 1fr) 92px 124px;
+  gap: 10px;
+  align-items: center;
+}
+
+body[data-route="quotes"] .quote-search-result-main {
+  min-width: 0;
+}
+
+body[data-route="quotes"] .quote-search-result-name {
+  color: var(--ws-text-strong);
+  font-size: 0.88rem;
+  font-weight: 800;
+  line-height: 1.32;
+}
+
+body[data-route="quotes"] .quote-search-result-meta {
+  margin-top: 2px;
+  color: var(--ws-text-muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+body[data-route="quotes"] .quote-search-result-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 5px;
+}
+
+body[data-route="quotes"] .quote-search-result-side {
+  text-align: right;
+}
+
+body[data-route="quotes"] .quote-search-result-price {
+  color: var(--ws-text-strong);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+body[data-route="quotes"] .quote-search-result-side-meta {
+  margin-top: 3px;
+  color: var(--ws-text-muted);
+  font-size: 0.68rem;
+}
+
+body[data-route="quotes"] .quote-search-result-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: stretch;
+}
+
+body[data-route="quotes"] .quote-search-result-actions .btn {
+  min-height: 30px;
+  padding: 4px 10px;
+  border-radius: 11px;
+}
+
+body[data-route="quotes"] .match-confirm-btn.is-active,
+body[data-route="quotes"] .quote-catalog-use-btn.is-active {
+  border-color: rgba(15, 140, 103, 0.72) !important;
+  background: linear-gradient(135deg, rgba(15, 140, 103, 0.94) 0%, rgba(12, 163, 127, 0.9) 100%) !important;
+  color: #fff !important;
+}
+
+body[data-route="quotes"] .mark-no-match.is-active {
+  border-color: rgba(220, 53, 69, 0.8) !important;
+  background: linear-gradient(135deg, rgba(220, 53, 69, 0.94) 0%, rgba(185, 28, 28, 0.92) 100%) !important;
+  color: #fff !important;
+}
+
+body[data-route="quotes"] .mark-ask-boss.is-active {
+  border-color: rgba(217, 119, 6, 0.78) !important;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.96) 0%, rgba(217, 119, 6, 0.92) 100%) !important;
+  color: #fff !important;
+}
+
+body[data-route="quotes"] .quote-catalog-search-btn.is-active,
+body[data-route="quotes"] .quote-search-result-card.is-selected {
+  border-color: rgba(15, 140, 103, 0.3) !important;
+  box-shadow: 0 10px 24px rgba(15, 140, 103, 0.14) !important;
+}
+
+@media (max-width: 1450px) {
+  body[data-route="quotes"] .workspace-shell {
+    display: block !important;
+  }
+
+  body[data-route="quotes"] .workspace-scene-shell {
+    display: none !important;
+  }
+}
+
+@media (max-width: 1199px) {
+  body[data-route="quotes"] .quote-filter-inline,
+  body[data-route="quotes"] .quote-item-body--split,
+  body[data-route="quotes"] .quote-search-modal-query {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-route="quotes"] .quote-candidate-scrollbox {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  body[data-route="quotes"] .quote-search-result-row {
+    grid-template-columns: 48px minmax(0, 1fr) 110px;
+    grid-template-areas:
+      "thumb main side"
+      "thumb actions actions";
+    align-items: start;
+  }
+
+  body[data-route="quotes"] .quote-search-result-row .mini-thumb {
+    grid-area: thumb;
+  }
+
+  body[data-route="quotes"] .quote-search-result-main {
+    grid-area: main;
+  }
+
+  body[data-route="quotes"] .quote-search-result-side {
+    grid-area: side;
+  }
+
+  body[data-route="quotes"] .quote-search-result-actions {
+    grid-area: actions;
+    flex-direction: row;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 768px) {
+  body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+  }
+
+  body[data-route="quotes"] .quote-search-result-row {
+    grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  body[data-route="quotes"] .quote-search-result-side {
+    text-align: left;
+  }
+
+  body[data-route="quotes"] .quote-search-result-actions {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

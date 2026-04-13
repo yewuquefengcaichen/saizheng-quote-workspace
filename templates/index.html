@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260413h" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260413i" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -3828,7 +3828,7 @@
                         <h5 class="modal-title">
                             <i class="bi bi-search text-primary me-2"></i><span id="quoteCatalogSearchModalTitle">全商城人工搜索</span>
                         </h5>
-                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">在全商城里找更接近当前报价项的 SKU。</div>
+                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">在商城里直接挑一个最接近当前报价项的 SKU。</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
@@ -6478,9 +6478,9 @@
             return `
                 <div class="quote-search-modal-results-head">
                     <span>共找到 ${total} 个结果</span>
-                    <span>当前展示前 ${Math.min(results.length, 12)} 个</span>
+                    <span>当前展示前 ${Math.min(results.length, 12)} 个，可继续换词搜索</span>
                 </div>
-                <div class="quote-search-modal-grid">
+                <div class="quote-search-modal-list">
                     ${cards}
                 </div>
             `;
@@ -6510,26 +6510,28 @@
 
             return `
                 <div class="quote-search-result-card ${isCurrentSelected ? 'is-selected' : ''}" data-item-index="${itemIndex}" data-product-code="${escapeHtmlAttr(item.code || '')}">
-                    <div class="d-flex gap-3 align-items-center">
+                    <div class="quote-search-result-row">
                         <div class="mini-thumb">
                             ${ProductImageManager.createImageHtml(productForImage, 'small')}
                         </div>
-                        <div class="flex-grow-1 min-w-0">
-                            <div class="fw-semibold">${escapeHtml(item.name || '未命名商品')}</div>
-                            <div class="small text-muted">
+                        <div class="quote-search-result-main">
+                            <div class="quote-search-result-name">${escapeHtml(item.name || '未命名商品')}</div>
+                            <div class="quote-search-result-meta">
                                 编码 ${escapeHtml(item.code || '-')} · 型号 ${escapeHtml(item.model || '-')} · 单位 ${escapeHtml(item.unit || '-')}
                             </div>
-                            <div class="small text-muted">
-                                供应商 ${escapeHtml(item.supplier || '-')} · 价格 ¥${formatPrice(item.market_price)}
+                            <div class="quote-search-result-meta">
+                                供应商 ${escapeHtml(item.supplier || '-')} · 品牌 ${escapeHtml(item.brand || '-')} ${item.category ? `· 分类 ${escapeHtml(item.category)}` : ''}
                             </div>
-                            <div class="mt-1 d-flex flex-wrap gap-1">
-                                ${item.category ? `<span class="badge bg-primary-subtle text-primary-emphasis">${escapeHtml(item.category)}</span>` : ''}
+                            <div class="quote-search-result-flags">
                                 ${hasImage ? '<span class="qe-badge qe-badge-info"><i class="bi bi-image me-1"></i>有图</span>' : ''}
-                                ${item.catalog_score ? `<span class="qe-badge qe-badge-neutral">搜索分 ${item.catalog_score}</span>` : ''}
                                 ${isCurrentSelected ? '<span class="qe-badge qe-badge-success"><i class="bi bi-check2-circle me-1"></i>当前高亮</span>' : ''}
                             </div>
                         </div>
-                        <div class="d-flex flex-column gap-2">
+                        <div class="quote-search-result-side">
+                            <div class="quote-search-result-price">¥${formatPrice(item.market_price)}</div>
+                            <div class="quote-search-result-side-meta">${item.catalog_score ? `搜索分 ${item.catalog_score}` : '商城结果'}</div>
+                        </div>
+                        <div class="quote-search-result-actions">
                             <button class="btn btn-outline-primary btn-sm quote-catalog-detail-btn" data-product-code="${escapeHtmlAttr(item.code || '')}" type="button">
                                 <i class="bi bi-eye me-1"></i>详情
                             </button>
@@ -6596,22 +6598,23 @@
                 ? '<span class="spinner-border spinner-border-sm"></span>'
                 : (searched ? '<i class="bi bi-arrow-repeat me-1"></i>重新搜索' : '<i class="bi bi-search me-1"></i>开始搜索');
 
-            modalTitle.textContent = `ITEM ${itemIndex + 1} · ${queryItem.name || '未命名报价项'}`;
-            modalMeta.innerHTML = `
-                <span>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
-                <span>规格 ${escapeHtml(queryItem.spec || '未提供')}</span>
-                <span>当前候选 ${escapeHtml(selectedCode || '未选择')}</span>
-            `;
+            modalTitle.textContent = `ITEM ${itemIndex + 1} · 全商城选 SKU`;
+            modalMeta.textContent = '先看原始报价项，再从下面结果里直接选一个 SKU。';
 
             modalBody.innerHTML = `
                 <div class="quote-search-modal-query">
                     <div class="quote-search-modal-query-item">
-                        <span class="quote-search-modal-query-label">原始报价</span>
+                        <span class="quote-search-modal-query-label">原始报价项</span>
                         <strong>${escapeHtml(queryItem.name || '未命名报价项')}</strong>
+                        <div class="quote-search-modal-query-meta">
+                            <span>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
+                            <span>规格 ${escapeHtml(queryItem.spec || '未提供')}</span>
+                            <span>当前候选 ${escapeHtml(selectedCode || '未选择')}</span>
+                        </div>
                         <div class="quote-search-modal-query-copy">${escapeHtml(queryItem.remark || queryItem.spec || '没有附加备注')}</div>
                     </div>
-                    <div class="quote-search-modal-query-item">
-                        <span class="quote-search-modal-query-label">当前搜索词</span>
+                    <div class="quote-search-modal-query-item quote-search-modal-query-item--search">
+                        <span class="quote-search-modal-query-label">搜索词</span>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
                             <input type="text" class="form-control quote-catalog-keyword" data-item-index="${itemIndex}" value="${escapeHtmlAttr(keyword)}" placeholder="输入名称、型号、编码或规格搜索">
@@ -6619,6 +6622,7 @@
                                 ${searchButtonLabel}
                             </button>
                         </div>
+                        <div class="quote-search-modal-search-hint">名称、型号、编码、规格都可以直接搜。</div>
                     </div>
                 </div>
                 ${error ? `<div class="small text-danger mb-3">${escapeHtml(error)}</div>` : ''}
@@ -9250,7 +9254,7 @@
         </div>
         <div class="ai-chat-container" id="aiChatContainer">
             <div class="ai-welcome-message">
-                <h5><i class="bi bi-robot me-2"></i>AI报价助手</h5>
+                <h5><i class="bi bi-robot me-2"></i>报价助手</h5>
                 <p>我会优先结合当前报价单和当前焦点项给出可执行建议。</p>
                 <ul>
                     <li><i class="bi bi-check-circle text-success me-1"></i>解释当前报价项为什么匹到这些候选</li>
@@ -9283,7 +9287,7 @@
     <!-- AI助手交互脚本 -->
     <script src="/static/js/ai_assistant.js?v=20260413c"></script>
     <!-- 增强功能：深色模式、动画、快捷键、仪表盘 -->
-    <script src="/static/js/enhanced_features.js?v=20260413b"></script>
+    <script src="/static/js/enhanced_features.js?v=20260413d"></script>
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js"></script>
     <!-- 商品图片展示 -->
@@ -9295,7 +9299,7 @@
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260413h"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260413i"></script>
 </body>
 </html>
 

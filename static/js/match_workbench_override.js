@@ -932,7 +932,7 @@
             <div class="quote-item-section-head">
               <div>
                 <div class="quote-item-section-title">候选商品</div>
-                <div class="quote-item-section-copy">左边看原始报价单，右边在固定选择框里切换候选，不再整页展开搜索结果。</div>
+                <div class="quote-item-section-copy">左边看原始报价，右边在固定候选框里切换 SKU。</div>
               </div>
               <span class="quote-item-section-pill">${primary ? `${manualSearchSelection ? '人工已选' : '首选'} ${Math.round((primary.score || 0) * 100)}%` : '待人工检索'}</span>
             </div>

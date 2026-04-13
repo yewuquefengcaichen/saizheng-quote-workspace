@@ -52,6 +52,64 @@ window.getWorkspaceActionHost = getWorkspaceActionHost;
 window.mountWorkspaceAction = mountWorkspaceAction;
 window.setWorkspacePage = setWorkspacePageContext;
 
+function elementCanScrollY(node) {
+    if (!(node instanceof HTMLElement)) {
+        return false;
+    }
+
+    const styles = window.getComputedStyle(node);
+    const overflowY = styles.overflowY || '';
+    if (!/(auto|scroll|overlay)/.test(overflowY)) {
+        return false;
+    }
+
+    return node.scrollHeight > node.clientHeight + 2;
+}
+
+function initWorkspaceWheelPassthrough() {
+    const passthroughSelector = [
+        '.workspace-scene-nav',
+        '.workspace-scene-hero',
+        '.workspace-ingress-shell',
+        '.workspace-stage-shell',
+        '.scene-panel'
+    ].join(',');
+
+    if (document.documentElement.dataset.workspaceWheelPassthroughBound === '1') {
+        return;
+    }
+
+    document.documentElement.dataset.workspaceWheelPassthroughBound = '1';
+    document.addEventListener('wheel', (event) => {
+        const panel = event.target instanceof HTMLElement
+            ? event.target.closest(passthroughSelector)
+            : null;
+        if (!(panel instanceof HTMLElement)) {
+            return;
+        }
+
+        if (Math.abs(event.deltaY) <= Math.abs(event.deltaX)) {
+            return;
+        }
+
+        let current = event.target instanceof HTMLElement ? event.target : null;
+        while (current && current !== panel) {
+            if (elementCanScrollY(current)) {
+                return;
+            }
+            current = current.parentElement;
+        }
+
+        if (elementCanScrollY(panel)) {
+            return;
+        }
+
+        const scroller = document.scrollingElement || document.documentElement;
+        scroller.scrollTop += event.deltaY;
+        event.preventDefault();
+    }, { passive: false, capture: true });
+}
+
 // =============== 主题管理 ===============
 const ThemeManager = {
     currentTheme: 'light',
@@ -1204,6 +1262,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // 初始化仪表盘
     Dashboard.init();
+    initWorkspaceWheelPassthrough();
 
     document.body.classList.add('enhanced-ui-ready');
     console.log('增强功能已加载');
