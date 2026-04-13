@@ -694,7 +694,7 @@
               <div class="candidate-proofline">${proofParts.slice(0, 4).join(' · ') || '暂无额外学习信号'}</div>
             </div>
             <div class="candidate-price-panel">
-              <div class="candidate-price-label">参考报价</div>
+              <div class="candidate-price-label">报价</div>
               ${hasAdjustment ? `
                 <div class="text-muted small" style="text-decoration: line-through;">¥${marketPrice.toFixed(2)}</div>
                 <div class="price-highlight text-warning">¥${adjustedPrice.toFixed(2)}</div>
@@ -705,7 +705,7 @@
               ${profitHtml}
             </div>
             <div class="candidate-actions">
-              <span class="candidate-selection-indicator${isSelected ? '' : ' is-muted'}">${isSelected ? '当前已选' : (isBest ? '当前首选' : '点卡片切换')}</span>
+              <span class="candidate-selection-indicator${isSelected ? '' : ' is-muted'}">${isSelected ? '已选' : (isBest ? '首选' : '点选切换')}</span>
               <button class="btn btn-outline-info btn-sm compare-price-btn"
                       data-product-name="${product.name || ''}"
                       data-item-index="${itemIndex}"
@@ -779,13 +779,13 @@
               <div class="alternative-proofline">替代建议 · ${escapeHtml(reason)}${score ? ` · 参考度 ${Math.round(score * 100)}%` : ''}</div>
             </div>
             <div class="alternative-price-panel">
-              <div class="candidate-price-label">备选价格</div>
+              <div class="candidate-price-label">备选价</div>
               <div class="price-highlight" style="font-size: 1rem;">${formatNumericPrice(product.market_price)}</div>
               <div class="alternative-price-meta">成本 ${renderCostPriceText(product)}${renderCostPriceHint(product, { ambiguousLabel: '待校正', missingLabel: '未导入' })}</div>
               ${profitHtml}
             </div>
             <div class="candidate-actions">
-              <span class="candidate-selection-indicator${isSelected ? '' : ' is-muted'}">${isSelected ? '当前已选' : '点卡片切换'}</span>
+              <span class="candidate-selection-indicator${isSelected ? '' : ' is-muted'}">${isSelected ? '已选' : '点选切换'}</span>
               <button class="btn btn-outline-info btn-sm compare-price-btn"
                       data-product-name="${product.name || ''}"
                       data-item-index="${itemIndex}"
@@ -839,8 +839,8 @@
     const askBossActive = result?.action === 'ask_boss';
     const confirmedSelection = isMatchedResult(result);
     const confirmButtonLabel = confirmedSelection
-      ? (manualSearchSelection ? '已确认人工选择' : '已确认当前商品')
-      : (manualSearchSelection ? '确认人工选择' : '确认当前推荐');
+      ? (manualSearchSelection ? '已确认人工' : '已确认')
+      : (manualSearchSelection ? '确认人工' : '确认当前');
     const marketPrice = parseNumericPrice(primaryProduct.market_price) || 0;
     const adjustedPrice = getAdjustedPrice(marketPrice, itemIndex) || marketPrice;
     const budgetPrice = parseNumericPrice(queryItem.price) || adjustedPrice || marketPrice;
@@ -887,11 +887,11 @@
           <div class="flex-grow-1 min-w-0">
             <div class="quote-item-shell-row">
               <span class="quote-item-index">ITEM ${itemIndex + 1}</span>
-              <span class="quote-item-source-pill"><i class="bi ${isOcrItem ? 'bi-camera' : 'bi-card-checklist'}"></i>${isOcrItem ? 'OCR来源' : '表格来源'}</span>
+              <span class="quote-item-source-pill"><i class="bi ${isOcrItem ? 'bi-camera' : 'bi-card-checklist'}"></i>${isOcrItem ? 'OCR' : '表格'}</span>
               <span class="quote-item-source-pill"><i class="bi bi-file-earmark-spreadsheet"></i>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
-              <span class="quote-item-source-pill"><i class="bi bi-upc-scan"></i>待确认 SKU ${escapeHtml(selectedReferenceCode || '未选择')}</span>
-              ${manualSearchSelection ? '<span class="quote-item-source-pill quote-item-source-pill--accent"><i class="bi bi-search"></i>人工搜索已选中</span>' : ''}
-              ${primary ? `<span class="quote-item-score-pill"><i class="bi bi-bullseye"></i>${Math.round((primary.score || 0) * 100)}% 推荐度</span>` : ''}
+              <span class="quote-item-source-pill"><i class="bi bi-upc-scan"></i>当前 SKU ${escapeHtml(selectedReferenceCode || '未选择')}</span>
+              ${manualSearchSelection ? '<span class="quote-item-source-pill quote-item-source-pill--accent"><i class="bi bi-search"></i>人工已选</span>' : ''}
+              ${primary ? `<span class="quote-item-score-pill"><i class="bi bi-bullseye"></i>${Math.round((primary.score || 0) * 100)}% 推荐</span>` : ''}
             </div>
             <div class="quote-item-title">${escapeHtml(queryItem.name || '未命名询价项')}</div>
             <div class="quote-item-statusline">${getWorkbenchStatusLine(result)}</div>
@@ -932,14 +932,14 @@
             <div class="quote-item-section-head">
               <div>
                 <div class="quote-item-section-title">候选商品</div>
-                <div class="quote-item-section-copy">左边看原始报价，右边在固定候选框里切换 SKU。</div>
+                <div class="quote-item-section-copy">左边对照原始项，右边在固定框里切换 SKU。</div>
               </div>
               <span class="quote-item-section-pill">${primary ? `${manualSearchSelection ? '人工已选' : '首选'} ${Math.round((primary.score || 0) * 100)}%` : '待人工检索'}</span>
             </div>
             <div class="quote-candidate-focus-bar">
-              ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动推荐，请打开全商城搜索</span>'}
+              ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动候选，去全商城搜索</span>'}
               ${primaryProduct.code ? `<button class="btn btn-sm btn-outline-secondary match-detail-btn" data-product-code="${escapeHtmlAttr(primaryProduct.code || '')}" type="button"><i class="bi bi-eye me-1"></i>商品详情</button>` : ''}
-              ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>更多候选 (${matches.length})</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>当前候选已全部展示</span>'}
+              ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>更多候选 (${matches.length})</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>当前候选已展开</span>'}
               <button class="btn btn-sm ${noMatchActive ? 'btn-danger is-active' : 'btn-outline-danger'} mark-no-match" data-index="${itemIndex}" type="button" aria-pressed="${noMatchActive ? 'true' : 'false'}"><i class="bi bi-x-circle me-1"></i>无匹配</button>
               <button class="btn btn-sm ${askBossActive ? 'btn-warning is-active' : 'btn-outline-warning'} mark-ask-boss" data-index="${itemIndex}" type="button" aria-pressed="${askBossActive ? 'true' : 'false'}"><i class="bi bi-question-circle me-1"></i>问老板</button>
             </div>

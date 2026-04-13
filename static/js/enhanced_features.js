@@ -117,8 +117,8 @@ const ThemeManager = {
     systemThemeMedia: null,
     systemThemeBound: false,
     themes: {
-        light: { label: 'Pearl Ledger', icon: 'bi bi-sun-fill' },
-        dark: { label: 'Obsidian Control', icon: 'bi bi-moon-stars-fill' }
+        light: { label: '浅色', icon: 'bi bi-sun-fill' },
+        dark: { label: '深色', icon: 'bi bi-moon-stars-fill' }
     },
 
     init() {
@@ -200,8 +200,8 @@ const ThemeManager = {
             <button type="button" class="workspace-action-btn workspace-theme-btn" id="themeToggleBtn" onclick="ThemeManager.toggle()">
                 <span class="workspace-action-icon"><i id="themeIcon" class="bi bi-sun-fill fs-6"></i></span>
                 <span class="workspace-action-copy">
-                    <span class="workspace-action-label">Theme</span>
-                    <span class="workspace-action-value" id="themeLabel">Pearl Ledger</span>
+                    <span class="workspace-action-label">主题</span>
+                    <span class="workspace-action-value" id="themeLabel">浅色</span>
                 </span>
             </button>
         `);
@@ -1202,6 +1202,18 @@ const Dashboard = {
 };
 
 // =============== 自定义模态框 ===============
+Dashboard.createDashboardButton = function() {
+    mountWorkspaceAction('dashboard-toggle', `
+        <button type="button" class="workspace-action-btn" id="dashboardBtn" title="数据看板" aria-label="数据看板" onclick="Dashboard.toggle()">
+            <span class="workspace-action-icon"><i class="bi bi-graph-up fs-6"></i></span>
+            <span class="workspace-action-copy">
+                <span class="workspace-action-label">工作台</span>
+                <span class="workspace-action-value">看板</span>
+            </span>
+        </button>
+    `);
+};
+
 function showCustomModal(title, content, size = 'md') {
     const modalHtml = `
         <div class="modal fade" id="customModal" tabindex="-1">

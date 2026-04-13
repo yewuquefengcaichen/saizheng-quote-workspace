@@ -307,6 +307,20 @@ const PDFExporter = {
 };
 
 // 初始化设置管理
+SettingsManager.createSettingsButton = function() {
+    if (typeof mountWorkspaceAction !== 'function') return;
+
+    mountWorkspaceAction('settings-toggle', `
+        <button type="button" class="workspace-action-btn" title="系统设置" aria-label="系统设置" onclick="SettingsManager.showSettingsModal()">
+            <span class="workspace-action-icon"><i class="bi bi-gear fs-6"></i></span>
+            <span class="workspace-action-copy">
+                <span class="workspace-action-label">系统</span>
+                <span class="workspace-action-value">设置</span>
+            </span>
+        </button>
+    `);
+};
+
 document.addEventListener('DOMContentLoaded', function() {
     SettingsManager.init();
 });

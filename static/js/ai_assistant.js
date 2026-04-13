@@ -12,6 +12,8 @@ const AI_PROVIDER_LABELS = {
     local: '本地 AI'
 };
 
+AI_PROVIDER_LABELS.local = '本地助手';
+
 function getMatchResultsList() {
     return typeof matchResults !== 'undefined' && Array.isArray(matchResults) ? matchResults : [];
 }
@@ -44,7 +46,7 @@ function getActiveAssistantEntry() {
 }
 
 function getProviderLabel(provider) {
-    return AI_PROVIDER_LABELS[provider] || 'AI 助手';
+    return AI_PROVIDER_LABELS[provider] || '报价助手';
 }
 
 function getAIModeLabel() {
@@ -54,7 +56,7 @@ function getAIModeLabel() {
     if (aiAvailable) {
         return '在线辅助';
     }
-    return '离线辅助';
+    return '当前页辅助';
 }
 
 function getAIModeDisplayName() {
@@ -64,7 +66,7 @@ function getAIModeDisplayName() {
     if (aiAvailable) {
         return getProviderLabel(aiProvider);
     }
-    return '离线辅助模式';
+    return '本地助手';
 }
 
 function escapeHtml(content) {
@@ -573,7 +575,7 @@ function updateAIStatusUI(status) {
         name.textContent = getProviderLabel(status.provider);
     } else {
         dot.className = 'ai-status-dot fallback';
-        name.textContent = '离线辅助模式';
+        name.textContent = '本地助手';
     }
 
     renderAssistantSummary();

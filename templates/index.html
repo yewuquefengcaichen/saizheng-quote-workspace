@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260413i" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260413k" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -3826,9 +3826,9 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title">
-                            <i class="bi bi-search text-primary me-2"></i><span id="quoteCatalogSearchModalTitle">全商城人工搜索</span>
+                            <i class="bi bi-search text-primary me-2"></i><span id="quoteCatalogSearchModalTitle">全商城搜索</span>
                         </h5>
-                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">在商城里直接挑一个最接近当前报价项的 SKU。</div>
+                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">直接从商城里挑当前报价项要用的 SKU，选中后立即回填。</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
@@ -6429,7 +6429,7 @@
             return `
                 <div class="quote-search-summary" id="quote-search-panel-${itemIndex}">
                     <div class="quote-search-summary-head">
-                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>全商城人工搜索</div>
+                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>全商城搜索</div>
                         ${stateBadge}
                     </div>
                     <div class="quote-search-summary-inline">
@@ -6441,7 +6441,7 @@
                         <button class="btn btn-primary btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" type="button">
                             <i class="bi bi-search me-1"></i>${searched ? '查看搜索结果' : '全商城搜索'}
                         </button>
-                        ${results.length ? `<span class="quote-search-summary-hint">缓存 ${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">结果只在弹窗里看</span>'}
+                        ${results.length ? `<span class="quote-search-summary-hint">已缓存 ${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">去弹窗里选 SKU</span>'}
                     </div>
                 </div>
             `;
@@ -9230,7 +9230,7 @@
                 <div class="ai-panel-kicker">报价助手</div>
                 <div class="ai-status-indicator">
                     <span class="ai-status-dot inactive" id="aiStatusDot"></span>
-                    <span id="aiProviderName">离线辅助模式</span>
+                    <span id="aiProviderName">本地助手</span>
                 </div>
             </div>
             <div class="ai-panel-header-actions">
@@ -9246,21 +9246,21 @@
             <div class="ai-panel-context-head">
                 <div class="ai-panel-context-copy">
                     <div class="ai-panel-context-title" id="aiAssistantContextTitle">等待新的报价单</div>
-                    <div class="ai-panel-context-meta" id="aiAssistantContextMeta">可直接在当前页重新上传报价单，或继续处理现有确认队列。</div>
+                    <div class="ai-panel-context-meta" id="aiAssistantContextMeta">可直接在当前页重新上传报价单，或继续处理现有待确认队列。</div>
                 </div>
-                <span class="ai-mode-pill" id="aiModePill">离线辅助</span>
+                <span class="ai-mode-pill" id="aiModePill">当前页辅助</span>
             </div>
             <div class="ai-summary-grid" id="aiAssistantSummary"></div>
         </div>
         <div class="ai-chat-container" id="aiChatContainer">
             <div class="ai-welcome-message">
-                <h5><i class="bi bi-robot me-2"></i>报价助手</h5>
-                <p>我会优先结合当前报价单和当前焦点项给出可执行建议。</p>
+                <h5><i class="bi bi-clipboard-check me-2"></i>报价助手</h5>
+                <p>直接问当前项为什么匹到它、还有哪些没确认、现在能不能导出。</p>
                 <ul>
                     <li><i class="bi bi-check-circle text-success me-1"></i>解释当前报价项为什么匹到这些候选</li>
                     <li><i class="bi bi-check-circle text-success me-1"></i>列出当前最该优先处理的待确认项</li>
                     <li><i class="bi bi-check-circle text-success me-1"></i>检查现在是否已经适合导出</li>
-                    <li><i class="bi bi-check-circle text-success me-1"></i>在没有在线模型时继续提供本地辅助结论</li>
+                    <li><i class="bi bi-check-circle text-success me-1"></i>当前页也能直接给出本地辅助结论</li>
                 </ul>
             </div>
         </div>
@@ -9285,11 +9285,11 @@
     </button>
 
     <!-- AI助手交互脚本 -->
-    <script src="/static/js/ai_assistant.js?v=20260413c"></script>
+    <script src="/static/js/ai_assistant.js?v=20260413d"></script>
     <!-- 增强功能：深色模式、动画、快捷键、仪表盘 -->
-    <script src="/static/js/enhanced_features.js?v=20260413d"></script>
+    <script src="/static/js/enhanced_features.js?v=20260413f"></script>
     <!-- 设置管理：公司信息、PDF导出 -->
-    <script src="/static/js/settings.js"></script>
+    <script src="/static/js/settings.js?v=20260413a"></script>
     <!-- 商品图片展示 -->
     <script src="/static/js/product_images.js?v=20260402c"></script>
     <!-- OCR图片识别 -->
@@ -9299,7 +9299,7 @@
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260413i"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260413k"></script>
 </body>
 </html>
 
