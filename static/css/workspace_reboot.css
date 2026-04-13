@@ -4806,6 +4806,57 @@ body[data-route="quotes"] #matchResults {
   width: 100%;
 }
 
+body[data-route="quotes"] .match-stream {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+body[data-route="quotes"] .match-stream-list.quote-sheet-list {
+  display: grid;
+  gap: 16px;
+}
+
+body[data-route="quotes"] .quote-item-card {
+  padding: 18px;
+}
+
+body[data-route="quotes"] .quote-item-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.04fr) minmax(340px, 0.96fr);
+  gap: 14px;
+}
+
+body[data-route="quotes"] .quote-item-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 0.92fr) minmax(360px, 1.08fr);
+  gap: 14px;
+  margin-top: 14px;
+}
+
+body[data-route="quotes"] .quote-item-review-card {
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface-strong);
+  box-shadow: var(--ws-shadow-xs);
+}
+
+body[data-route="quotes"] .quote-item-review-card .quote-search-panel {
+  margin-top: 0 !important;
+}
+
+body[data-route="quotes"] .quote-item-review-note {
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid var(--ws-line);
+  background: var(--ws-surface);
+  color: var(--ws-text-muted);
+  font-size: 0.82rem;
+  line-height: 1.7;
+}
+
 body[data-route="quotes"] .workspace-empty-orbit--quotes-landing {
   padding: 24px;
 }
@@ -4904,6 +4955,11 @@ body[data-route="quotes"] .quote-empty-shortcut-card:hover {
 }
 
 @media (max-width: 1199px) {
+  body[data-route="quotes"] .quote-item-body,
+  body[data-route="quotes"] .quote-item-review-grid {
+    grid-template-columns: 1fr;
+  }
+
   body[data-route="quotes"] .quote-empty-layout {
     grid-template-columns: 1fr;
   }
