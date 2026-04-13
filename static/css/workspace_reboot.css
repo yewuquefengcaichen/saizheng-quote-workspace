@@ -6235,3 +6235,104 @@ body[data-route="quotes"] .quote-search-result-card .d-flex {
     justify-content: flex-start;
   }
 }
+
+/* ===== Quotes Rail And Upload Fix 20260413d ===== */
+body[data-route="quotes"] .workspace-shell {
+  grid-template-columns: 188px minmax(0, 1fr) !important;
+  gap: 12px !important;
+}
+
+body[data-route="quotes"] .workspace-scene-shell {
+  display: block !important;
+  margin-bottom: 10px !important;
+}
+
+body[data-route="quotes"] .workspace-scene-nav {
+  display: flex !important;
+  flex-direction: column;
+  gap: 8px;
+  top: 66px;
+  padding: 12px 10px !important;
+  border-radius: 24px;
+}
+
+body[data-route="quotes"] .workspace-scene-nav-head,
+body[data-route="quotes"] .scene-nav-stat {
+  display: none !important;
+}
+
+body[data-route="quotes"] .scene-nav-links {
+  gap: 8px;
+}
+
+body[data-route="quotes"] .scene-nav-link {
+  justify-content: flex-start !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 50px;
+  padding: 10px 12px !important;
+  border-radius: 16px !important;
+}
+
+body[data-route="quotes"] .scene-nav-link-icon {
+  width: 32px !important;
+  height: 32px !important;
+  margin: 0 !important;
+}
+
+body[data-route="quotes"] .scene-nav-link-copy {
+  display: flex !important;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2px !important;
+}
+
+body[data-route="quotes"] .scene-nav-link strong {
+  display: block;
+  font-size: 0.92rem !important;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+body[data-route="quotes"] .scene-nav-link small {
+  display: none !important;
+}
+
+body[data-route="quotes"] .quote-filter-bar {
+  padding: 8px 10px !important;
+  margin-bottom: 8px !important;
+  border-radius: 20px !important;
+}
+
+body[data-route="quotes"] .quote-filter-inline {
+  grid-template-columns: minmax(220px, 1.2fr) 112px 124px auto minmax(0, max-content) !important;
+  gap: 6px !important;
+}
+
+body[data-route="quotes"] .quote-filter-inline .form-control,
+body[data-route="quotes"] .quote-filter-inline .form-select,
+body[data-route="quotes"] .quote-filter-inline .btn {
+  min-height: 34px;
+}
+
+body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions {
+  gap: 6px;
+}
+
+body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions .btn {
+  min-height: 34px;
+  padding: 6px 10px;
+  border-radius: 14px;
+}
+
+@media (max-width: 1450px) {
+  body[data-route="quotes"] .workspace-shell {
+    display: block !important;
+  }
+
+  body[data-route="quotes"] .workspace-scene-shell {
+    display: none !important;
+  }
+}

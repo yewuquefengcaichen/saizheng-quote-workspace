@@ -5193,9 +5193,11 @@
 
             if (!zone || !input) return;
 
-            if (!(zone.tagName === 'LABEL' && zone.getAttribute('for') === inputId)) {
-                zone.addEventListener('click', () => activateUploadInput(inputId, 'openQuoteUpload'));
-            }
+            zone.addEventListener('click', (event) => {
+                if (event.target === input) return;
+                event.preventDefault();
+                activateUploadInput(inputId, 'openQuoteUpload');
+            });
 
             bindUploadZoneKeyboard(zone, inputId, 'openQuoteUpload');
 
@@ -5591,9 +5593,11 @@
 
             if (!zone || !input) return;
 
-            if (!(zone.tagName === 'LABEL' && zone.getAttribute('for') === inputId)) {
-                zone.addEventListener('click', () => activateUploadInput(inputId, 'openProductsUpload'));
-            }
+            zone.addEventListener('click', (event) => {
+                if (event.target === input) return;
+                event.preventDefault();
+                activateUploadInput(inputId, 'openProductsUpload');
+            });
 
             bindUploadZoneKeyboard(zone, inputId, 'openProductsUpload');
 
