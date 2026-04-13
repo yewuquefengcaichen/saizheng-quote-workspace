@@ -157,6 +157,89 @@ document.addEventListener('DOMContentLoaded', function() {
     setWorkspacePageContext(activeTab);
 });
 
+// =============== 顶部快捷动作 ===============
+const WorkspaceQuickActions = {
+    init() {
+        const route = document.body?.dataset?.route || 'dashboard';
+        const actions = this.getActionsByRoute(route);
+
+        actions
+            .slice()
+            .reverse()
+            .forEach(action => {
+                mountWorkspaceAction(action.id, this.renderAction(action), { prepend: true });
+            });
+    },
+
+    getActionsByRoute(route) {
+        switch (route) {
+            case 'quotes':
+                return [
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" },
+                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: "WorkspaceQuickActions.triggerControl('ocrUploadBtn')" },
+                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '商品库', handler: "WorkspaceQuickActions.triggerControl('productsFile')" }
+                ];
+            case 'catalog':
+                return [
+                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '更新商品库', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('productsFile')" },
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '传报价', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" }
+                ];
+            case 'templates':
+                return [
+                    { id: 'quick-export-center', kind: 'button', icon: 'bi-box-arrow-up-right', label: '导出配置', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('openExportCenterBtn')" },
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '传报价', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" }
+                ];
+            case 'history':
+            case 'synonyms':
+                return [
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" },
+                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '商品库', handler: "WorkspaceQuickActions.triggerControl('productsFile')" }
+                ];
+            case 'dashboard':
+            default:
+                return [
+                    { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '上传商品库', tone: 'primary', handler: "WorkspaceQuickActions.triggerControl('productsFile')" },
+                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', handler: "WorkspaceQuickActions.triggerControl('quoteFile')" },
+                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: "WorkspaceQuickActions.triggerControl('ocrUploadBtn')" }
+                ];
+        }
+    },
+
+    renderAction(action) {
+        const toneClass = action.tone ? ` workspace-quick-btn--${action.tone}` : '';
+
+        if (action.kind === 'link' && action.href) {
+            return `
+                <a href="${action.href}" class="workspace-quick-btn${toneClass}">
+                    <i class="bi ${action.icon}"></i>
+                    <span>${action.label}</span>
+                </a>
+            `;
+        }
+
+        return `
+            <button type="button" class="workspace-quick-btn${toneClass}" onclick="${action.handler}">
+                <i class="bi ${action.icon}"></i>
+                <span>${action.label}</span>
+            </button>
+        `;
+    },
+
+    triggerControl(controlId) {
+        const control = document.getElementById(controlId);
+        if (control) {
+            control.click();
+            return;
+        }
+
+        if (typeof showToast === 'function') {
+            showToast('warning', '当前页面还没有准备好这个入口');
+        }
+    }
+};
+
+window.WorkspaceQuickActions = WorkspaceQuickActions;
+
 // =============== 快捷键管理 ===============
 const ShortcutManager = {
     shortcuts: {
@@ -933,6 +1016,9 @@ function showSkeletonLoading(containerId, count = 3) {
 document.addEventListener('DOMContentLoaded', function() {
     // 初始化主题
     ThemeManager.init();
+
+    // 初始化页面快捷动作
+    WorkspaceQuickActions.init();
 
     // 初始化快捷键
     ShortcutManager.init();

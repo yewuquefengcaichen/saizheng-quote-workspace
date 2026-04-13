@@ -1,164 +1,111 @@
 <div id="uploadTab" class="tab-content"{% if initial_tab != 'upload' %} style="display: none;"{% endif %}>
-    <section class="workspace-ingress-shell workspace-ingress-shell--dashboard" id="workspaceIngress">
-        <div class="workspace-ingress-copy">
-            <div class="workspace-ingress-kicker"><i class="bi bi-compass"></i>Workspace Intake</div>
-            <div class="workspace-ingress-title">先完成准备，再进入报价决策台。</div>
-            <div class="workspace-ingress-subtitle">首页只保留浏览入口和真实导入动作：先确认模板与资产，再上传商品库和报价来源。</div>
-        </div>
-
-        <div class="workspace-command-deck workspace-command-deck--dashboard">
-            <a href="{{ workspace_routes.templates }}" class="workspace-command-card">
-                <span class="workspace-command-icon"><i class="bi bi-file-earmark-richtext"></i></span>
-                <span class="workspace-command-copy">
-                    <span class="workspace-command-label">Browse</span>
-                    <span class="workspace-command-title">先看模板目录</span>
-                    <span class="workspace-command-desc">把可交付单据、字段覆盖和导出方式先看明白。</span>
-                </span>
-            </a>
-            <a href="{{ workspace_routes.catalog }}" class="workspace-command-card">
-                <span class="workspace-command-icon"><i class="bi bi-grid-3x3-gap"></i></span>
-                <span class="workspace-command-copy">
-                    <span class="workspace-command-label">Assets</span>
-                    <span class="workspace-command-title">浏览商品资产库</span>
-                    <span class="workspace-command-desc">先核对图片、品牌、供应商与价格，再进入报价判断。</span>
-                </span>
-            </a>
-            <button type="button" class="workspace-command-card" onclick="document.getElementById('ocrUploadBtn')?.click()">
-                <span class="workspace-command-icon"><i class="bi bi-camera"></i></span>
-                <span class="workspace-command-copy">
-                    <span class="workspace-command-label">Quick Entry</span>
-                    <span class="workspace-command-title">快速导入 OCR 图片</span>
-                    <span class="workspace-command-desc">图片报价单也直接汇入同一个确认链路，不再分叉。</span>
-                </span>
-            </button>
-        </div>
-    </section>
-
-    <section class="workspace-stage-shell workspace-stage-shell--dashboard">
-        <div class="workspace-stage-head">
+    <section class="dashboard-focus-shell" id="workspaceIngress">
+        <div class="dashboard-focus-header">
             <div>
-                <div class="workspace-stage-kicker">Two-step Intake</div>
-                <div class="workspace-stage-title">先建商品底座，再把报价来源送进统一确认链路。</div>
-                <div class="workspace-stage-subtitle">入口不再分叉。商品资产与报价来源都准备好后，后续匹配、人工确认和真实导出会更稳。</div>
+                <div class="dashboard-focus-kicker">总览入口</div>
+                <div class="dashboard-focus-title">两步导入</div>
+                <div class="dashboard-focus-subtitle">先导入商品库，再导入报价来源。完成后直接进入报价工作台确认与导出。</div>
             </div>
-            <div class="workspace-stage-badges">
-                <span class="workspace-stage-badge"><i class="bi bi-box-seam"></i>商品底座</span>
-                <span class="workspace-stage-badge"><i class="bi bi-file-earmark-text"></i>报价来源</span>
-                <span class="workspace-stage-badge"><i class="bi bi-box-arrow-up-right"></i>确认与导出</span>
+            <div class="dashboard-focus-links">
+                <a href="{{ workspace_routes.templates }}" class="dashboard-link-chip"><i class="bi bi-files"></i>模板中心</a>
+                <a href="{{ workspace_routes.guide }}" class="dashboard-link-chip"><i class="bi bi-journal-text"></i>使用说明</a>
             </div>
         </div>
 
-        <div class="row g-4">
-            <div class="col-lg-6">
-                <div class="card h-100 upload-panel upload-stage-card upload-stage-card--products">
-                    <div class="card-header">
-                        <span><i class="bi bi-box-seam me-2"></i>商品资产底座</span>
-                        <span class="upload-stage-step">STEP 1</span>
-                    </div>
-                    <div class="card-body">
-                        <div class="upload-panel-meta upload-panel-meta--dashboard">
-                            <div>
-                                <div class="fw-semibold">先把商品、图片、品牌和供应商沉淀成稳定底座</div>
-                                <p class="upload-panel-caption">底座越完整，后续匹配排序、证据展示和模板导出就越稳。</p>
-                                <div class="upload-proof-grid">
-                                    <span class="upload-proof-pill"><i class="bi bi-tags"></i>品牌 / 分类 / 图片</span>
-                                    <span class="upload-proof-pill"><i class="bi bi-building"></i>供应商与价格来源</span>
-                                    <span class="upload-proof-pill"><i class="bi bi-diagram-3"></i>为后续匹配提供证据</span>
-                                </div>
-                            </div>
-                            <div id="productsStatus" class="mb-0">
-                            {% if products_loaded %}
+        <div class="dashboard-focus-grid">
+            <div class="card upload-panel focus-step-card focus-step-card--products">
+                <div class="card-header">
+                    <span><i class="bi bi-box-seam me-2"></i>第 1 步：商品库</span>
+                    <span class="upload-stage-step">STEP 1</span>
+                </div>
+                <div class="card-body">
+                    <div class="focus-step-meta">
+                        <div>
+                            <div class="focus-step-title">先建立商品底座</div>
+                            <div class="focus-step-copy">商品名、型号、品牌、供应商、图片和价格越完整，后面的匹配越省事。</div>
+                        </div>
+                        <div id="productsStatus" class="mb-0">
+                        {% if products_loaded %}
                             <span class="status-badge status-matched">
                                 <i class="bi bi-check-circle me-1"></i>已加载 {{ products_count }} 个商品
                             </span>
-                            {% else %}
+                        {% else %}
                             <span class="status-badge status-pending">
                                 <i class="bi bi-exclamation-circle me-1"></i>尚未加载商品库
                             </span>
-                            {% endif %}
-                            </div>
+                        {% endif %}
                         </div>
+                    </div>
 
-                        <div class="upload-zone" id="productsUpload">
-                            <div class="upload-icon">
-                                <i class="bi bi-cloud-upload"></i>
-                            </div>
-                            <h4 class="fw-bold">点击或拖拽上传商品库</h4>
-                            <p class="text-muted mb-0">支持 .xls / .xlsx 格式</p>
-                            <input type="file" id="productsFile" accept=".xls,.xlsx" style="display: none;">
+                    <div class="upload-zone" id="productsUpload">
+                        <div class="upload-icon">
+                            <i class="bi bi-cloud-upload"></i>
                         </div>
+                        <h4 class="fw-bold mb-2">上传商品库</h4>
+                        <p class="text-muted mb-0">支持 .xls / .xlsx</p>
+                        <input type="file" id="productsFile" accept=".xls,.xlsx" style="display: none;">
+                    </div>
 
-                        <div class="upload-stage-foot">
-                            <i class="bi bi-stars"></i>
-                            <span>这一步完成后，商品页、匹配页和导出模板会共享同一套资产证据。</span>
-                        </div>
+                    <div class="focus-step-foot">
+                        <span class="focus-step-pill"><i class="bi bi-tags"></i>品牌 / 分类 / 单位</span>
+                        <span class="focus-step-pill"><i class="bi bi-building"></i>供应商与价格</span>
+                        <span class="focus-step-pill"><i class="bi bi-image"></i>商品图片</span>
                     </div>
                 </div>
             </div>
 
-            <div class="col-lg-6">
-                <div class="card h-100 upload-panel upload-stage-card upload-stage-card--quote">
-                    <div class="card-header">
-                        <span><i class="bi bi-file-earmark-text me-2"></i>报价来源输入</span>
-                        <span class="upload-stage-step">STEP 2</span>
+            <div class="card upload-panel focus-step-card focus-step-card--quotes">
+                <div class="card-header">
+                    <span><i class="bi bi-file-earmark-text me-2"></i>第 2 步：报价来源</span>
+                    <span class="upload-stage-step">STEP 2</span>
+                </div>
+                <div class="card-body">
+                    <div class="focus-step-meta">
+                        <div>
+                            <div class="focus-step-title">再导入报价单或 OCR</div>
+                            <div class="focus-step-copy">Excel 报价和图片 OCR 都会进入同一个确认流程，不用来回跳页。</div>
+                        </div>
+                        <div id="quoteStatus" class="mb-0">
+                            <span class="status-badge status-pending">
+                                <i class="bi bi-hourglass me-1"></i>等待上传
+                            </span>
+                        </div>
                     </div>
-                    <div class="card-body">
-                        <div class="upload-panel-meta upload-panel-meta--dashboard">
-                            <div>
-                                <div class="fw-semibold">再上传报价单或 OCR 图片，进入统一确认流</div>
-                                <p class="upload-panel-caption">Excel 与 OCR 都汇入同一条报价决策链路，不再拆成两套工作方式。</p>
-                                <div class="upload-proof-grid">
-                                    <span class="upload-proof-pill"><i class="bi bi-file-earmark-spreadsheet"></i>Excel / OCR 双入口</span>
-                                    <span class="upload-proof-pill"><i class="bi bi-clipboard2-check"></i>统一校对与确认</span>
-                                    <span class="upload-proof-pill"><i class="bi bi-lightning-charge"></i>确认后直达导出</span>
-                                </div>
-                            </div>
-                            <div id="quoteStatus" class="mb-0">
-                                <span class="status-badge status-pending">
-                                    <i class="bi bi-hourglass me-1"></i>等待上传
-                                </span>
-                            </div>
-                        </div>
 
-                        <div class="upload-zone" id="quoteUpload">
-                            <div class="upload-icon">
-                                <i class="bi bi-file-earmark-plus"></i>
-                            </div>
-                            <h4 class="fw-bold">点击或拖拽上传报价单</h4>
-                            <p class="text-muted mb-0">支持 .xls / .xlsx 格式</p>
-                            <input type="file" id="quoteFile" accept=".xls,.xlsx" style="display: none;">
+                    <div class="upload-zone" id="quoteUpload">
+                        <div class="upload-icon">
+                            <i class="bi bi-file-earmark-plus"></i>
                         </div>
+                        <h4 class="fw-bold mb-2">上传报价单</h4>
+                        <p class="text-muted mb-0">支持 .xls / .xlsx</p>
+                        <input type="file" id="quoteFile" accept=".xls,.xlsx" style="display: none;">
+                    </div>
 
-                        <div class="upload-stage-inline-actions">
-                            <button type="button" class="btn btn-outline-info btn-lg" id="ocrUploadBtn">
-                                <i class="bi bi-camera me-2"></i>OCR 图片识别
-                            </button>
-                            <small class="text-muted">图片报价单也会进入同一确认链路</small>
-                            <input type="file" id="ocrFile" accept="image/*" style="display: none;">
-                        </div>
+                    <div class="focus-step-inline-actions">
+                        <button type="button" class="btn btn-outline-info btn-lg" id="ocrUploadBtn">
+                            <i class="bi bi-camera me-2"></i>OCR 图片识别
+                        </button>
+                        <small class="text-muted">图片报价单也会进入报价工作台</small>
+                        <input type="file" id="ocrFile" accept="image/*" style="display: none;">
+                    </div>
 
-                        <div class="upload-stage-foot">
-                            <i class="bi bi-sparkles"></i>
-                            <span>导入完成后，系统会直接把你带入连续的候选判断、人工确认与真实导出。</span>
-                        </div>
+                    <div class="focus-step-foot">
+                        <span class="focus-step-pill"><i class="bi bi-file-earmark-spreadsheet"></i>Excel 报价</span>
+                        <span class="focus-step-pill"><i class="bi bi-camera"></i>OCR 图片</span>
+                        <span class="focus-step-pill"><i class="bi bi-check2-square"></i>统一确认</span>
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="dashboard-enter-bar">
+            <div class="dashboard-enter-copy">
+                <div class="dashboard-enter-title">准备好后直接进入报价工作台</div>
+                <div class="dashboard-enter-note">导出时可选 <strong>待选报价单（下拉框）</strong>，适合发给客服或销售做二次筛选。</div>
+            </div>
+            <button class="btn btn-primary btn-lg" id="startMatchBtn" disabled>
+                <i class="bi bi-lightning-charge me-2"></i>进入报价工作台
+            </button>
         </div>
     </section>
-
-    <div class="upload-command-bar upload-command-bar--dashboard d-flex flex-wrap justify-content-between align-items-center gap-3">
-        <div>
-            <div class="upload-command-badges">
-                <span class="upload-command-badge"><i class="bi bi-files"></i>模板浏览</span>
-                <span class="upload-command-badge"><i class="bi bi-arrow-left-right"></i>统一确认</span>
-                <span class="upload-command-badge"><i class="bi bi-box-arrow-up-right"></i>真实导出</span>
-            </div>
-            <div class="upload-command-title">底座和报价来源都就绪后，再进入报价决策台继续确认。</div>
-            <div class="upload-command-subtitle">系统会顺着同一条链路继续完成匹配、人工确认、学习和导出。</div>
-        </div>
-        <button class="btn btn-primary btn-lg" id="startMatchBtn" disabled>
-            <i class="bi bi-lightning-charge me-2"></i>进入报价决策台
-        </button>
-    </div>
 </div>

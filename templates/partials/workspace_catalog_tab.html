@@ -1,37 +1,35 @@
 <div id="catalogTab" class="tab-content"{% if initial_tab != 'catalog' %} style="display: none;"{% endif %}>
-    <section class="scene-panel scene-panel--catalog scene-panel--compact">
-        <div class="scene-panel-copy">
-            <div class="scene-panel-eyebrow"><i class="bi bi-grid-3x3-gap"></i>Catalog Browser</div>
-            <div class="scene-panel-title">先看封面、价格和供应商，再决定是否展开详情。</div>
-            <div class="scene-panel-description">把商品库压成一层安静的资产浏览面板：上方只留结果概况和控制层，下方直接进入卡片与详情。</div>
-            <div class="scene-panel-pills">
-                <span class="scene-panel-pill">有图优先</span>
-                <span class="scene-panel-pill">价格同屏</span>
-                <span class="scene-panel-pill">详情单点展开</span>
-            </div>
+    <section class="catalog-page-head">
+        <div>
+            <div class="catalog-page-kicker">商品资产</div>
+            <div class="catalog-page-title">商品库</div>
+            <div class="catalog-page-subtitle">直接筛选、直接看卡片、点开看详情。</div>
         </div>
-        <div class="scene-panel-side">
-            <div class="scene-panel-side-title">本页节奏</div>
-            <div class="scene-panel-side-list">
-                <div class="scene-panel-side-item"><strong>1.</strong><span>先用有图、品牌和供应商缩小范围。</span></div>
-                <div class="scene-panel-side-item"><strong>2.</strong><span>卡片先看价格与摘要，详情再看完整字段。</span></div>
-                <div class="scene-panel-side-item"><strong>3.</strong><span>把这里当作报价页前的资产核查层。</span></div>
-            </div>
+        <div class="catalog-page-actions">
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('productsFile')?.click()">
+                <i class="bi bi-box-arrow-in-up-right me-1"></i>更新商品库
+            </button>
+            <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-layout-text-window me-1"></i>去报价页
+            </a>
+            <a href="{{ workspace_routes.guide }}" class="btn btn-outline-secondary btn-sm">
+                <i class="bi bi-journal-text me-1"></i>使用说明
+            </a>
         </div>
     </section>
 
     <div class="catalog-summary" id="catalogSummary">
         <div class="catalog-summary-item">
             <div class="value" id="catalogTotalCount">0</div>
-            <div class="label">资产总数</div>
+            <div class="label">总商品</div>
         </div>
         <div class="catalog-summary-item">
             <div class="value" id="catalogVisibleCount">0</div>
-            <div class="label">当前页卡片</div>
+            <div class="label">当前显示</div>
         </div>
         <div class="catalog-summary-item">
             <div class="value" id="catalogImageCount">0</div>
-            <div class="label">带图资产</div>
+            <div class="label">有图商品</div>
         </div>
         <div class="catalog-summary-item">
             <div class="value" id="catalogPageInfo">1 / 1</div>
@@ -42,20 +40,21 @@
     <div class="catalog-toolbar catalog-toolbar--atelier">
         <div class="catalog-toolbar-topbar">
             <div>
-                <div class="catalog-toolbar-heading">资产筛选控制台</div>
-                <div class="catalog-toolbar-subheading">搜索、分类、品牌、供应商和分页都固定在这一层。</div>
+                <div class="catalog-toolbar-heading">筛选条件</div>
+                <div class="catalog-toolbar-subheading">按关键词、分类、品牌、供应商和图片状态快速缩小范围。</div>
             </div>
             <div class="catalog-toolbar-actions">
-                <span class="catalog-toolbar-stat"><i class="bi bi-collection"></i>结果概况同屏</span>
-                <span class="catalog-toolbar-stat"><i class="bi bi-eye"></i>详情单点展开</span>
+                <button class="btn btn-outline-secondary btn-sm" id="catalogResetBtn">
+                    <i class="bi bi-arrow-counterclockwise me-1"></i>重置
+                </button>
             </div>
         </div>
         <div class="row g-3 align-items-end">
-            <div class="col-lg-3 col-md-6">
+            <div class="col-xl-3 col-lg-4 col-md-6">
                 <label class="form-label">搜索商品</label>
                 <input type="text" class="form-control" id="catalogKeyword" placeholder="按编码、名称、型号、品牌或供应商搜索">
             </div>
-            <div class="col-lg-2 col-md-6">
+            <div class="col-xl-2 col-lg-4 col-md-6">
                 <label class="form-label">分类</label>
                 <select class="form-select" id="catalogCategoryFilter">
                     <option value="">全部分类</option>
@@ -64,7 +63,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-lg-2 col-md-6">
+            <div class="col-xl-2 col-lg-4 col-md-6">
                 <label class="form-label">品牌</label>
                 <select class="form-select" id="catalogBrandFilter">
                     <option value="">全部品牌</option>
@@ -73,7 +72,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-lg-2 col-md-6">
+            <div class="col-xl-2 col-lg-4 col-md-6">
                 <label class="form-label">供应商</label>
                 <select class="form-select" id="catalogSupplierFilter">
                     <option value="">全部供应商</option>
@@ -82,7 +81,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-lg-1 col-md-6">
+            <div class="col-xl-1 col-lg-4 col-md-6">
                 <label class="form-label">图片</label>
                 <select class="form-select" id="catalogImageFilter">
                     <option value="">全部</option>
@@ -90,24 +89,20 @@
                     <option value="no">仅无图</option>
                 </select>
             </div>
-            <div class="col-lg-2 col-md-6">
-                <label class="form-label">每页条数</label>
+            <div class="col-xl-2 col-lg-4 col-md-6">
+                <label class="form-label">每页数量</label>
                 <select class="form-select" id="catalogPageSize">
-                    <option value="24">24</option>
-                    <option value="30">30</option>
+                    <option value="36" selected>36</option>
                     <option value="48">48</option>
                     <option value="60">60</option>
+                    <option value="72">72</option>
+                    <option value="24">24</option>
                 </select>
             </div>
         </div>
         <div class="row g-3 mt-1 align-items-center">
-            <div class="col-md-9">
-                <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>优先筛出有图、有品牌和有供应商的商品，再进入详情核查完整字段。</span></div>
-            </div>
-            <div class="col-md-3 text-md-end">
-                <button class="btn btn-outline-secondary w-100" id="catalogResetBtn">
-                    <i class="bi bi-arrow-counterclockwise me-1"></i>重置
-                </button>
+            <div class="col-md-12">
+                <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>优先筛出有图、品牌清晰、供应商明确的商品，再点开详情核对完整字段。</span></div>
             </div>
         </div>
     </div>

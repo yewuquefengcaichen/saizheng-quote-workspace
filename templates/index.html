@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ page_meta.note }} - 赛正报价工作台</title>
+    <title>{{ page_meta.note }} - 赛正报价工作台@feng</title>
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <!-- 使用国内CDN，避免代理影响 -->
     <link href="https://unpkg.com/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
@@ -3519,7 +3519,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260412i" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260412k" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -3600,6 +3600,9 @@
         <div id="templatesTab" class="tab-content"{% if initial_tab != 'templates' %} style="display: none;"{% endif %}>
             {% include 'partials/workspace_templates_page.html' %}
         </div>
+        {% endif %}
+        {% if current_page == 'guide' %}
+            {% include 'partials/workspace_guide_page.html' %}
         {% endif %}
         {% include 'partials/workspace_quotes_tab.html' %}
         {% include 'partials/workspace_catalog_tab.html' %}
@@ -8971,7 +8974,7 @@
     <!-- AI助手交互脚本 -->
     <script src="/static/js/ai_assistant.js"></script>
     <!-- 增强功能：深色模式、动画、快捷键、仪表盘 -->
-    <script src="/static/js/enhanced_features.js?v=20260411d"></script>
+    <script src="/static/js/enhanced_features.js?v=20260412f"></script>
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js"></script>
     <!-- 商品图片展示 -->
@@ -8983,7 +8986,7 @@
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260412b"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260412d"></script>
 </body>
 </html>
 

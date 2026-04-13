@@ -231,17 +231,17 @@
           <i class="bi bi-layout-text-window"></i>
         </div>
         <div class="workspace-empty-orbit-title">报价工作台正在等待第一份结果流入。</div>
-        <div class="workspace-empty-orbit-copy">先在总览页完成商品底座与报价来源导入。匹配启动后，这里会自动切换成队列、焦点与审核三栏工作台。</div>
+        <div class="workspace-empty-orbit-copy">这里就能直接上传报价单、OCR 图片，或者补传商品库。准备好后，本页会自动切换成队列、焦点与审核工作台。</div>
         <div class="workspace-empty-orbit-pills">
-          <span class="workspace-empty-orbit-pill">先导入商品库</span>
-          <span class="workspace-empty-orbit-pill">再上传报价单或 OCR 图片</span>
-          <span class="workspace-empty-orbit-pill">开始匹配后回到这里确认</span>
+          <span class="workspace-empty-orbit-pill">本页直接上传报价单</span>
+          <span class="workspace-empty-orbit-pill">OCR 图片也能直接进入</span>
+          <span class="workspace-empty-orbit-pill">商品库不完整时就地补传</span>
         </div>
         <div class="quote-empty-proof-grid">
           <article class="quote-empty-proof-card">
-            <span>Before</span>
-            <strong>文件还没入流</strong>
-            <small>当前页不再堆空表格，而是明确告诉你先完成哪一步准备。</small>
+            <span>Upload</span>
+            <strong>上传入口留在本页</strong>
+            <small>报价页不是死胡同，而是能直接接文件的真正工作入口。</small>
           </article>
           <article class="quote-empty-proof-card">
             <span>After Match</span>
@@ -255,14 +255,17 @@
           </article>
         </div>
         <div class="quote-empty-actions">
-          <a href="/" class="btn btn-primary">
-            <i class="bi bi-arrow-up-right-circle me-2"></i>回到总览导入
-          </a>
-          <a href="/catalog" class="btn btn-outline-secondary">
-            <i class="bi bi-grid-3x3-gap me-2"></i>先看商品资产
-          </a>
+          <button class="btn btn-primary" type="button" onclick="document.getElementById('quoteFile')?.click()">
+            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
+          </button>
+          <button class="btn btn-outline-info" type="button" onclick="document.getElementById('ocrUploadBtn')?.click()">
+            <i class="bi bi-camera me-2"></i>OCR 图片
+          </button>
+          <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('productsFile')?.click()">
+            <i class="bi bi-box-arrow-in-up-right me-2"></i>补传商品库
+          </button>
           <a href="/templates" class="btn btn-outline-secondary">
-            <i class="bi bi-files me-2"></i>浏览模板中心
+            <i class="bi bi-files me-2"></i>模板中心
           </a>
         </div>
       </div>
@@ -1511,4 +1514,328 @@
     refreshQuotesPreludeCopy();
     rebindWorkbenchFilterEvents();
   }, { once: true });
+
+  function refreshQuotesPreludeCopy() {
+    if (document.body?.dataset?.route !== 'quotes') return;
+    const filterBar = document.querySelector('#matchTab .quote-filter-bar');
+    if (!filterBar) return;
+    const heading = filterBar.querySelector('.match-toolbar-heading');
+    const subtitle = filterBar.querySelector('.match-toolbar-subtitle');
+    if (heading) heading.textContent = '报价工作台';
+    if (subtitle) subtitle.textContent = '本页可直接上传报价单、OCR 和补传商品库。';
+  }
+
+  function renderQuotesLandingEmpty() {
+    return `
+      <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
+        <div class="workspace-empty-orbit-visual">
+          <i class="bi bi-layout-text-window"></i>
+        </div>
+        <div class="workspace-empty-orbit-title">还没有报价结果</div>
+        <div class="workspace-empty-orbit-copy">上传报价单或 OCR 后，这里会显示待处理队列、当前报价项和核查面板。</div>
+        <div class="quote-empty-actions">
+          <button class="btn btn-primary" type="button" onclick="document.getElementById('quoteFile')?.click()">
+            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
+          </button>
+          <button class="btn btn-outline-info" type="button" onclick="document.getElementById('ocrUploadBtn')?.click()">
+            <i class="bi bi-camera me-2"></i>OCR 图片
+          </button>
+          <button class="btn btn-outline-secondary" type="button" onclick="document.getElementById('productsFile')?.click()">
+            <i class="bi bi-box-arrow-in-up-right me-2"></i>补传商品库
+          </button>
+          <a href="/templates" class="btn btn-outline-secondary">
+            <i class="bi bi-files me-2"></i>模板中心
+          </a>
+        </div>
+      </div>
+    `;
+  }
+
+  function getWorkbenchStatusLine(result) {
+    const matchesCount = Array.isArray(result?.matches) ? result.matches.length : 0;
+    if (result?.confirmed && result?.action === 'select') return '已确认，可进入导出。';
+    if (!result?.confirmed && result?.action === 'select' && result?.selected_product) return '系统已预选，等待人工确认。';
+    if (result?.action === 'no_match') return '当前标记为无匹配，请人工检索或补充商品库。';
+    if (result?.action === 'ask_boss') return '当前需问老板，请补充说明或备选。';
+    if (matchesCount > 0) return '已有候选商品，优先核对首选。';
+    return '暂无自动候选，建议人工搜索。';
+  }
+
+  function getActiveSectionInfo(visibleItems, filters, activeEntry) {
+    if (!activeEntry) {
+      return { key: 'empty', title: '暂无数据', subtitle: '调整筛选条件后继续。', count: 0, position: 0 };
+    }
+
+    const activeResult = activeEntry.result;
+    const activePosition = visibleItems.findIndex(item => item.itemIndex === activeEntry.itemIndex);
+
+    if (filters.rawSearchText || filters.statusFilter !== 'all' || filters.sortFilter !== 'default') {
+      return {
+        key: 'filtered',
+        title: '筛选结果',
+        subtitle: filters.rawSearchText ? `关键词：${filters.rawSearchText}` : '当前按筛选条件显示。',
+        count: visibleItems.length,
+        position: activePosition + 1
+      };
+    }
+
+    if (activeResult?.confirmed && isIssueResult(activeResult)) {
+      return {
+        key: 'issue',
+        title: '异常项',
+        subtitle: '优先处理异常或升级项。',
+        count: visibleItems.filter(({ result }) => !!(result?.confirmed && isIssueResult(result))).length,
+        position: activePosition + 1
+      };
+    }
+
+    if (isMatchedResult(activeResult)) {
+      return {
+        key: 'matched',
+        title: '已确认',
+        subtitle: '当前项已确认，可直接复核。',
+        count: visibleItems.filter(({ result }) => isMatchedResult(result)).length,
+        position: activePosition + 1
+      };
+    }
+
+    return {
+      key: 'pending',
+      title: '待确认',
+      subtitle: '先确认当前项，再切换下一项。',
+      count: visibleItems.filter(({ result }) => isPendingResult(result)).length,
+      position: activePosition + 1
+    };
+  }
+
+  function renderWorkbenchSummary() {
+    return '';
+  }
+
+  function renderWorkbenchRail(visibleItems, filters, activeEntry) {
+    const matchedCount = matchResults.filter(result => isMatchedResult(result)).length;
+    const pendingCount = matchResults.filter(result => isPendingResult(result)).length;
+    const issueCount = matchResults.filter(result => !!(result?.confirmed && isIssueResult(result))).length;
+    const ocrCount = matchResults.filter(result => result?.query_item?.source_type === 'ocr').length;
+    const queueItems = getPriorityQueueItems(visibleItems, 8);
+    const filterLabels = getWorkbenchFilterLabels(filters);
+    const queueTip = issueCount > 0
+      ? `先处理 ${issueCount} 个异常项。`
+      : (pendingCount > 0 ? `还有 ${pendingCount} 个待确认项。` : '当前可检查导出。');
+
+    return `
+      <aside class="match-rail">
+        <div class="match-rail-card match-rail-card--pulse">
+          <div class="match-rail-heading">处理队列</div>
+          <div class="match-rail-copy">左侧只负责排队和跳转，不占用主工作区。</div>
+          <div class="match-rail-stat-grid">
+            <div class="match-rail-stat"><strong>${matchResults.length}</strong><span>报价项</span></div>
+            <div class="match-rail-stat"><strong>${matchedCount}</strong><span>已确认</span></div>
+            <div class="match-rail-stat"><strong>${pendingCount}</strong><span>待确认</span></div>
+            <div class="match-rail-stat"><strong>${ocrCount}</strong><span>OCR</span></div>
+          </div>
+          <div class="match-rail-focus-note">${queueTip}</div>
+        </div>
+        <div class="match-rail-card match-rail-card--queue">
+          <div class="match-rail-heading">待处理项</div>
+          <div class="match-rail-inline-pills">
+            <span class="match-rail-inline-pill">状态 · ${filterLabels.statusLabel}</span>
+            <span class="match-rail-inline-pill">排序 · ${filterLabels.sortLabel}</span>
+            ${filters.rawSearchText ? `<span class="match-rail-inline-pill">搜索 · ${escapeHtml(filters.rawSearchText)}</span>` : ''}
+          </div>
+          <ul class="match-rail-list mt-3">
+            ${queueItems.length ? queueItems.map(({ result, itemIndex }) => {
+              const primary = getPrimaryCandidate(result);
+              const statusMeta = getMatchStatusMeta(result);
+              const queueNote = primary
+                ? `${statusMeta.statusText} · ${Math.round((primary.score || 0) * 100)}% · ${escapeHtml(primary.product?.name || '未命名商品')}`
+                : `${statusMeta.statusText} · 暂无候选商品`;
+              const itemClasses = [
+                itemIndex === activeWorkbenchIndex ? 'is-active' : '',
+                (!result?.confirmed || isIssueResult(result)) ? 'is-warning' : ''
+              ].filter(Boolean).join(' ');
+
+              return `
+                <li class="${itemClasses}">
+                  <button class="match-rail-focus-btn" type="button" data-item-index="${itemIndex}">
+                    <strong>ITEM ${itemIndex + 1} · ${escapeHtml(result?.query_item?.name || '未命名询价项')}</strong>
+                    <span>${queueNote}</span>
+                  </button>
+                </li>
+              `;
+            }).join('') : '<li><strong>没有可处理项</strong><span>请调整筛选条件。</span></li>'}
+          </ul>
+          ${activeEntry ? `<div class="match-rail-focus-note mt-2">当前：ITEM ${activeEntry.itemIndex + 1} · ${escapeHtml(activeEntry.result?.query_item?.name || '未命名询价项')}</div>` : ''}
+        </div>
+      </aside>
+    `;
+  }
+
+  function renderWorkbenchStream(visibleItems, filters, activeEntry) {
+    if (!visibleItems.length) {
+      return `
+        <section class="match-stream">
+          <div class="match-stream-header">
+            <div class="match-stream-heading">没有命中结果</div>
+            <div class="match-stream-subtitle">请放宽搜索词或点击重置筛选。</div>
+          </div>
+          <div class="match-inspector-empty match-stream-empty">
+            <div>
+              <div class="fw-semibold mb-2">当前没有可处理项</div>
+              <div class="small">调整筛选后再继续。</div>
+            </div>
+          </div>
+        </section>
+      `;
+    }
+
+    const sectionInfo = getActiveSectionInfo(visibleItems, filters, activeEntry);
+    const activePosition = visibleItems.findIndex(item => item.itemIndex === activeEntry.itemIndex);
+    const previousEntry = activePosition > 0 ? visibleItems[activePosition - 1] : null;
+    const nextEntry = activePosition < visibleItems.length - 1 ? visibleItems[activePosition + 1] : null;
+    const jumpItems = getPriorityQueueItems(visibleItems, 4).filter(item => item.itemIndex !== activeEntry.itemIndex).slice(0, 3);
+
+    return `
+      <section class="match-stream">
+        <div class="match-stream-header">
+          <div class="match-stream-heading">当前报价项</div>
+          <div class="match-stream-subtitle">中间只展开当前项，避免在长列表里来回滚动。</div>
+        </div>
+        <div class="match-stream-section-overview">
+          <span class="match-stream-section-pill is-${sectionInfo.key}">${sectionInfo.title}</span>
+          <span class="match-stream-section-pill">位置 ${Math.max(sectionInfo.position || 1, 1)} / ${visibleItems.length}</span>
+          <span class="match-stream-section-pill">同组 ${sectionInfo.count || 0} 项</span>
+        </div>
+        <div class="match-stream-nav">
+          ${previousEntry ? `<button class="match-stream-jump" type="button" data-item-index="${previousEntry.itemIndex}"><i class="bi bi-arrow-left"></i>上一项</button>` : ''}
+          ${nextEntry ? `<button class="match-stream-jump" type="button" data-item-index="${nextEntry.itemIndex}">下一项<i class="bi bi-arrow-right"></i></button>` : ''}
+          ${jumpItems.map(entry => `<button class="match-stream-jump is-priority" type="button" data-item-index="${entry.itemIndex}">跳至 ITEM ${entry.itemIndex + 1}</button>`).join('')}
+        </div>
+        <div class="match-stream-section" data-section-key="${sectionInfo.key}">
+          <div class="match-stream-section-header">
+            <div>
+              <div class="match-stream-section-title">ITEM ${activeEntry.itemIndex + 1} · ${escapeHtml(activeEntry.result?.query_item?.name || '未命名询价项')}</div>
+              <div class="match-stream-section-meta">${escapeHtml(sectionInfo.subtitle || '')}</div>
+            </div>
+          </div>
+          <ul class="match-stream-list">
+            ${renderWorkbenchCard(activeEntry.result, activeEntry.itemIndex, true)}
+          </ul>
+        </div>
+      </section>
+    `;
+  }
+
+  function renderWorkbenchInspector(activeEntry) {
+    if (!activeEntry) {
+      return `
+        <aside class="match-inspector">
+          <div class="match-inspector-empty match-stream-empty">当前筛选下没有可核查的报价项。</div>
+        </aside>
+      `;
+    }
+
+    const { result, itemIndex } = activeEntry;
+    const queryItem = result?.query_item || {};
+    const primary = getPrimaryCandidate(result);
+    const product = primary?.product || {};
+    const marketPrice = parseNumericPrice(product.market_price) || 0;
+    const adjustedPrice = getAdjustedPrice(marketPrice, itemIndex) || marketPrice;
+    const costMeta = getCostPriceMeta(product);
+    const costPrice = costMeta.hasValue ? (parseNumericPrice(product.cost_price) || 0) : null;
+    const budgetPrice = parseNumericPrice(queryItem.price) || adjustedPrice || marketPrice;
+    let marginText = '待补充';
+    let marginClass = '';
+
+    if (costPrice && budgetPrice) {
+      const margin = budgetPrice - costPrice;
+      const marginRate = costPrice ? ((margin / costPrice) * 100).toFixed(1) : '0.0';
+      marginText = `${margin >= 0 ? '+' : ''}¥${margin.toFixed(2)} (${marginRate}%)`;
+      marginClass = margin >= 0 ? 'text-success' : 'text-danger';
+    }
+
+    const optionItems = [
+      ...((result?.matches || []).slice(0, 2).map(match => ({ type: 'match', label: '候选', candidate: match }))),
+      ...((result?.alternatives || []).slice(0, 1).map(match => ({ type: 'alt', label: '备选', candidate: match })))
+    ];
+
+    return `
+      <aside class="match-inspector">
+        <div class="match-inspector-card">
+          <div class="match-inspector-heading">核查面板</div>
+          <div class="match-inspector-copy">价格、候选商品、人工搜索和确认动作都在这里。</div>
+          <div class="match-inspector-media">
+            <div class="candidate-visual">
+              ${ProductImageManager.createImageHtml(product, 'small')}
+            </div>
+            <div>
+              <div class="fw-semibold match-inspector-media-title">${escapeHtml(product.name || queryItem.name || '未命名商品')}</div>
+              <div class="small text-muted mt-1">ITEM ${itemIndex + 1} · ${escapeHtml(queryItem.name || '未命名询价项')}</div>
+              <div class="small text-muted">${escapeHtml(product.supplier || '供应商待补充')} ${product.code ? '· 编码 ' + escapeHtml(product.code) : ''}</div>
+            </div>
+          </div>
+          <div class="match-inspector-metrics">
+            <div class="match-inspector-metric">
+              <span class="match-inspector-metric-label">当前状态</span>
+              <span class="match-inspector-metric-value">${escapeHtml(getMatchStatusMeta(result).statusText)}</span>
+            </div>
+            <div class="match-inspector-metric">
+              <span class="match-inspector-metric-label">候选数量</span>
+              <span class="match-inspector-metric-value">${escapeHtml(String((result?.matches || []).length))}</span>
+            </div>
+            <div class="match-inspector-metric">
+              <span class="match-inspector-metric-label">预算单价</span>
+              <span class="match-inspector-metric-value">${formatNumericPrice(queryItem.price)}</span>
+            </div>
+            <div class="match-inspector-metric">
+              <span class="match-inspector-metric-label">利润 / 倒挂</span>
+              <span class="match-inspector-metric-value ${marginClass}">${marginText}</span>
+            </div>
+          </div>
+          <div class="match-inspector-section">
+            <div class="match-inspector-section-title">当前建议</div>
+            <ul class="match-inspector-option-list">
+              ${primary ? `
+                <li class="match-inspector-option">
+                  <strong>${escapeHtml(product.name || '未命名商品')}</strong>
+                  <span>${escapeHtml(product.brand || '品牌待补充')} · ${escapeHtml(product.supplier || '供应商待补充')}</span>
+                  <span>建议售价 ${formatPriceOrDash(product.market_price)}</span>
+                </li>
+              ` : '<li class="match-inspector-option"><strong>暂无稳定候选</strong><span>请使用下方人工搜索。</span></li>'}
+            </ul>
+          </div>
+          <div class="match-inspector-section">
+            <div class="match-inspector-section-title">候选与备选</div>
+            <ul class="match-inspector-option-list">
+              ${optionItems.length ? optionItems.map(({ label, candidate }) => `
+                <li class="match-inspector-option">
+                  <strong>${escapeHtml(label)} · ${escapeHtml(candidate?.product?.name || '未命名商品')}</strong>
+                  <span>${escapeHtml(candidate?.product?.supplier || '供应商待补充')} · ${Math.round((Number(candidate?.score || 0) || 0) * 100)}%</span>
+                </li>
+              `).join('') : '<li class="match-inspector-option"><strong>暂无候选</strong><span>请人工搜索或补充商品库。</span></li>'}
+            </ul>
+          </div>
+          <div class="match-inspector-section">
+            <div class="match-inspector-section-title">人工补充</div>
+            <ul class="match-inspector-option-list">
+              <li class="match-inspector-option">
+                <strong>预算单价</strong>
+                <span>${formatNumericPrice(queryItem.price)}</span>
+              </li>
+              <li class="match-inspector-option">
+                <strong>当前说明</strong>
+                <span>${escapeHtml(queryItem.spec || queryItem.remark || '暂无补充说明')}</span>
+              </li>
+            </ul>
+          </div>
+          <div class="match-inspector-actions">
+            <button class="btn btn-primary btn-sm" type="button" onclick="confirmWorkbenchSelection(${itemIndex})"><i class="bi bi-check2-circle me-1"></i>确认当前建议</button>
+            <button class="btn btn-outline-secondary btn-sm quote-catalog-search-btn" type="button" data-item-index="${itemIndex}"><i class="bi bi-search me-1"></i>人工搜索</button>
+            <button class="btn btn-outline-secondary btn-sm mark-no-match" type="button" data-index="${itemIndex}"><i class="bi bi-x-circle me-1"></i>无匹配</button>
+            <button class="btn btn-outline-secondary btn-sm mark-ask-boss" type="button" data-index="${itemIndex}"><i class="bi bi-question-circle me-1"></i>问老板</button>
+          </div>
+        </div>
+      </aside>
+    `;
+  }
 })();

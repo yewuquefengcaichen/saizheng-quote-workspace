@@ -1,53 +1,45 @@
-<section class="template-stage-shell template-stage-shell--compact" id="templatesBrowser">
-    <div class="template-stage-heading">
+<section class="template-focus-shell" id="templatesBrowser">
+    <div class="template-focus-head">
         <div>
-            <div class="template-stage-kicker">Template Browser</div>
-            <div class="template-stage-title">把模板目录做成真正可浏览、可比较、可切换的交付目录。</div>
-            <div class="template-stage-subtitle">这里先负责看清系统能交付什么，再决定执行时采用哪种导出配置。浏览与执行彻底拆开，页面会更轻。</div>
+            <div class="template-focus-kicker">模板中心</div>
+            <div class="template-focus-title">先选模板，再导出</div>
+            <div class="template-focus-subtitle">高频模板放前面，详细字段和扩展能力在下方继续看。</div>
         </div>
-        <div class="template-stage-rail">
-            <div class="template-stage-rail-card">
-                <span>Browse first</span>
-                <strong>先比较目录与字段覆盖</strong>
-                <small>模板、场景、价格口径与扩展方向一次看清，不先弹表单。</small>
-            </div>
-            <div class="template-stage-rail-card">
-                <span>Execute later</span>
-                <strong>执行时再做导出校验</strong>
-                <small>真正导出仍然走原有配置流，但浏览状态更轻、更像目录而不是设置页。</small>
-            </div>
+        <div class="template-focus-actions">
+            <button type="button" class="btn btn-primary" id="openExportCenterBtn">
+                <i class="bi bi-box-arrow-up-right me-2"></i>打开导出配置
+            </button>
+            <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary">
+                <i class="bi bi-layout-text-window me-2"></i>去报价工作台
+            </a>
+            <a href="{{ workspace_routes.guide }}" class="btn btn-outline-secondary">
+                <i class="bi bi-journal-text me-2"></i>使用说明
+            </a>
         </div>
     </div>
 
-    <div class="template-stage-body">
-        <div class="template-stage-browser">
-            <div id="exportTemplateBrowseOnlySection"></div>
-        </div>
-        <aside class="template-stage-side template-stage-side--compact">
-            <div class="template-stage-side-card template-stage-side-card--focus">
-                <div class="template-stage-side-label">Browse Logic</div>
-                <div class="template-stage-side-title">先比较模板，再决定是否进入真实导出。</div>
-                <div class="template-stage-side-copy">这页只做三件事：看目录、看字段、看场景。不要再把“为什么存在模板”解释成一整层说明。</div>
-                <div class="template-stage-side-list">
-                    <div class="template-stage-side-item">目录比较优先于表单填写</div>
-                    <div class="template-stage-side-item">字段覆盖和适用场景直接展示</div>
-                    <div class="template-stage-side-item">把首页和报价页从模板说明里解放出来</div>
-                </div>
-            </div>
+    <div class="template-priority-grid">
+        <article class="template-priority-card template-priority-card--featured">
+            <div class="template-priority-kicker">高频模板</div>
+            <div class="template-priority-title">待选报价单（下拉框）</div>
+            <div class="template-priority-copy">每个报价项保留候选商品下拉框，适合发给客服或销售做二次筛选。</div>
+            <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectExportTemplate('dropdown_default')">
+                <i class="bi bi-list-ul me-1"></i>查看这个模板
+            </button>
+        </article>
+        <article class="template-priority-card">
+            <div class="template-priority-kicker">标准交付</div>
+            <div class="template-priority-title">标准报价单</div>
+            <div class="template-priority-copy">适合确认完成后直接导出给客户，结构清晰，最常用。</div>
+        </article>
+        <article class="template-priority-card">
+            <div class="template-priority-kicker">商城模板</div>
+            <div class="template-priority-title">商城报价 / 订货 / 发货链路</div>
+            <div class="template-priority-copy">需要继续走商城单据扩展时，在下方模板能力区继续查看。</div>
+        </article>
+    </div>
 
-            <div class="template-stage-side-card template-stage-side-card--action">
-                <div class="template-stage-side-label">Next Scene</div>
-                <div class="template-stage-side-title">浏览完成后，去执行场景继续推进。</div>
-                <div class="template-stage-side-copy">如果已经确定模板，就进入报价确认或直接打开导出配置；如果还在准备阶段，就回到总览或继续核对商品资产。</div>
-                <button type="button" class="btn btn-primary" id="openExportCenterBtn">
-                    <i class="bi bi-box-arrow-up-right me-2"></i>打开导出配置
-                </button>
-                <div class="template-stage-link-list">
-                    <a href="{{ workspace_routes.dashboard }}">回到总览入口</a>
-                    <a href="{{ workspace_routes.quotes }}">去报价决策台</a>
-                    <a href="{{ workspace_routes.catalog }}">去商品资产库</a>
-                </div>
-            </div>
-        </aside>
+    <div class="template-browser-shell">
+        <div id="exportTemplateBrowseOnlySection"></div>
     </div>
 </section>

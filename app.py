@@ -1116,51 +1116,59 @@ def _get_default_export_template(export_format):
 WORKSPACE_PAGE_META = {
     'dashboard': {
         'tab': 'upload',
-        'eyebrow': 'Overview',
-        'title': '把模板、上传与导出收进同一块高级工作台',
-        'description': '先浏览能力，再导入商品与报价，然后进入匹配确认与真实导出。总览页负责建立信心，不再把功能埋进长页面里。',
-        'pills': ['模板能力先看见', '两步导入', '导出链路不断层'],
-        'note': '总览与上传'
+        'eyebrow': '入口',
+        'title': '两步导入',
+        'description': '先导入商品库，再导入报价来源。完成后进入报价工作台确认与导出。',
+        'pills': ['商品底座', '报价来源', '确认导出'],
+        'note': '总览'
     },
     'templates': {
         'tab': 'templates',
-        'eyebrow': 'Templates',
-        'title': '模板中心应该像单据能力展厅，而不是一个下拉框',
-        'description': '把可导出的真实单据、适用场景和后续扩展方向直接前置，让模板中心成为独立入口，而不是流程尾声里的附属项。',
-        'pills': ['模板目录', '能力预览', '真实导出配置'],
-        'note': '模板与导出'
+        'eyebrow': '模板',
+        'title': '模板中心',
+        'description': '高频模板放前面，详细字段和扩展能力在模板中心查看。',
+        'pills': ['标准报价单', '待选报价单', '商城模板'],
+        'note': '模板中心'
     },
     'quotes': {
         'tab': 'match',
-        'eyebrow': 'Quotes',
-        'title': '每一条报价都应该在决策工作台里被确认',
-        'description': '匹配、低分、人工搜索、候选比较和导出准备状态要在一个低噪但高密度的页面里完成，不再像传统后台列表。',
-        'pills': ['候选证据', '人工确认', '导出就绪度'],
+        'eyebrow': '报价',
+        'title': '报价工作台',
+        'description': '直接上传、筛选、确认和导出。',
+        'pills': ['上传报价单', '人工确认', '导出'],
         'note': '报价工作台'
     },
     'catalog': {
         'tab': 'catalog',
-        'eyebrow': 'Catalog',
-        'title': '商品库应该更像资产画廊，而不是枯燥数据表',
-        'description': '把搜索、筛选、图片、详情和价格分层排布，让商品资产浏览既高效又有品质感，适合快速人工校验。',
-        'pills': ['有图优先', '详情双段式', '筛选更清晰'],
-        'note': '商品资产库'
+        'eyebrow': '商品',
+        'title': '商品库',
+        'description': '直接筛选、直接看卡片、点开看详情。',
+        'pills': ['关键词筛选', '图片浏览', '详情核对'],
+        'note': '商品库'
     },
     'history': {
         'tab': 'history',
-        'eyebrow': 'History',
-        'title': '历史记录页只保留真正值得回看的信息',
-        'description': '报价次数、金额、匹配质量和可回看记录需要被整理成静稳的历史视图，而不是再次堆成普通卡片列表。',
-        'pills': ['关键指标', '历史回看', '删除与详情'],
-        'note': '历史与追踪'
+        'eyebrow': '历史',
+        'title': '历史记录',
+        'description': '查看历史报价与导出记录。',
+        'pills': ['查看记录', '快速回看', '继续处理'],
+        'note': '历史记录'
     },
     'synonyms': {
         'tab': 'synonyms',
-        'eyebrow': 'Vocabulary',
-        'title': '把同义词维护从杂项功能变成可管理的知识层',
-        'description': '名称变体、行业叫法和内部习惯词需要有专门位置维护，帮助系统长期学习，而不是挤在主流程里。',
-        'pills': ['词库维护', '人工增强', '持续学习'],
-        'note': '知识与词库'
+        'eyebrow': '词库',
+        'title': '同义词库',
+        'description': '维护常用别名、简称和行业叫法。',
+        'pills': ['别名维护', '行业叫法', '持续学习'],
+        'note': '同义词库'
+    },
+    'guide': {
+        'tab': 'guide',
+        'eyebrow': '帮助',
+        'title': '使用说明',
+        'description': '员工上手、模板选择和常见问题都集中在这里。',
+        'pills': ['两步导入', '模板说明', '常见问题'],
+        'note': '使用说明'
     }
 }
 
@@ -1170,7 +1178,8 @@ WORKSPACE_ROUTES = {
     'quotes': '/quotes',
     'catalog': '/catalog',
     'history': '/history',
-    'synonyms': '/synonyms'
+    'synonyms': '/synonyms',
+    'guide': '/guide'
 }
 
 
@@ -1230,6 +1239,12 @@ def quotes_page():
 def catalog_page():
     """商品库"""
     return render_template('index.html', **_build_workspace_context('catalog'))
+
+
+@app.route('/guide')
+def guide_page():
+    """使用说明"""
+    return render_template('index.html', **_build_workspace_context('guide'))
 
 
 @app.route('/history')
