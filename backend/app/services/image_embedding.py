@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from io import BytesIO
 from pathlib import Path
+import re
 
 import imagehash
 from PIL import Image, UnidentifiedImageError
@@ -49,6 +50,9 @@ class ImageSearchCandidateResult:
     reference_price: float | None
     source_url: str | None
     resolved_url: str | None
+    base_similarity: float | None = None
+    rerank_score: float | None = None
+    rerank_reason: str | None = None
 
 
 def hex_hash_to_bit_vector(hash_hex: str) -> list[float]:
@@ -63,6 +67,127 @@ def build_hash_embedding_vector(phash: str, dhash: str) -> list[float]:
     if len(vector) != DEFAULT_EMBEDDING_VECTOR_DIM:
         raise ValueError(f'unexpected vector dim: {len(vector)}')
     return vector
+
+
+TOKEN_PATTERN = re.compile(r'[\u4e00-\u9fff]+|[a-z0-9]+', re.IGNORECASE)
+
+
+def normalize_search_tokens(value: str | None) -> list[str]:
+    text = str(value or '').strip().lower()
+    if not text:
+        return []
+    tokens = TOKEN_PATTERN.findall(text)
+    return [token for token in tokens if token]
+
+
+def compute_token_overlap_score(query_text: str | None, candidate_text: str | None) -> float:
+    query_tokens = normalize_search_tokens(query_text)
+    candidate_tokens = set(normalize_search_tokens(candidate_text))
+    if not query_tokens or not candidate_tokens:
+        return 0.0
+
+    matched = sum(1 for token in query_tokens if token in candidate_tokens)
+    return min(1.0, matched / max(1, len(set(query_tokens))))
+
+
+def compute_substring_bonus(query_text: str | None, candidate_text: str | None) -> float:
+    query = str(query_text or '').strip().lower()
+    candidate = str(candidate_text or '').strip().lower()
+    if not query or not candidate:
+        return 0.0
+    if query == candidate:
+        return 1.0
+    if query in candidate:
+        return 0.75
+    return 0.0
+
+
+def rerank_image_candidates(
+    candidates: list[ImageSearchCandidateResult],
+    *,
+    query_text: str | None = None,
+    spec_hint: str | None = None,
+    brand_hint: str | None = None,
+) -> list[ImageSearchCandidateResult]:
+    has_hint = any(str(value or '').strip() for value in [query_text, spec_hint, brand_hint])
+    reranked: list[ImageSearchCandidateResult] = []
+
+    for item in candidates:
+        image_score = max(0.0, min(1.0, float(item.similarity or 0.0)))
+        text_corpus = ' '.join(
+            value for value in [
+                item.product_code,
+                item.product_name,
+                item.variant_name,
+                item.brand_name,
+                item.category_name,
+            ] if value
+        )
+        query_text_score = max(
+            compute_token_overlap_score(query_text, text_corpus),
+            compute_substring_bonus(query_text, text_corpus),
+        )
+        spec_score = max(
+            compute_token_overlap_score(spec_hint, item.variant_name),
+            compute_substring_bonus(spec_hint, item.variant_name),
+        )
+        brand_score = max(
+            compute_token_overlap_score(brand_hint, item.brand_name),
+            compute_substring_bonus(brand_hint, item.brand_name),
+        )
+
+        rerank_score = image_score
+        reasons = [f'图{round(image_score * 100)}']
+        if has_hint:
+            rerank_score = (
+                image_score * 0.62
+                + query_text_score * 0.24
+                + spec_score * 0.10
+                + brand_score * 0.04
+            )
+            if query_text_score > 0:
+                reasons.append(f'词{round(query_text_score * 100)}')
+            if spec_score > 0:
+                reasons.append(f'规{round(spec_score * 100)}')
+            if brand_score > 0:
+                reasons.append(f'牌{round(brand_score * 100)}')
+
+        reranked.append(
+            ImageSearchCandidateResult(
+                asset_id=item.asset_id,
+                product_id=item.product_id,
+                variant_id=item.variant_id,
+                product_code=item.product_code,
+                product_name=item.product_name,
+                variant_name=item.variant_name,
+                brand_name=item.brand_name,
+                category_name=item.category_name,
+                similarity=min(1.0, max(0.0, rerank_score)),
+                distance=item.distance,
+                image_role=item.image_role,
+                is_primary=item.is_primary,
+                storage_key=item.storage_key,
+                mime_type=item.mime_type,
+                width=item.width,
+                height=item.height,
+                reference_price=item.reference_price,
+                source_url=item.source_url,
+                resolved_url=item.resolved_url,
+                base_similarity=image_score,
+                rerank_score=min(1.0, max(0.0, rerank_score)),
+                rerank_reason=' · '.join(reasons),
+            )
+        )
+
+    reranked.sort(
+        key=lambda item: (
+            float(item.rerank_score if item.rerank_score is not None else item.similarity or 0.0),
+            float(item.base_similarity if item.base_similarity is not None else item.similarity or 0.0),
+            bool(item.is_primary),
+        ),
+        reverse=True,
+    )
+    return reranked
 
 
 def compute_query_image_features(file_bytes: bytes) -> QueryImageFeatures:
@@ -179,7 +304,11 @@ async def search_similar_products(
     top_k: int = 12,
     provider: str = DEFAULT_EMBEDDING_PROVIDER,
     model_name: str = DEFAULT_EMBEDDING_MODEL_NAME,
+    query_text: str | None = None,
+    spec_hint: str | None = None,
+    brand_hint: str | None = None,
 ) -> list[ImageSearchCandidateResult]:
+    has_rerank_hint = any(str(value or '').strip() for value in [query_text, spec_hint, brand_hint])
     embedding_rows = (
         await session.execute(
             select(
@@ -193,7 +322,7 @@ async def search_similar_products(
                 ImageEmbedding.embedding_vector.is_not(None),
             )
             .order_by('distance')
-            .limit(max(top_k * 4, 24))
+            .limit(max(top_k * (6 if has_rerank_hint else 4), 24))
         )
     ).all()
 
@@ -277,4 +406,10 @@ async def search_similar_products(
         if len(results) >= top_k:
             break
 
-    return results
+    reranked_results = rerank_image_candidates(
+        results,
+        query_text=query_text,
+        spec_hint=spec_hint,
+        brand_hint=brand_hint,
+    )
+    return reranked_results[:top_k]

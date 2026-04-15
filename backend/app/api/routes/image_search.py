@@ -23,6 +23,9 @@ router = APIRouter(prefix='/image-search', tags=['image-search'])
 async def query_image_search(
     file: UploadFile = File(...),
     top_k: int = Form(default=12),
+    query_text: str | None = Form(default=None),
+    spec_hint: str | None = Form(default=None),
+    brand_hint: str | None = Form(default=None),
     session: AsyncSession = Depends(get_db_session),
 ) -> ImageSearchResponse:
     if top_k < 1 or top_k > 50:
@@ -43,6 +46,9 @@ async def query_image_search(
         top_k=top_k,
         provider=DEFAULT_EMBEDDING_PROVIDER,
         model_name=DEFAULT_EMBEDDING_MODEL_NAME,
+        query_text=query_text,
+        spec_hint=spec_hint,
+        brand_hint=brand_hint,
     )
 
     response_candidates = [
@@ -67,6 +73,9 @@ async def query_image_search(
             reference_price=item.reference_price,
             source_url=item.source_url,
             resolved_url=item.resolved_url,
+            base_similarity=item.base_similarity,
+            rerank_score=item.rerank_score,
+            rerank_reason=item.rerank_reason,
         )
         for item in candidates
     ]

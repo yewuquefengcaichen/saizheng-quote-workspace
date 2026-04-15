@@ -9,6 +9,9 @@
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="WorkspaceEntryActions.openProductsUpload()">
                 <i class="bi bi-box-arrow-in-up-right me-1"></i>更新商品库
             </button>
+            <button type="button" class="btn btn-outline-success btn-sm" id="catalogSyncV2Btn">
+                <i class="bi bi-database-up me-1"></i>同步 V2
+            </button>
             <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-layout-text-window me-1"></i>去报价台
             </a>
@@ -103,6 +106,7 @@
         <div class="row g-3 mt-1 align-items-center">
             <div class="col-md-12">
                 <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>先看有图、品牌清晰、供应商明确的商品。</span></div>
+                <div class="catalog-toolbar-note mt-2" id="catalogSyncV2Status"><i class="bi bi-database"></i><span>V2 同步状态读取中…</span></div>
             </div>
         </div>
     </div>

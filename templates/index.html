@@ -4557,6 +4557,7 @@
             const imageSelect = document.getElementById('catalogImageFilter');
             const pageSizeSelect = document.getElementById('catalogPageSize');
             const resetBtn = document.getElementById('catalogResetBtn');
+            const syncV2Btn = document.getElementById('catalogSyncV2Btn');
 
             if (keywordInput) {
                 keywordInput.addEventListener('input', function() {
@@ -4589,6 +4590,108 @@
                     loadCatalogProducts(1);
                 });
             }
+
+            if (syncV2Btn) {
+                syncV2Btn.addEventListener('click', triggerCatalogV2ManualSync);
+            }
+
+            loadCatalogV2SyncStatus();
+        }
+
+        function renderCatalogV2SyncStatus(payload = {}) {
+            const statusEl = document.getElementById('catalogSyncV2Status');
+            const buttonEl = document.getElementById('catalogSyncV2Btn');
+            if (!statusEl) return;
+
+            const job = payload.job || {};
+            const success = !!payload.success;
+            const status = String(job.status || (success ? 'idle' : 'error')).trim();
+            let text = 'V2 还没有同步记录。';
+            let icon = 'bi-database';
+
+            if (!success) {
+                text = payload.message || 'V2 同步状态读取失败';
+                icon = 'bi-database-x';
+            } else if (job.exists) {
+                const count = Number(payload.product_count || job?.stats?.processed || 0);
+                const finishedText = job.finished_at ? ` · ${new Date(job.finished_at).toLocaleString('zh-CN', { hour12: false })}` : '';
+                if (status === 'success') {
+                    icon = 'bi-database-check';
+                    text = `V2 已同步 ${count} 条商品${finishedText}`;
+                } else if (status === 'running') {
+                    icon = 'bi-arrow-repeat';
+                    text = `V2 同步进行中：${job.completed_steps || 0} / ${job.total_steps || 0}`;
+                } else if (status === 'failed') {
+                    icon = 'bi-database-exclamation';
+                    text = job.error_message || 'V2 同步失败';
+                }
+            }
+
+            statusEl.innerHTML = `<i class="bi ${icon}"></i><span>${escapeHtml(text)}</span>`;
+            if (buttonEl) {
+                buttonEl.disabled = status === 'running';
+            }
+        }
+
+        function loadCatalogV2SyncStatus() {
+            fetch('/api/catalog/sync_v2_status')
+                .then(response => response.json())
+                .then(result => {
+                    renderCatalogV2SyncStatus(result || {});
+                })
+                .catch(error => {
+                    renderCatalogV2SyncStatus({
+                        success: false,
+                        message: error.message || 'V2 同步状态读取失败'
+                    });
+                });
+        }
+
+        function triggerCatalogV2ManualSync() {
+            const buttonEl = document.getElementById('catalogSyncV2Btn');
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>同步中';
+            }
+            renderCatalogV2SyncStatus({
+                success: true,
+                job: {
+                    exists: true,
+                    status: 'running',
+                    completed_steps: 0,
+                    total_steps: 0
+                }
+            });
+
+            fetch('/api/catalog/sync_v2_manual', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requested_by: 'catalog-page-manual-sync' })
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || 'V2 同步失败');
+                    }
+                    showToast('success', result.message || 'V2 商品同步完成');
+                    loadCatalogV2SyncStatus();
+                    if (document.body.dataset.sceneTab === 'catalog') {
+                        loadCatalogProducts(catalogState.page || 1);
+                    }
+                })
+                .catch(error => {
+                    showToast('error', error.message || 'V2 同步失败');
+                    renderCatalogV2SyncStatus({
+                        success: false,
+                        message: error.message || 'V2 同步失败'
+                    });
+                })
+                .finally(() => {
+                    if (buttonEl) {
+                        buttonEl.disabled = false;
+                        buttonEl.innerHTML = '<i class="bi bi-database-up me-1"></i>同步 V2';
+                    }
+                });
         }
 
         function getCatalogFilters() {
@@ -6474,6 +6577,9 @@
 
         function getQuoteCatalogResultLabel(item) {
             if (item?.search_type === 'image') {
+                if (item?.rerank_score !== undefined && item?.rerank_score !== null) {
+                    return `精排 ${Math.round(Number(item.rerank_score || 0) * 100)}%`;
+                }
                 return item.image_similarity !== undefined
                     ? `相似 ${Math.round(Number(item.image_similarity || 0) * 100)}%`
                     : '图搜结果';
@@ -6641,6 +6747,9 @@
                 `品牌 ${escapeHtml(item.brand || '-')}`,
                 item.category ? `分类 ${escapeHtml(item.category)}` : ''
             ].filter(Boolean).join(' · ');
+            const rerankReason = searchType === 'image' && item?.rerank_reason
+                ? `<div class="quote-search-result-meta">${escapeHtml(item.rerank_reason)}</div>`
+                : '';
 
             return `
                 <div class="quote-search-result-card ${isCurrentSelected ? 'is-selected' : ''}" data-item-index="${itemIndex}" data-product-code="${escapeHtmlAttr(item.code || '')}">
@@ -6652,6 +6761,7 @@
                             <div class="quote-search-result-name">${escapeHtml(item.name || '未命名商品')}</div>
                             <div class="quote-search-result-meta">${primaryMeta}</div>
                             <div class="quote-search-result-meta">${secondaryMeta}</div>
+                            ${rerankReason}
                             <div class="quote-search-result-flags">
                                 ${hasImage ? '<span class="qe-badge qe-badge-info"><i class="bi bi-image me-1"></i>有图</span>' : ''}
                                 ${searchType === 'image' ? '<span class="qe-badge qe-badge-primary"><i class="bi bi-camera me-1"></i>图搜</span>' : ''}
@@ -6982,6 +7092,7 @@
 
         function searchCatalogByImageForQuoteItem(itemIndex, file) {
             if (!file) return;
+            const queryItem = matchResults[itemIndex]?.query_item || {};
 
             const currentState = getQuoteCatalogSearchState(itemIndex);
             if (currentState.imagePreviewUrl && currentState.imagePreviewUrl.startsWith('blob:')) {
@@ -7006,6 +7117,9 @@
             const formData = new FormData();
             formData.append('file', file);
             formData.append('top_k', '12');
+            formData.append('query_text', String(queryItem.name || queryItem.remark || '').trim());
+            formData.append('spec_hint', String(queryItem.spec || '').trim());
+            formData.append('brand_hint', String(queryItem.brand || '').trim());
 
             fetch('/api/catalog/search_by_image_for_quote', {
                 method: 'POST',

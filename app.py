@@ -32,9 +32,23 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 try:
-    from sqlalchemy import select as sa_select
+    from sqlalchemy import func as sa_func, or_, select as sa_select
+    from sqlalchemy.orm import selectinload
     from app.db.session import AsyncSessionLocal as V2AsyncSessionLocal
-    from app.models import ImageAsset as V2ImageAsset
+    from app.models import (
+        Brand as V2Brand,
+        Category as V2Category,
+        ImageAsset as V2ImageAsset,
+        Product as V2Product,
+        ProductImage as V2ProductImage,
+        ProductVariant as V2ProductVariant,
+        Supplier as V2Supplier,
+    )
+    from app.services.catalog_sync import (
+        LegacyCatalogSyncService as V2LegacyCatalogSyncService,
+        build_sync_job_summary as v2_build_sync_job_summary,
+        get_latest_catalog_sync_job as v2_get_latest_catalog_sync_job,
+    )
     from app.services.image_embedding import (
         DEFAULT_EMBEDDING_MODEL_NAME as V2_IMAGE_EMBEDDING_MODEL_NAME,
         DEFAULT_EMBEDDING_PROVIDER as V2_IMAGE_EMBEDDING_PROVIDER,
@@ -45,10 +59,14 @@ try:
     )
     V2_IMAGE_SEARCH_AVAILABLE = True
     V2_IMAGE_SEARCH_IMPORT_ERROR = ''
+    V2_CATALOG_AVAILABLE = True
+    V2_CATALOG_IMPORT_ERROR = ''
 except Exception as e:
     print(f"V2图搜图模块导入失败，将跳过图片检索能力: {e}")
     V2_IMAGE_SEARCH_AVAILABLE = False
     V2_IMAGE_SEARCH_IMPORT_ERROR = str(e)
+    V2_CATALOG_AVAILABLE = False
+    V2_CATALOG_IMPORT_ERROR = str(e)
 
 # AI服务模块（可选，如果依赖未安装则降级）
 try:
@@ -190,6 +208,13 @@ def _normalize_text_value(value):
     return re.sub(r'\s+', ' ', html.unescape(text))
 
 
+def _normalize_category_display_value(value):
+    text = _normalize_text_value(value)
+    if not text:
+        return ''
+    return text.replace('\u03be', ' / ')
+
+
 def _extract_intro_text(intro_html):
     text = _normalize_text_value(re.sub(r'<[^>]+>', ' ', html.unescape(str(intro_html or ''))))
     return text
@@ -218,6 +243,8 @@ def _normalize_cost_price_value(value):
 
 def _annotate_product_cost_fields(product, source='loaded'):
     normalized_product = dict(product or {})
+    if 'category' in normalized_product:
+        normalized_product['category'] = _normalize_category_display_value(normalized_product.get('category'))
     normalized_cost = _normalize_cost_price_value(normalized_product.get('cost_price'))
     has_explicit_flags = any(key in normalized_product for key in ('has_cost_price', 'cost_price_missing', 'cost_price_ambiguous'))
 
@@ -687,6 +714,8 @@ def _normalize_image_search_product_item(candidate):
     product_code = _normalize_text_value(candidate.product_code)
     image_url = f"/api/catalog/image_asset/{candidate.asset_id}/file"
     similarity = max(0.0, min(1.0, float(candidate.similarity or 0.0)))
+    base_similarity = candidate.base_similarity
+    rerank_score = candidate.rerank_score
 
     return {
         'index': int(candidate.product_id or 0),
@@ -727,6 +756,9 @@ def _normalize_image_search_product_item(candidate):
         'mime_type': _normalize_text_value(candidate.mime_type),
         'width': candidate.width,
         'height': candidate.height,
+        'base_similarity': float(base_similarity) if base_similarity is not None else None,
+        'rerank_score': float(rerank_score) if rerank_score is not None else None,
+        'rerank_reason': _normalize_text_value(candidate.rerank_reason),
         'search_text': ' '.join(filter(None, [
             _normalize_text_value(candidate.product_code),
             _normalize_text_value(candidate.product_name),
@@ -737,7 +769,474 @@ def _normalize_image_search_product_item(candidate):
     }
 
 
-async def _search_catalog_by_image_async(file_bytes, top_k=12):
+def _normalize_v2_status_text(status: str | None) -> str:
+    status_text = _normalize_text_value(status)
+    if status_text == 'active':
+        return '上架'
+    if status_text == 'inactive':
+        return '下架'
+    return status_text or '未知'
+
+
+def _extract_v2_intro_payload(product) -> tuple[str, str]:
+    payload = getattr(product, 'source_payload', None) or {}
+    legacy_intro_text = _normalize_text_value(payload.get('legacy_intro_text'))
+    legacy_row = payload.get('legacy_row') or {}
+    intro_html = _normalize_text_value(legacy_row.get('intro'))
+    return intro_html or '', legacy_intro_text or ''
+
+
+def _build_v2_product_images(product, max_images=8):
+    images = []
+    product_images = list(getattr(product, 'images', []) or [])
+    product_images.sort(key=lambda item: (not bool(getattr(item, 'is_primary', False)), int(getattr(item, 'sort_order', 0) or 0), int(getattr(item, 'id', 0) or 0)))
+    for product_image in product_images[:max_images]:
+        asset_id = getattr(product_image, 'asset_id', None)
+        proxy_url = f"/api/catalog/image_asset/{asset_id}/file" if asset_id else ''
+        source_url = _normalize_text_value(getattr(product_image, 'resolved_url', None)) or _normalize_text_value(getattr(product_image, 'source_url', None)) or proxy_url
+        image_url = proxy_url or source_url
+        if not image_url:
+            continue
+        images.append({
+            'title': _normalize_text_value(getattr(product, 'name', None)) or '商品图片',
+            'thumb': image_url,
+            'source_url': source_url,
+            'url': image_url,
+            'proxy_url': proxy_url or image_url,
+            'product_id': str(getattr(product, 'id', '') or '')
+        })
+    return images
+
+
+def _normalize_v2_catalog_product_item(product, index=0, include_raw=False):
+    intro_html, intro_text = _extract_v2_intro_payload(product)
+    variants = list(getattr(product, 'variants', []) or [])
+    variants.sort(key=lambda item: int(getattr(item, 'id', 0) or 0))
+    primary_variant = variants[0] if variants else None
+    images = _build_v2_product_images(product)
+    first_image = images[0] if images else {}
+    category_obj = getattr(product, 'category', None)
+    category_text = _normalize_text_value(getattr(category_obj, 'path', None)) or _normalize_text_value(getattr(category_obj, 'name', None))
+    if category_text:
+        category_text = category_text.replace('\u03be', ' / ')
+
+    item = {
+        'index': index,
+        'code': _normalize_text_value(getattr(product, 'product_code', None)) or _normalize_text_value(getattr(product, 'external_product_id', None)),
+        'name': _normalize_text_value(getattr(product, 'name', None)),
+        'model': _normalize_text_value(getattr(primary_variant, 'variant_name', None)) or _normalize_text_value(getattr(primary_variant, 'spec_text', None)),
+        'category': category_text or '',
+        'unit': _normalize_text_value(getattr(product, 'unit', None)),
+        'market_price': float(getattr(primary_variant, 'sale_price', None) or getattr(product, 'reference_price', None) or 0) if (getattr(primary_variant, 'sale_price', None) is not None or getattr(product, 'reference_price', None) is not None) else None,
+        'cost_price': float(getattr(primary_variant, 'cost_price', None)) if getattr(primary_variant, 'cost_price', None) is not None else None,
+        'brand': _normalize_text_value(getattr(getattr(product, 'brand', None), 'name', None)),
+        'supplier': _normalize_text_value(getattr(getattr(product, 'supplier', None), 'name', None)),
+        'status': _normalize_v2_status_text(getattr(product, 'status', None)),
+        'intro': intro_html,
+        'intro_html': intro_html,
+        'intro_text': intro_text,
+        'product_id': str(getattr(product, 'id', '') or ''),
+        'image_url': first_image.get('url', '') or '',
+        'source_image_url': first_image.get('source_url', '') or '',
+        'images': images,
+        'image_count': len(images),
+        'has_image': bool(images),
+        'search_text': _normalize_text_value(getattr(product, 'search_text', None)) or ' '.join(filter(None, [
+            _normalize_text_value(getattr(product, 'product_code', None)),
+            _normalize_text_value(getattr(product, 'name', None)),
+            _normalize_text_value(getattr(primary_variant, 'variant_name', None)),
+            _normalize_text_value(getattr(getattr(product, 'brand', None), 'name', None)),
+            category_text,
+            intro_text,
+        ])).lower(),
+        'source': 'postgres_v2',
+    }
+    item = _annotate_product_cost_fields(item, source='loaded')
+    if include_raw:
+        item['raw_fields'] = {
+            'source_type': _normalize_text_value(getattr(product, 'source_type', None)),
+            'status': _normalize_text_value(getattr(product, 'status', None)),
+            'last_synced_at': getattr(product, 'last_synced_at', None).isoformat() if getattr(product, 'last_synced_at', None) else '',
+        }
+    return item
+
+
+def _to_v2_category_filter_value(value: str | None) -> str:
+    normalized = _normalize_text_value(value)
+    if not normalized:
+        return ''
+    return re.sub(r'\s*/\s*', '\u03be', normalized)
+
+
+def _to_catalog_category_display(value: str | None) -> str:
+    normalized = _normalize_text_value(value)
+    if not normalized:
+        return ''
+    return normalized.replace('\u03be', ' / ')
+
+
+async def _get_v2_catalog_filter_options_async(session):
+    categories = []
+    suppliers = []
+    brands = []
+    category_seen = set()
+    supplier_seen = set()
+    brand_seen = set()
+
+    category_rows = (
+        await session.execute(
+            sa_select(V2Category.path, V2Category.name)
+            .join(V2Product, V2Product.category_id == V2Category.id)
+            .distinct()
+            .order_by(V2Category.path, V2Category.name)
+        )
+    ).all()
+    for row in category_rows:
+        category_value = _to_catalog_category_display(row.path or row.name)
+        if category_value and category_value not in category_seen:
+            category_seen.add(category_value)
+            categories.append(category_value)
+
+    brand_rows = (
+        await session.scalars(
+            sa_select(V2Brand.name)
+            .join(V2Product, V2Product.brand_id == V2Brand.id)
+            .where(V2Brand.name.is_not(None))
+            .distinct()
+            .order_by(V2Brand.name)
+        )
+    ).all()
+    for brand_name in brand_rows:
+        brand_value = _normalize_text_value(brand_name)
+        if brand_value and brand_value not in brand_seen:
+            brand_seen.add(brand_value)
+            brands.append(brand_value)
+
+    supplier_rows = (
+        await session.scalars(
+            sa_select(V2Supplier.name)
+            .join(V2Product, V2Product.supplier_id == V2Supplier.id)
+            .where(V2Supplier.name.is_not(None))
+            .distinct()
+            .order_by(V2Supplier.name)
+        )
+    ).all()
+    for supplier_name in supplier_rows:
+        supplier_value = _normalize_text_value(supplier_name)
+        if supplier_value and supplier_value not in supplier_seen:
+            supplier_seen.add(supplier_value)
+            suppliers.append(supplier_value)
+
+    return categories, suppliers, brands
+
+
+async def _build_v2_catalog_response_async(keyword='', category='', supplier='', brand='', has_image='', page=1, page_size=24):
+    if not V2_CATALOG_AVAILABLE:
+        raise RuntimeError(f'V2 商品库不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
+
+    keyword = _normalize_text_value(keyword)
+    category = _normalize_text_value(category)
+    supplier = _normalize_text_value(supplier)
+    brand = _normalize_text_value(brand)
+    has_image = str(has_image or '').strip().lower()
+    page = max(int(page or 1), 1)
+    page_size = max(1, min(int(page_size or 24), 100))
+    category_path = _to_v2_category_filter_value(category)
+    image_product_ids_stmt = sa_select(V2ProductImage.product_id).where(V2ProductImage.product_id.is_not(None))
+    product_has_image_clause = or_(
+        V2Product.primary_image_url.is_not(None),
+        V2Product.id.in_(image_product_ids_stmt),
+    )
+
+    async with V2AsyncSessionLocal() as session:
+        base_ids_stmt = (
+            sa_select(V2Product.id)
+            .select_from(V2Product)
+            .outerjoin(V2Brand, V2Brand.id == V2Product.brand_id)
+            .outerjoin(V2Category, V2Category.id == V2Product.category_id)
+            .outerjoin(V2Supplier, V2Supplier.id == V2Product.supplier_id)
+            .outerjoin(V2ProductVariant, V2ProductVariant.product_id == V2Product.id)
+        )
+
+        if keyword:
+            like_value = f'%{keyword}%'
+            base_ids_stmt = base_ids_stmt.where(
+                or_(
+                    V2Product.name.ilike(like_value),
+                    V2Product.product_code.ilike(like_value),
+                    V2Product.external_product_id.ilike(like_value),
+                    V2Product.search_text.ilike(like_value),
+                    V2ProductVariant.variant_name.ilike(like_value),
+                    V2ProductVariant.spec_text.ilike(like_value),
+                    V2Brand.name.ilike(like_value),
+                    V2Supplier.name.ilike(like_value),
+                    V2Category.name.ilike(like_value),
+                    V2Category.path.ilike(like_value),
+                )
+            )
+
+        if category:
+            base_ids_stmt = base_ids_stmt.where(
+                or_(
+                    V2Category.path == category_path,
+                    V2Category.name == category,
+                )
+            )
+
+        if supplier:
+            base_ids_stmt = base_ids_stmt.where(V2Supplier.name == supplier)
+
+        if brand:
+            base_ids_stmt = base_ids_stmt.where(V2Brand.name == brand)
+
+        if has_image == 'yes':
+            base_ids_stmt = base_ids_stmt.where(product_has_image_clause)
+        elif has_image == 'no':
+            base_ids_stmt = (
+                base_ids_stmt
+                .where(V2Product.primary_image_url.is_(None))
+                .where(~V2Product.id.in_(image_product_ids_stmt))
+            )
+
+        total = int(
+            await session.scalar(
+                sa_select(sa_func.count()).select_from(base_ids_stmt.distinct().subquery())
+            ) or 0
+        )
+        total_pages = max(1, math.ceil(total / page_size)) if total else 1
+        current_page = min(page, total_pages) if total else 1
+        offset = (current_page - 1) * page_size
+
+        paged_ids = list(
+            (
+                await session.scalars(
+                    base_ids_stmt
+                    .distinct()
+                    .order_by(V2Product.id.desc())
+                    .offset(offset)
+                    .limit(page_size)
+                )
+            ).all()
+        )
+
+        if has_image == 'yes':
+            image_total = total
+        elif has_image == 'no':
+            image_total = 0
+        else:
+            image_total = int(
+                await session.scalar(
+                    sa_select(sa_func.count()).select_from(
+                        base_ids_stmt.where(product_has_image_clause).distinct().subquery()
+                    )
+                ) or 0
+            )
+
+        categories, suppliers, brands = await _get_v2_catalog_filter_options_async(session)
+
+        items = []
+        if paged_ids:
+            products = list(
+                (
+                    await session.scalars(
+                        sa_select(V2Product)
+                        .options(
+                            selectinload(V2Product.brand),
+                            selectinload(V2Product.category),
+                            selectinload(V2Product.supplier),
+                            selectinload(V2Product.variants),
+                            selectinload(V2Product.images),
+                        )
+                        .where(V2Product.id.in_(paged_ids))
+                    )
+                ).all()
+            )
+            order_map = {product_id: index for index, product_id in enumerate(paged_ids)}
+            products.sort(key=lambda product: order_map.get(getattr(product, 'id', 0), 10**9))
+
+            for index, product in enumerate(products, start=offset):
+                item = _normalize_v2_catalog_product_item(product, index=index)
+                item['catalog_source'] = 'postgres_v2'
+                items.append(item)
+
+        return {
+            'success': True,
+            'items': items,
+            'total': total,
+            'page': current_page,
+            'page_size': page_size,
+            'total_pages': total_pages,
+            'image_total': image_total,
+            'loaded': True,
+            'catalog_source': 'postgres_v2',
+            'filters': {
+                'categories': categories,
+                'suppliers': suppliers,
+                'brands': brands,
+            }
+        }
+
+
+async def _load_v2_product_by_code_async(product_code):
+    if not V2_CATALOG_AVAILABLE:
+        return None
+
+    product_code = _normalize_text_value(product_code)
+    if not product_code:
+        return None
+
+    async with V2AsyncSessionLocal() as session:
+        return await session.scalar(
+            sa_select(V2Product)
+            .options(
+                selectinload(V2Product.brand),
+                selectinload(V2Product.category),
+                selectinload(V2Product.supplier),
+                selectinload(V2Product.variants),
+                selectinload(V2Product.images),
+            )
+            .where(
+                or_(
+                    V2Product.product_code == product_code,
+                    V2Product.external_product_id == product_code,
+                )
+            )
+            .limit(1)
+        )
+
+
+async def _build_v2_catalog_detail_response_async(product_code):
+    product = await _load_v2_product_by_code_async(product_code)
+    if not product:
+        return None
+    detail = _normalize_v2_catalog_product_item(product, include_raw=True)
+    detail['detail_fields'] = _build_catalog_detail_fields(detail)
+    detail['has_image'] = bool(detail.get('images') or detail.get('image_url') or detail.get('source_image_url'))
+    detail['image_count'] = len(detail.get('images') or [])
+    return detail
+
+
+def _score_catalog_candidate(item, search_terms, normalized_item):
+    item_text = str(item.get('search_text') or '').lower()
+    score = 0
+
+    for term in search_terms:
+        lowered = str(term or '').strip().lower()
+        if not lowered:
+            continue
+        if str(item.get('name') or '').lower() == lowered:
+            score += 120
+        elif lowered in str(item.get('name') or '').lower():
+            score += 70
+        if item.get('model') and lowered in str(item.get('model') or '').lower():
+            score += 40
+        if item.get('code') and lowered in str(item.get('code') or '').lower():
+            score += 80
+        if lowered in item_text:
+            score += 15
+
+    if normalized_item.get('normalized_unit') and normalized_item['normalized_unit'] == item.get('unit'):
+        score += 10
+
+    return score
+
+
+async def _search_v2_catalog_for_quote_async(keyword, search_terms, normalized_item, limit=20):
+    if not V2_CATALOG_AVAILABLE:
+        return []
+
+    clauses = []
+    for term in search_terms:
+        value = _normalize_text_value(term)
+        if not value:
+            continue
+        like_value = f"%{value}%"
+        clauses.extend([
+            V2Product.name.ilike(like_value),
+            V2Product.product_code.ilike(like_value),
+            V2Product.external_product_id.ilike(like_value),
+            V2Product.search_text.ilike(like_value),
+            V2ProductVariant.variant_name.ilike(like_value),
+            V2ProductVariant.spec_text.ilike(like_value),
+        ])
+
+    if not clauses:
+        return []
+
+    async with V2AsyncSessionLocal() as session:
+        product_ids = list((await session.scalars(
+            sa_select(V2Product.id)
+            .outerjoin(V2ProductVariant, V2ProductVariant.product_id == V2Product.id)
+            .where(or_(*clauses))
+            .distinct()
+            .limit(max(limit * 6, 80))
+        )).all())
+        if not product_ids:
+            return []
+
+        products = list((await session.scalars(
+            sa_select(V2Product)
+            .options(
+                selectinload(V2Product.brand),
+                selectinload(V2Product.category),
+                selectinload(V2Product.supplier),
+                selectinload(V2Product.variants),
+                selectinload(V2Product.images),
+            )
+            .where(V2Product.id.in_(product_ids))
+        )).all())
+
+    items = []
+    seen_codes = set()
+    for product in products:
+        item = _normalize_v2_catalog_product_item(product)
+        score = _score_catalog_candidate(item, search_terms, normalized_item)
+        if score <= 0:
+            continue
+        code_key = item['code'] or f"__idx_{item['index']}"
+        if code_key in seen_codes:
+            continue
+        seen_codes.add(code_key)
+        item['catalog_score'] = score
+        item['catalog_source'] = 'postgres_v2'
+        items.append(item)
+
+    items.sort(key=lambda x: (x.get('catalog_score', 0), x.get('has_image', False), x.get('market_price', 0) or 0), reverse=True)
+    return items[:limit]
+
+
+async def _get_v2_catalog_sync_status_async():
+    if not V2_CATALOG_AVAILABLE:
+        return {
+            'success': False,
+            'message': f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}',
+        }
+    async with V2AsyncSessionLocal() as session:
+        job = await v2_get_latest_catalog_sync_job(session)
+        product_count = await session.scalar(sa_select(sa_func.count()).select_from(V2Product))
+        return {
+            'success': True,
+            'job': v2_build_sync_job_summary(job),
+            'product_count': int(product_count or 0),
+        }
+
+
+async def _run_v2_catalog_manual_sync_async(requested_by='flask-workbench'):
+    if not V2_CATALOG_AVAILABLE:
+        raise RuntimeError(f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
+    async with V2AsyncSessionLocal() as session:
+        service = V2LegacyCatalogSyncService(
+            session,
+            dry_run=False,
+            source_type='legacy_json_upload',
+            source_name='products_json_manual',
+            requested_by=requested_by,
+        )
+        result = await service.run_from_default_file()
+        return result
+
+
+async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', spec_hint='', brand_hint=''):
     if not V2_IMAGE_SEARCH_AVAILABLE:
         raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
 
@@ -749,6 +1248,9 @@ async def _search_catalog_by_image_async(file_bytes, top_k=12):
             top_k=top_k,
             provider=V2_IMAGE_EMBEDDING_PROVIDER,
             model_name=V2_IMAGE_EMBEDDING_MODEL_NAME,
+            query_text=query_text,
+            spec_hint=spec_hint,
+            brand_hint=brand_hint,
         )
         items = [_normalize_image_search_product_item(candidate) for candidate in candidates]
         return {
@@ -1417,6 +1919,20 @@ def get_catalog_products():
     if page_size <= 0:
         page_size = limit or 24
 
+    if V2_CATALOG_AVAILABLE:
+        try:
+            return jsonify(_run_async_task(_build_v2_catalog_response_async(
+                keyword=keyword,
+                category=category,
+                supplier=supplier,
+                brand=brand,
+                has_image=has_image,
+                page=page,
+                page_size=page_size
+            )))
+        except Exception:
+            pass
+
     return jsonify(_build_catalog_response(
         keyword=keyword,
         category=category,
@@ -1431,7 +1947,14 @@ def get_catalog_products():
 @app.route('/api/catalog/product/<product_code>', methods=['GET'])
 def get_catalog_product_detail(product_code):
     """获取单个商品详情"""
-    detail = _build_catalog_detail_response(product_code)
+    detail = None
+    if V2_CATALOG_AVAILABLE:
+        try:
+            detail = _run_async_task(_build_v2_catalog_detail_response_async(product_code))
+        except Exception:
+            detail = None
+    if not detail:
+        detail = _build_catalog_detail_response(product_code)
     if not detail:
         return jsonify({'success': False, 'message': '商品不存在'})
 
@@ -1474,43 +1997,32 @@ def catalog_search_for_quote():
             search_terms.append(value)
 
     candidates = []
-    seen_codes = set()
-    for product in products_data or []:
-        item = _build_product_catalog_item(product)
-        item_text = item['search_text']
-        score = 0
+    if V2_CATALOG_AVAILABLE:
+        try:
+            candidates = _run_async_task(_search_v2_catalog_for_quote_async(keyword, search_terms, normalized_item, limit=20))
+        except Exception:
+            candidates = []
 
-        for term in search_terms:
-            lowered = term.lower()
-            if not lowered:
+    if not candidates:
+        seen_codes = set()
+        for product in products_data or []:
+            item = _build_product_catalog_item(product)
+            score = _score_catalog_candidate(item, search_terms, normalized_item)
+
+            if score <= 0:
                 continue
-            if item['name'].lower() == lowered:
-                score += 120
-            elif lowered in item['name'].lower():
-                score += 70
-            if item['model'] and lowered in item['model'].lower():
-                score += 40
-            if item['code'] and lowered in item['code'].lower():
-                score += 80
-            if lowered in item_text:
-                score += 15
 
-        if normalized_item.get('normalized_unit') and normalized_item['normalized_unit'] == item['unit']:
-            score += 10
+            code_key = item['code'] or f"__idx_{item['index']}"
+            if code_key in seen_codes:
+                continue
+            seen_codes.add(code_key)
 
-        if score <= 0:
-            continue
-
-        code_key = item['code'] or f"__idx_{item['index']}"
-        if code_key in seen_codes:
-            continue
-        seen_codes.add(code_key)
-
-        image_count = len(item['images']) if isinstance(item['images'], list) else 0
-        item['image_count'] = image_count
-        item['has_image'] = bool(item['image_url'] or item['source_image_url'] or image_count)
-        item['catalog_score'] = score
-        candidates.append(item)
+            image_count = len(item['images']) if isinstance(item['images'], list) else 0
+            item['image_count'] = image_count
+            item['has_image'] = bool(item['image_url'] or item['source_image_url'] or image_count)
+            item['catalog_score'] = score
+            item['catalog_source'] = 'legacy_json'
+            candidates.append(item)
 
     candidates.sort(key=lambda x: (x.get('catalog_score', 0), x.get('has_image', False), x.get('market_price', 0)), reverse=True)
 
@@ -1518,7 +2030,8 @@ def catalog_search_for_quote():
         'success': True,
         'keyword': keyword,
         'items': candidates[:20],
-        'total': len(candidates)
+        'total': len(candidates),
+        'catalog_source': candidates[0].get('catalog_source') if candidates else ('postgres_v2' if V2_CATALOG_AVAILABLE else 'legacy_json')
     })
 
 
@@ -1541,12 +2054,21 @@ def catalog_search_by_image_for_quote():
         return jsonify({'success': False, 'message': '请先选择图片'})
 
     top_k = max(1, min(int(request.form.get('top_k', 12) or 12), 20))
+    query_text = _normalize_text_value(request.form.get('query_text')) or ''
+    spec_hint = _normalize_text_value(request.form.get('spec_hint')) or ''
+    brand_hint = _normalize_text_value(request.form.get('brand_hint')) or ''
     file_bytes = file.read()
     if not file_bytes:
         return jsonify({'success': False, 'message': '图片内容为空'})
 
     try:
-        result = _run_async_task(_search_catalog_by_image_async(file_bytes, top_k=top_k))
+        result = _run_async_task(_search_catalog_by_image_async(
+            file_bytes,
+            top_k=top_k,
+            query_text=query_text,
+            spec_hint=spec_hint,
+            brand_hint=brand_hint,
+        ))
         return jsonify({
             'success': True,
             **result
@@ -1589,6 +2111,36 @@ def get_catalog_image_asset_file(asset_id):
         return jsonify({
             'success': False,
             'message': f'读取归档图片失败：{str(e)}'
+        }), 500
+
+
+@app.route('/api/catalog/sync_v2_status', methods=['GET'])
+def get_catalog_sync_v2_status():
+    """查询 PostgreSQL 商品同步状态"""
+    try:
+        return jsonify(_run_async_task(_get_v2_catalog_sync_status_async()))
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'读取同步状态失败：{str(e)}'
+        }), 500
+
+
+@app.route('/api/catalog/sync_v2_manual', methods=['POST'])
+def run_catalog_sync_v2_manual():
+    """手动把当前商品库文件同步到 V2 PostgreSQL"""
+    requested_by = _normalize_text_value((request.get_json(silent=True) or {}).get('requested_by')) or 'flask-workbench'
+    try:
+        result = _run_async_task(_run_v2_catalog_manual_sync_async(requested_by=requested_by))
+        return jsonify({
+            'success': True,
+            'message': f"V2 商品同步完成，处理 {result.get('stats', {}).get('processed', 0)} 条。",
+            **result,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'同步失败：{str(e)}'
         }), 500
 
 

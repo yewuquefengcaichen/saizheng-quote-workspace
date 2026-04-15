@@ -24,6 +24,9 @@ class ImageSearchCandidate(BaseModel):
     reference_price: float | None = None
     source_url: str | None = None
     resolved_url: str | None = None
+    base_similarity: float | None = Field(default=None, ge=0.0, le=1.0)
+    rerank_score: float | None = Field(default=None, ge=0.0, le=1.0)
+    rerank_reason: str | None = None
 
 
 class ImageSearchResponse(BaseModel):
