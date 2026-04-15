@@ -19,7 +19,7 @@ depends_on = None
 def upgrade() -> None:
     op.create_table(
         'system_configs',
-        sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
+        sa.Column('id', sa.BigInteger(), sa.Identity(), nullable=False),
         sa.Column('key', sa.String(length=120), nullable=False),
         sa.Column('value', sa.Text(), nullable=True),
         sa.Column('value_json', postgresql.JSONB(astext_type=sa.Text()), nullable=True),

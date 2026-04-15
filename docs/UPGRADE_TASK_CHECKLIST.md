@@ -56,9 +56,9 @@
 - [x] ?? PostgreSQL
 - [x] ?? SQLAlchemy 2.0
 - [x] ?? Alembic ??
-- [ ] ???????
+- [x] ???????
 - [x] ??????????????
-- [ ] ?????/??????
+- [x] ?????/??????
 
 ### 3. ????
 
@@ -74,19 +74,19 @@
 
 ### ???
 
-- [ ] `brands`
-- [ ] `categories`
-- [ ] `suppliers`
-- [ ] `products`
-- [ ] `product_variants`
-- [ ] `product_images`
-- [ ] `product_attributes`
+- [x] `brands`
+- [x] `categories`
+- [x] `suppliers`
+- [x] `products`
+- [x] `product_variants`
+- [x] `product_images`
+- [x] `product_attributes`
 
 ### ???
 
-- [ ] `quote_batches`
-- [ ] `quote_items`
-- [ ] `quote_item_candidates`
+- [x] `quote_batches`
+- [x] `quote_items`
+- [x] `quote_item_candidates`
 - [ ] `quote_confirmations`
 - [ ] `quote_exports`
 
@@ -100,9 +100,9 @@
 ### ???
 
 - [ ] `operation_logs`
-- [ ] `system_configs`
-- [ ] `sync_jobs`
-- [ ] `sync_job_logs`
+- [x] `system_configs`
+- [x] `sync_jobs`
+- [x] `sync_job_logs`
 
 ### ????
 
