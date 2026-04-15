@@ -2,8 +2,8 @@
     <aside class="workspace-scene-nav" aria-label="工作区主导航">
         <div class="workspace-scene-nav-head">
             <div class="scene-nav-caption">Saizheng Workspace</div>
-            <div class="scene-nav-title">把商品、报价、模板和知识库放回同一条清晰的工作流。</div>
-            <p class="scene-nav-copy">左侧负责切页，右侧只告诉你当前页面最该做什么，减少旧后台那种同时塞满信息的压迫感。</p>
+            <div class="scene-nav-title">商品、报价、模板同一条线。</div>
+            <p class="scene-nav-copy">左侧切页，右侧做事。</p>
         </div>
 
         <div class="scene-nav-links">
@@ -11,49 +11,49 @@
                 <span class="scene-nav-link-icon"><i class="bi bi-house-door"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>总览</strong>
-                    <small>先导入，再进入确认台。</small>
+                    <small>先导入</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.quotes }}" class="scene-nav-link{% if current_page == 'quotes' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-layout-text-window"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>报价台</strong>
-                    <small>上传、确认、导出在同一页完成。</small>
+                    <small>上传确认</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.catalog }}" class="scene-nav-link{% if current_page == 'catalog' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-grid-3x3-gap"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>商品库</strong>
-                    <small>像资产库一样浏览、筛选、核对。</small>
+                    <small>筛选核对</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.templates }}" class="scene-nav-link{% if current_page == 'templates' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-files"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>模板</strong>
-                    <small>先锁定交付样式，再决定导出。</small>
+                    <small>导出样式</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.history }}" class="scene-nav-link{% if current_page == 'history' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-clock-history"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>历史</strong>
-                    <small>只保留决定去留的关键线索。</small>
+                    <small>回看记录</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.synonyms }}" class="scene-nav-link{% if current_page == 'synonyms' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-book"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>词库</strong>
-                    <small>先补高频词，再让匹配更稳。</small>
+                    <small>补高频词</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.guide }}" class="scene-nav-link{% if current_page == 'guide' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-journal-text"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>说明</strong>
-                    <small>给同事看的上手页，不讲废话。</small>
+                    <small>看流程</small>
                 </span>
             </a>
         </div>
@@ -123,8 +123,8 @@
                     </a>
                 </div>
                 {% elif current_page == 'catalog' %}
-                <h1 class="scene-hero-title">把商品资产做成一眼能看懂的图库，而不是难读的清单。</h1>
-                <p class="scene-hero-description">商品库先服务浏览和核对，再服务维护。图片、分类、品牌和供应商应该变成自然的筛选维度，而不是藏在表格深处。</p>
+                <h1 class="scene-hero-title">先筛选，再看图卡。</h1>
+                <p class="scene-hero-description">先收窄范围，再开详情核对。</p>
                 <div class="scene-hero-pills">
                     {% for pill in page_meta.pills %}
                     <span class="scene-hero-pill">{{ pill }}</span>
@@ -247,12 +247,12 @@
                 <div class="scene-hero-note">
                     <span class="scene-hero-note-label">当前建议</span>
                     <strong>优先补图、补品牌、补供应商。</strong>
-                    <span>这三类字段会直接提升自动匹配的可信度，也会让商品详情页看起来更像资产页。</span>
+                    <span>这三项先补。</span>
                 </div>
                 <div class="scene-hero-note">
                     <span class="scene-hero-note-label">浏览优先级</span>
                     <strong>先筛选，再看图卡，最后开详情。</strong>
-                    <span>这样用户不会一上来被过长表格拖垮节奏。</span>
+                    <span>少来回跳。</span>
                 </div>
                 {% elif current_page == 'templates' %}
                 <div class="scene-hero-note">

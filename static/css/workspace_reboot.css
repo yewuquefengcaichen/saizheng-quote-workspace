@@ -4153,6 +4153,11 @@ body[data-route="catalog"] .ai-assistant-panel {
   display: none !important;
 }
 
+body[data-route="dashboard"] .workspace-topbar-utility,
+body[data-route="catalog"] .workspace-topbar-utility {
+  display: none !important;
+}
+
 body[data-route="catalog"] .scene-nav-copy,
 body[data-route="catalog"] .scene-nav-link small,
 body[data-route="catalog"] .scene-nav-stat small,
@@ -4174,6 +4179,49 @@ body[data-route="catalog"] .scene-nav-stat small {
 
 body[data-route="catalog"] .scene-hero-note span:last-child {
   display: none;
+}
+
+body[data-route="catalog"] .workspace-scene-nav-head {
+  display: none !important;
+}
+
+body[data-route="catalog"] .workspace-scene-nav {
+  padding: 14px 12px !important;
+  gap: 10px;
+}
+
+body[data-route="catalog"] .scene-nav-links {
+  gap: 8px;
+}
+
+body[data-route="catalog"] .scene-nav-link {
+  padding: 12px 14px;
+}
+
+body[data-route="catalog"] .scene-nav-link-icon {
+  width: 38px;
+  height: 38px;
+}
+
+body[data-route="catalog"] .scene-nav-stat {
+  padding-top: 4px;
+}
+
+body[data-route="catalog"] .catalog-page-head {
+  display: none !important;
+}
+
+body[data-route="catalog"] .catalog-toolbar-subheading,
+body[data-route="catalog"] .catalog-toolbar-note {
+  display: none !important;
+}
+
+body[data-route="catalog"] .catalog-summary {
+  margin-bottom: 12px;
+}
+
+body[data-route="catalog"] .catalog-toolbar--atelier {
+  padding-top: 18px !important;
 }
 
 @media (min-width: 1281px) {
