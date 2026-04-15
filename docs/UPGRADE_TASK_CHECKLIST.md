@@ -92,10 +92,10 @@
 
 ### ??????
 
-- [ ] `synonyms`
-- [ ] `normalization_rules`
-- [ ] `parse_templates`
-- [ ] `match_feedback`
+- [x] `synonyms`
+- [x] `normalization_rules`
+- [x] `parse_templates`
+- [x] `match_feedback`
 
 ### ???
 
