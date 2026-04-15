@@ -2,9 +2,9 @@
     <section class="dashboard-focus-shell" id="workspaceIngress">
         <div class="dashboard-focus-header">
             <div>
-                <div class="dashboard-focus-kicker">导入控制台</div>
-                <div class="dashboard-focus-title">先把底座和来源放进来，再进入报价确认台。</div>
-                <div class="dashboard-focus-subtitle">主页只保留真正高频的两步动作。先导入商品库，再导入报价单或 OCR 图片，处理完成后再进入导出流程。</div>
+                <div class="dashboard-focus-kicker">首页入口</div>
+                <div class="dashboard-focus-title">先导商品，再导报价。</div>
+                <div class="dashboard-focus-subtitle">首页只留高频动作。其他说明统一去说明页。</div>
             </div>
             <div class="dashboard-focus-links">
                 <a href="{{ workspace_routes.templates }}" class="dashboard-link-chip"><i class="bi bi-files"></i>模板中心</a>
@@ -21,8 +21,8 @@
                 <div class="card-body">
                     <div class="focus-step-meta">
                         <div>
-                            <div class="focus-step-title">先把商品资产补完整</div>
-                            <div class="focus-step-copy">商品名称、规格、品牌、供应商、图片和价格越完整，后面的自动匹配就越轻松，界面也能更像真正的商品资产库。</div>
+                            <div class="focus-step-title">上传商品库</div>
+                            <div class="focus-step-copy">先把商品底座补齐，后面匹配会更稳。</div>
                         </div>
                         <div id="productsStatus" class="mb-0">
                         {% if products_loaded %}
@@ -42,8 +42,8 @@
                             <i class="bi bi-cloud-upload"></i>
                         </div>
                         <h4 class="fw-bold mb-2">上传商品库</h4>
-                        <p class="text-muted mb-0">支持 `.xls` / `.xlsx`，建议包含品牌、分类、供应商和图片列。</p>
-                        <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>点击选择商品库文件</span>
+                        <p class="text-muted mb-0">支持 `.xls` / `.xlsx`。</p>
+                        <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>选择商品库文件</span>
                         <input type="file" id="productsFile" accept=".xls,.xlsx">
                     </label>
 
@@ -63,8 +63,8 @@
                 <div class="card-body">
                     <div class="focus-step-meta">
                         <div>
-                            <div class="focus-step-title">再把报价单推进确认流程</div>
-                            <div class="focus-step-copy">无论是 Excel 报价单还是 OCR 图片，都会进入同一套确认台，不需要再回首页重新找入口。</div>
+                            <div class="focus-step-title">上传报价单</div>
+                            <div class="focus-step-copy">Excel 和 OCR 都进同一个确认台。</div>
                         </div>
                         <div id="quoteStatus" class="mb-0">
                             <span class="status-badge status-pending">
@@ -78,8 +78,8 @@
                             <i class="bi bi-file-earmark-plus"></i>
                         </div>
                         <h4 class="fw-bold mb-2">上传报价单</h4>
-                        <p class="text-muted mb-0">支持 `.xls` / `.xlsx`，选中文件后会直接进入报价确认台。</p>
-                        <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>点击选择报价文件</span>
+                        <p class="text-muted mb-0">支持 `.xls` / `.xlsx`。</p>
+                        <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>选择报价文件</span>
                         <input type="file" id="quoteFile" accept=".xls,.xlsx">
                     </label>
 
@@ -87,7 +87,7 @@
                         <button type="button" class="btn btn-outline-info btn-lg" id="ocrUploadBtn" data-ocr-entry="true">
                             <i class="bi bi-camera me-2"></i>OCR 图片识别
                         </button>
-                        <small class="text-muted">图片报价单也会进入同一个确认流程</small>
+                        <small class="text-muted">图片报价单也走同一流程</small>
                         <input type="file" id="ocrFile" accept="image/*" style="display: none;">
                     </div>
 
@@ -102,8 +102,8 @@
 
         <div class="dashboard-enter-bar">
             <div class="dashboard-enter-copy">
-                <div class="dashboard-enter-title">准备好后，直接进入报价确认台。</div>
-                <div class="dashboard-enter-note">确认完成后再去模板中心选择交付方式。常用模板建议优先使用 <strong>待选报价单（下拉候选）</strong> 与 <strong>标准报价单</strong>。</div>
+                <div class="dashboard-enter-title">准备好后，直接进入报价台。</div>
+                <div class="dashboard-enter-note">确认完成后再去模板中心导出。</div>
             </div>
             <button class="btn btn-primary btn-lg" id="startMatchBtn" disabled>
                 <i class="bi bi-lightning-charge me-2"></i>进入报价确认台

@@ -238,7 +238,26 @@ body::after { inset: auto 2% 3% auto; width: 380px; height: 380px; border-radius
 .workspace-scene-nav::before, .workspace-scene-hero::before, .hero-section::before, .workspace-ingress-shell::before, .workspace-stage-shell::before, .template-stage-shell::before, .scene-panel::before, .quote-atlas-hero::before, .catalog-gallery-hero::before, .decision-atlas::before, .history-ledger-shell::before, .vocabulary-ledger-shell::before {
   content: ""; position: absolute; inset: 0; background: linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,0) 42%); pointer-events: none;
 }
-.workspace-scene-nav { position: sticky; top: 112px; align-self: start; padding: 24px; }
+.workspace-scene-nav {
+  position: sticky;
+  top: 112px;
+  align-self: start;
+  padding: 24px;
+  max-height: calc(100vh - 132px);
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+}
+
+.workspace-scene-nav::-webkit-scrollbar {
+  width: 8px;
+}
+
+.workspace-scene-nav::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(148, 163, 184, 0.42);
+}
 .scene-nav-title { margin: 10px 0 20px; font-size: 1.08rem; line-height: 1.7; }
 .scene-nav-links { display: flex; flex-direction: column; gap: 10px; }
 .scene-nav-link { display: flex; gap: 14px; align-items: flex-start; padding: 16px 18px; border-radius: 22px; border: 1px solid transparent; background: var(--ws-surface); text-decoration: none; transition: all var(--ws-base); }
@@ -4116,6 +4135,45 @@ body[data-route="dashboard"] .workspace-scene-shell--compact {
 
 body[data-route="dashboard"] .workspace-scene-nav {
   display: none !important;
+}
+
+body[data-route="dashboard"] .workspace-scene-hero,
+body[data-route="dashboard"] .scene-hero-metrics {
+  display: none !important;
+}
+
+body[data-route="dashboard"] .workspace-scene-shell {
+  margin-bottom: 10px !important;
+}
+
+body[data-route="dashboard"] .ai-float-btn,
+body[data-route="dashboard"] .ai-assistant-panel,
+body[data-route="catalog"] .ai-float-btn,
+body[data-route="catalog"] .ai-assistant-panel {
+  display: none !important;
+}
+
+body[data-route="catalog"] .scene-nav-copy,
+body[data-route="catalog"] .scene-nav-link small,
+body[data-route="catalog"] .scene-nav-stat small,
+body[data-route="catalog"] .scene-hero-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+body[data-route="catalog"] .scene-nav-copy,
+body[data-route="catalog"] .scene-nav-link small,
+body[data-route="catalog"] .scene-hero-description {
+  -webkit-line-clamp: 2;
+}
+
+body[data-route="catalog"] .scene-nav-stat small {
+  -webkit-line-clamp: 3;
+}
+
+body[data-route="catalog"] .scene-hero-note span:last-child {
+  display: none;
 }
 
 @media (min-width: 1281px) {
