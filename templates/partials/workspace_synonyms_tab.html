@@ -2,15 +2,15 @@
     <section class="workspace-page-head workspace-page-head--synonyms">
         <div>
             <div class="workspace-page-head-kicker">词库维护</div>
-            <div class="workspace-page-head-title">先修高频词，再让自动匹配和人工搜索一起变稳。</div>
-            <div class="workspace-page-head-subtitle">词库页只保留主词、覆盖范围和编辑动作。先把最常见错配词、行业简称和内部叫法沉淀下来，后面的报价确认台会立刻受益。</div>
+            <div class="workspace-page-head-title">先修高频词。</div>
+            <div class="workspace-page-head-subtitle">只留主词、覆盖和编辑。</div>
         </div>
         <div class="workspace-page-head-actions">
             <button class="btn btn-primary btn-sm" id="addSynonymBtn" type="button">
-                <i class="bi bi-plus-lg me-1"></i>新增同义词
+                <i class="bi bi-plus-lg me-1"></i>新增
             </button>
             <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-layout-text-window me-1"></i>去报价台验证
+                <i class="bi bi-layout-text-window me-1"></i>报价台
             </a>
             <a href="{{ workspace_routes.catalog }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-grid-3x3-gap me-1"></i>商品库
@@ -82,11 +82,11 @@
             <div>
                 <div class="history-ledger-kicker">Vocabulary Archive</div>
                 <div class="history-ledger-heading">词库知识卡组</div>
-                <div class="history-ledger-subtitle">每张卡只保留主词、覆盖信号和编辑动作。完整变体继续留在同一张卡里，方便快速浏览和直接修改。</div>
+                <div class="history-ledger-subtitle">每张卡只留主词、覆盖和编辑。</div>
             </div>
             <div class="history-ledger-header-note">
                 <i class="bi bi-stars"></i>
-                <span>优先维护覆盖广、错配高频的主词。</span>
+                <span>先修高频错配。</span>
             </div>
         </div>
         <div id="synonymsList" class="vocabulary-card-grid">
@@ -94,12 +94,12 @@
                 <div class="workspace-empty-orbit-visual">
                     <i class="bi bi-book"></i>
                 </div>
-                <div class="workspace-empty-orbit-title">词库卡组正在载入。</div>
-                <div class="workspace-empty-orbit-copy">系统会把主词、变体数量和覆盖情况整理成可编辑卡片。建立好词库后，自动匹配和人工搜索都会更稳。</div>
+                <div class="workspace-empty-orbit-title">词库卡组载入中。</div>
+                <div class="workspace-empty-orbit-copy">建立后，自动匹配和人工搜索都会更稳。</div>
                 <div class="workspace-empty-orbit-pills">
-                    <span class="workspace-empty-orbit-pill">修补错别字</span>
-                    <span class="workspace-empty-orbit-pill">沉淀行业简称</span>
-                    <span class="workspace-empty-orbit-pill">保存内部叫法</span>
+                    <span class="workspace-empty-orbit-pill">错别字</span>
+                    <span class="workspace-empty-orbit-pill">行业简称</span>
+                    <span class="workspace-empty-orbit-pill">内部叫法</span>
                 </div>
             </div>
         </div>

@@ -2,8 +2,8 @@
     <aside class="workspace-scene-nav" aria-label="工作区主导航">
         <div class="workspace-scene-nav-head">
             <div class="scene-nav-caption">Saizheng Workspace</div>
-            <div class="scene-nav-title">商品、报价、模板同一条线。</div>
-            <p class="scene-nav-copy">左侧切页，右侧做事。</p>
+            <div class="scene-nav-title">左切页，右做事。</div>
+            <p class="scene-nav-copy">业务页只留必要操作。</p>
         </div>
 
         <div class="scene-nav-links">
@@ -11,49 +11,49 @@
                 <span class="scene-nav-link-icon"><i class="bi bi-house-door"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>总览</strong>
-                    <small>先导入</small>
+                    <small>导入</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.quotes }}" class="scene-nav-link{% if current_page == 'quotes' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-layout-text-window"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>报价台</strong>
-                    <small>上传确认</small>
+                    <small>确认</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.catalog }}" class="scene-nav-link{% if current_page == 'catalog' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-grid-3x3-gap"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>商品库</strong>
-                    <small>筛选核对</small>
+                    <small>筛选</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.templates }}" class="scene-nav-link{% if current_page == 'templates' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-files"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>模板</strong>
-                    <small>导出样式</small>
+                    <small>导出</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.history }}" class="scene-nav-link{% if current_page == 'history' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-clock-history"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>历史</strong>
-                    <small>回看记录</small>
+                    <small>回看</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.synonyms }}" class="scene-nav-link{% if current_page == 'synonyms' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-book"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>词库</strong>
-                    <small>补高频词</small>
+                    <small>补词</small>
                 </span>
             </a>
             <a href="{{ workspace_routes.guide }}" class="scene-nav-link{% if current_page == 'guide' %} is-active{% endif %}">
                 <span class="scene-nav-link-icon"><i class="bi bi-journal-text"></i></span>
                 <span class="scene-nav-link-copy">
                     <strong>说明</strong>
-                    <small>看流程</small>
+                    <small>流程</small>
                 </span>
             </a>
         </div>
@@ -62,19 +62,19 @@
             {% if current_page == 'catalog' %}
             <span class="scene-nav-stat-label">已载入商品</span>
             <strong>{{ products_count }}</strong>
-            <small>商品底座越完整，报价匹配和模板导出就越顺。</small>
+            <small>商品底座</small>
             {% elif current_page == 'templates' %}
             <span class="scene-nav-stat-label">可用模板</span>
             <strong>{{ export_templates|length }}</strong>
-            <small>把高频模板放到前面，交付动作会明显更快。</small>
+            <small>高频先用</small>
             {% elif current_page == 'synonyms' %}
             <span class="scene-nav-stat-label">主词数量</span>
             <strong>{{ synonyms|length }}</strong>
-            <small>优先维护高频叫法，比铺得太宽更有效。</small>
+            <small>先补高频</small>
             {% else %}
             <span class="scene-nav-stat-label">当前底座</span>
             <strong>{% if products_loaded %}{{ products_count }}{% else %}待导入{% endif %}</strong>
-            <small>系统的美感不只来自颜色，也来自流程秩序和信息密度控制。</small>
+            <small>先导入</small>
             {% endif %}
         </div>
     </aside>

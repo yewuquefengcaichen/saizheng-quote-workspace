@@ -5624,6 +5624,218 @@ body[data-route="quotes"] .workspace-scene-hero {
   display: none !important;
 }
 
+/* ===== Workspace trim + dense utility 20260415 ===== */
+.workspace-scene-nav {
+  overscroll-behavior-y: contain;
+  touch-action: pan-y;
+  scrollbar-gutter: stable;
+}
+
+@media (min-width: 1281px) {
+  body[data-route="catalog"] .workspace-shell,
+  body[data-route="templates"] .workspace-shell,
+  body[data-route="history"] .workspace-shell,
+  body[data-route="synonyms"] .workspace-shell,
+  body[data-route="guide"] .workspace-shell {
+    grid-template-columns: minmax(188px, 220px) minmax(0, 1fr) !important;
+    gap: 16px !important;
+  }
+}
+
+body[data-route="catalog"] .workspace-scene-nav-head,
+body[data-route="templates"] .workspace-scene-nav-head,
+body[data-route="history"] .workspace-scene-nav-head,
+body[data-route="synonyms"] .workspace-scene-nav-head,
+body[data-route="guide"] .workspace-scene-nav-head {
+  display: none !important;
+}
+
+body[data-route="catalog"] .workspace-scene-nav,
+body[data-route="templates"] .workspace-scene-nav,
+body[data-route="history"] .workspace-scene-nav,
+body[data-route="synonyms"] .workspace-scene-nav,
+body[data-route="guide"] .workspace-scene-nav {
+  padding: 14px 12px !important;
+  gap: 10px;
+}
+
+body[data-route="catalog"] .scene-nav-links,
+body[data-route="templates"] .scene-nav-links,
+body[data-route="history"] .scene-nav-links,
+body[data-route="synonyms"] .scene-nav-links,
+body[data-route="guide"] .scene-nav-links {
+  gap: 8px;
+}
+
+body[data-route="catalog"] .scene-nav-link,
+body[data-route="templates"] .scene-nav-link,
+body[data-route="history"] .scene-nav-link,
+body[data-route="synonyms"] .scene-nav-link,
+body[data-route="guide"] .scene-nav-link {
+  min-height: 0;
+  padding: 11px 13px !important;
+  border-radius: 18px !important;
+}
+
+body[data-route="catalog"] .scene-nav-link-icon,
+body[data-route="templates"] .scene-nav-link-icon,
+body[data-route="history"] .scene-nav-link-icon,
+body[data-route="synonyms"] .scene-nav-link-icon,
+body[data-route="guide"] .scene-nav-link-icon {
+  width: 36px;
+  height: 36px;
+}
+
+body[data-route="catalog"] .scene-nav-link small,
+body[data-route="templates"] .scene-nav-link small,
+body[data-route="history"] .scene-nav-link small,
+body[data-route="synonyms"] .scene-nav-link small,
+body[data-route="guide"] .scene-nav-link small,
+body[data-route="catalog"] .scene-nav-stat small,
+body[data-route="templates"] .scene-nav-stat small,
+body[data-route="history"] .scene-nav-stat small,
+body[data-route="synonyms"] .scene-nav-stat small,
+body[data-route="guide"] .scene-nav-stat small {
+  display: none !important;
+}
+
+body[data-route="catalog"] .scene-nav-stat,
+body[data-route="templates"] .scene-nav-stat,
+body[data-route="history"] .scene-nav-stat,
+body[data-route="synonyms"] .scene-nav-stat,
+body[data-route="guide"] .scene-nav-stat {
+  padding-top: 2px;
+}
+
+body[data-route="catalog"] .scene-nav-stat strong,
+body[data-route="templates"] .scene-nav-stat strong,
+body[data-route="history"] .scene-nav-stat strong,
+body[data-route="synonyms"] .scene-nav-stat strong,
+body[data-route="guide"] .scene-nav-stat strong {
+  font-size: 1.25rem;
+}
+
+body[data-route="history"] .workspace-guidance-grid--history,
+body[data-route="synonyms"] .workspace-guidance-grid--synonyms,
+body[data-route="synonyms"] .workspace-guidance-grid--synonyms-snapshot {
+  display: none !important;
+}
+
+body[data-route="history"] .workspace-page-head,
+body[data-route="synonyms"] .workspace-page-head {
+  margin-bottom: 12px;
+  padding: 18px 20px;
+}
+
+body[data-route="history"] .workspace-page-head-title,
+body[data-route="synonyms"] .workspace-page-head-title {
+  font-size: clamp(1.3rem, 0.8vw + 1rem, 1.8rem);
+}
+
+body[data-route="history"] .workspace-page-head-subtitle,
+body[data-route="synonyms"] .workspace-page-head-subtitle,
+body[data-route="templates"] .template-focus-subtitle,
+body[data-route="guide"] .guide-subtitle {
+  margin-top: 6px;
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+body[data-route="history"] .history-metric-grid,
+body[data-route="synonyms"] .history-metric-grid {
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+body[data-route="history"] .history-metric-card,
+body[data-route="synonyms"] .history-metric-card {
+  padding: 14px 15px;
+  border-radius: 18px;
+}
+
+body[data-route="history"] .history-metric-copy,
+body[data-route="synonyms"] .history-metric-copy,
+body[data-route="history"] .workspace-empty-orbit-pills,
+body[data-route="synonyms"] .workspace-empty-orbit-pills {
+  display: none !important;
+}
+
+body[data-route="history"] .history-ledger-subtitle,
+body[data-route="synonyms"] .history-ledger-subtitle {
+  line-height: 1.55;
+}
+
+body[data-route="templates"] .template-focus-shell,
+body[data-route="guide"] .guide-shell {
+  padding: 18px;
+}
+
+body[data-route="templates"] .template-priority-grid {
+  gap: 10px;
+  margin: 12px 0;
+}
+
+body[data-route="templates"] .template-priority-card {
+  padding: 14px;
+  border-radius: 18px;
+}
+
+body[data-route="templates"] .template-priority-copy,
+body[data-route="guide"] .guide-card-copy,
+body[data-route="guide"] .guide-list-item span {
+  font-size: 0.84rem;
+  line-height: 1.55;
+}
+
+body[data-route="guide"] .guide-grid {
+  gap: 10px;
+  margin-top: 12px;
+}
+
+body[data-route="guide"] .guide-card {
+  padding: 16px;
+  border-radius: 18px;
+}
+
+body[data-route="guide"] .guide-list {
+  margin-top: 10px;
+}
+
+body[data-route="guide"] .guide-list-item {
+  padding: 10px 12px;
+}
+
+body[data-route="catalog"] .catalog-summary {
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+body[data-route="catalog"] .catalog-summary-item {
+  padding: 10px 12px;
+  border-radius: 16px;
+}
+
+body[data-route="catalog"] .catalog-summary-item .value {
+  font-size: clamp(1rem, 0.5vw + 0.9rem, 1.35rem);
+}
+
+body[data-route="catalog"] .catalog-summary-item .label {
+  font-size: 0.72rem;
+}
+
+body[data-route="catalog"] .catalog-toolbar--atelier {
+  padding: 14px 16px !important;
+}
+
+body[data-route="catalog"] .catalog-toolbar-heading {
+  font-size: 0.95rem;
+}
+
+body[data-route="catalog"] .catalog-toolbar--atelier .form-label {
+  margin-bottom: 4px;
+  font-size: 0.76rem;
+}
+
 body[data-route="quotes"] .workspace-topbar {
   padding: 8px 10px !important;
 }
@@ -6308,6 +6520,27 @@ body[data-route="quotes"] .quote-search-result-card .d-flex {
       "visual price actions" !important;
     align-items: start;
   }
+}
+
+body[data-route="guide"] .workspace-shell > * {
+  min-width: 0;
+}
+
+body[data-route="guide"] .workspace-scene-shell {
+  display: contents !important;
+}
+
+body[data-route="guide"] .workspace-scene-nav {
+  grid-column: 1;
+  grid-row: 1 / span 12;
+  height: fit-content;
+  margin-bottom: 0;
+}
+
+body[data-route="guide"] #mainTabs,
+body[data-route="guide"] .tab-content {
+  grid-column: 2;
+  min-width: 0;
 }
 
 @media (max-width: 768px) {
@@ -8010,4 +8243,106 @@ body[data-route="quotes"] .quote-candidate-focus-bar .match-actions-hint {
   body[data-route="quotes"] .quote-workspace-focus {
     max-width: none;
   }
+}
+
+/* ===== Final business-page cleanup 20260415 ===== */
+@media (min-width: 1281px) {
+  body[data-route="catalog"] .workspace-shell,
+  body[data-route="templates"] .workspace-shell,
+  body[data-route="history"] .workspace-shell,
+  body[data-route="synonyms"] .workspace-shell,
+  body[data-route="guide"] .workspace-shell {
+    display: grid !important;
+    grid-template-columns: minmax(188px, 220px) minmax(0, 1fr) !important;
+    gap: 16px !important;
+    align-items: start;
+  }
+}
+
+body[data-route="catalog"] .workspace-scene-hero,
+body[data-route="templates"] .workspace-scene-hero,
+body[data-route="history"] .workspace-scene-hero,
+body[data-route="synonyms"] .workspace-scene-hero,
+body[data-route="guide"] .workspace-scene-hero {
+  display: none !important;
+}
+
+body[data-route="catalog"] .workspace-scene-nav-head,
+body[data-route="templates"] .workspace-scene-nav-head,
+body[data-route="history"] .workspace-scene-nav-head,
+body[data-route="synonyms"] .workspace-scene-nav-head,
+body[data-route="guide"] .workspace-scene-nav-head {
+  display: none !important;
+}
+
+body[data-route="catalog"] .workspace-scene-nav,
+body[data-route="templates"] .workspace-scene-nav,
+body[data-route="history"] .workspace-scene-nav,
+body[data-route="synonyms"] .workspace-scene-nav,
+body[data-route="guide"] .workspace-scene-nav {
+  display: flex !important;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 12px !important;
+}
+
+body[data-route="catalog"] .scene-nav-links,
+body[data-route="templates"] .scene-nav-links,
+body[data-route="history"] .scene-nav-links,
+body[data-route="synonyms"] .scene-nav-links,
+body[data-route="guide"] .scene-nav-links {
+  gap: 8px !important;
+}
+
+body[data-route="catalog"] .scene-nav-link,
+body[data-route="templates"] .scene-nav-link,
+body[data-route="history"] .scene-nav-link,
+body[data-route="synonyms"] .scene-nav-link,
+body[data-route="guide"] .scene-nav-link {
+  min-height: 0;
+  padding: 11px 13px !important;
+  border-radius: 18px !important;
+}
+
+body[data-route="catalog"] .scene-nav-link-icon,
+body[data-route="templates"] .scene-nav-link-icon,
+body[data-route="history"] .scene-nav-link-icon,
+body[data-route="synonyms"] .scene-nav-link-icon,
+body[data-route="guide"] .scene-nav-link-icon {
+  width: 36px !important;
+  height: 36px !important;
+}
+
+body[data-route="catalog"] .scene-nav-link small,
+body[data-route="templates"] .scene-nav-link small,
+body[data-route="history"] .scene-nav-link small,
+body[data-route="synonyms"] .scene-nav-link small,
+body[data-route="guide"] .scene-nav-link small,
+body[data-route="catalog"] .scene-nav-stat small,
+body[data-route="templates"] .scene-nav-stat small,
+body[data-route="history"] .scene-nav-stat small,
+body[data-route="synonyms"] .scene-nav-stat small,
+body[data-route="guide"] .scene-nav-stat small {
+  display: none !important;
+}
+
+body[data-route="catalog"] .scene-nav-stat,
+body[data-route="templates"] .scene-nav-stat,
+body[data-route="history"] .scene-nav-stat,
+body[data-route="synonyms"] .scene-nav-stat,
+body[data-route="guide"] .scene-nav-stat {
+  padding-top: 2px !important;
+}
+
+body[data-route="history"] .workspace-guidance-grid--history,
+body[data-route="synonyms"] .workspace-guidance-grid--synonyms,
+body[data-route="synonyms"] .workspace-guidance-grid--synonyms-snapshot {
+  display: none !important;
+}
+
+body[data-route="history"] .history-metric-copy,
+body[data-route="synonyms"] .history-metric-copy,
+body[data-route="history"] .workspace-empty-orbit-pills,
+body[data-route="synonyms"] .workspace-empty-orbit-pills {
+  display: none !important;
 }

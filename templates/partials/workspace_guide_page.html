@@ -3,13 +3,13 @@
         <div class="guide-head">
             <div>
                 <div class="guide-kicker">说明</div>
-                <div class="guide-title">给员工看的实际操作页</div>
-                <div class="guide-subtitle">不讲设计理念，只讲怎么导入、怎么确认、怎么导出。</div>
+                <div class="guide-title">四步走</div>
+                <div class="guide-subtitle">导商品 → 导报价 → 确认 → 导出。</div>
             </div>
             <div class="guide-actions">
-                <a href="{{ workspace_routes.dashboard }}" class="btn btn-primary btn-sm"><i class="bi bi-house-door me-1"></i>回总览</a>
-                <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-layout-text-window me-1"></i>去报价台</a>
-                <a href="{{ workspace_routes.templates }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-files me-1"></i>模板中心</a>
+                <a href="{{ workspace_routes.dashboard }}" class="btn btn-primary btn-sm"><i class="bi bi-house-door me-1"></i>总览</a>
+                <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-layout-text-window me-1"></i>报价台</a>
+                <a href="{{ workspace_routes.templates }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-files me-1"></i>模板</a>
             </div>
         </div>
 
@@ -17,42 +17,42 @@
             <article class="guide-card">
                 <div class="guide-card-step">01</div>
                 <div class="guide-card-title">先传商品库</div>
-                <div class="guide-card-copy">先导入商品、型号、品牌、供应商、图片和价格。商品库越完整，后面的匹配越稳定。</div>
+                <div class="guide-card-copy">先导商品、品牌、供应商、图片、价格。</div>
             </article>
             <article class="guide-card">
                 <div class="guide-card-step">02</div>
                 <div class="guide-card-title">再传报价来源</div>
-                <div class="guide-card-copy">支持 Excel 报价单和 OCR 图片，两种来源都会进入同一个确认流程。</div>
+                <div class="guide-card-copy">Excel 和 OCR 都会进同一确认流程。</div>
             </article>
             <article class="guide-card">
                 <div class="guide-card-step">03</div>
                 <div class="guide-card-title">在报价页确认</div>
-                <div class="guide-card-copy">左边看待处理项，中间看当前报价项，右边看价格、候选商品和人工搜索。</div>
+                <div class="guide-card-copy">左边看待处理，中间看当前项，右边选商品。</div>
             </article>
             <article class="guide-card">
                 <div class="guide-card-step">04</div>
                 <div class="guide-card-title">最后导出</div>
-                <div class="guide-card-copy">确认完成后再选模板导出。未确认完时，先处理异常和待确认项，不要急着导出。</div>
+                <div class="guide-card-copy">确认完成后再选模板导出。</div>
             </article>
         </div>
 
         <div class="guide-grid guide-grid--detail">
             <article class="guide-card guide-card--wide">
                 <div class="guide-card-kicker">模板怎么选</div>
-                <div class="guide-card-title">高频模板</div>
+                <div class="guide-card-title">模板</div>
                 <div class="guide-list">
-                    <div class="guide-list-item"><strong>待选报价单（下拉框）</strong><span>适合客服 / 销售二次筛选，每个报价项都能切换候选商品。</span></div>
-                    <div class="guide-list-item"><strong>标准报价单</strong><span>适合确认完成后直接导出，结构清晰，最常用。</span></div>
-                    <div class="guide-list-item"><strong>商城模板</strong><span>适合还要继续走订货单、发货单、采购单等扩展链路的场景。</span></div>
+                    <div class="guide-list-item"><strong>待选报价单（下拉框）</strong><span>给客服 / 销售二次选品。</span></div>
+                    <div class="guide-list-item"><strong>标准报价单</strong><span>确认完成后直接导出。</span></div>
+                    <div class="guide-list-item"><strong>商城模板</strong><span>还要走订货 / 发货链路时再用。</span></div>
                 </div>
             </article>
             <article class="guide-card guide-card--wide">
                 <div class="guide-card-kicker">常见问题</div>
                 <div class="guide-card-title">FAQ</div>
                 <div class="guide-list">
-                    <div class="guide-list-item"><strong>没匹配到商品怎么办？</strong><span>先看商品库是否完整，再在报价页右侧用人工搜索补选，必要时标记无匹配或问老板。</span></div>
-                    <div class="guide-list-item"><strong>什么时候用下拉框模板？</strong><span>当最终发送对象还需要人工挑选候选商品时，用待选报价单（下拉框）。</span></div>
-                    <div class="guide-list-item"><strong>更新商品库后要不要重新确认？</strong><span>建议回到报价页重新看未确认项，让系统重新给出候选结果。</span></div>
+                    <div class="guide-list-item"><strong>没匹配到商品怎么办？</strong><span>先补商品库，再在右侧人工搜索补选。</span></div>
+                    <div class="guide-list-item"><strong>什么时候用下拉框模板？</strong><span>对方还要继续挑候选商品时用。</span></div>
+                    <div class="guide-list-item"><strong>更新商品库后要不要重新确认？</strong><span>建议回报价台重新看未确认项。</span></div>
                 </div>
             </article>
         </div>

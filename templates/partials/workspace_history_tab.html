@@ -2,15 +2,15 @@
     <section class="workspace-page-head workspace-page-head--history">
         <div>
             <div class="workspace-page-head-kicker">历史台账</div>
-            <div class="workspace-page-head-title">先看金额和客户，再决定这批记录值不值得回放。</div>
-            <div class="workspace-page-head-subtitle">历史页只服务回看判断，不再承担第二套管理后台。第一屏先给价值、匹配质量和下一动作，完整明细退到详情里。</div>
+            <div class="workspace-page-head-title">先看金额和客户。</div>
+            <div class="workspace-page-head-subtitle">第一屏只留金额、匹配率和动作。</div>
         </div>
         <div class="workspace-page-head-actions">
             <a href="{{ workspace_routes.quotes }}" class="btn btn-primary btn-sm">
-                <i class="bi bi-layout-text-window me-1"></i>继续处理报价
+                <i class="bi bi-layout-text-window me-1"></i>报价台
             </a>
             <a href="{{ workspace_routes.templates }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-files me-1"></i>模板中心
+                <i class="bi bi-files me-1"></i>模板
             </a>
             <a href="{{ workspace_routes.catalog }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-grid-3x3-gap me-1"></i>商品库
@@ -64,11 +64,11 @@
             <div>
                 <div class="history-ledger-kicker">History Archive</div>
                 <div class="history-ledger-heading">报价回放账本</div>
-                <div class="history-ledger-subtitle">列表只保留客户、金额、匹配率和动作，完整明细留给详情。高价值记录应该更容易被重新打开。</div>
+                <div class="history-ledger-subtitle">只留客户、金额、匹配率和动作。</div>
             </div>
             <div class="history-ledger-header-note">
                 <i class="bi bi-stars"></i>
-                <span>高价值、低匹配率批次优先回看。</span>
+                <span>低匹配率优先回看。</span>
             </div>
         </div>
         <div id="historyList" class="history-ledger-list">
@@ -76,12 +76,12 @@
                 <div class="workspace-empty-orbit-visual">
                     <i class="bi bi-hourglass-split"></i>
                 </div>
-                <div class="workspace-empty-orbit-title">历史台账正在整理中。</div>
-                <div class="workspace-empty-orbit-copy">系统正在把时间、客户、金额和质量信号重新排成更安静的回放视图。</div>
+                <div class="workspace-empty-orbit-title">历史台账整理中。</div>
+                <div class="workspace-empty-orbit-copy">有记录后按金额、客户、匹配率回看。</div>
                 <div class="workspace-empty-orbit-pills">
-                    <span class="workspace-empty-orbit-pill">指标先看</span>
-                    <span class="workspace-empty-orbit-pill">明细后看</span>
-                    <span class="workspace-empty-orbit-pill">安静归档</span>
+                    <span class="workspace-empty-orbit-pill">金额</span>
+                    <span class="workspace-empty-orbit-pill">匹配率</span>
+                    <span class="workspace-empty-orbit-pill">动作</span>
                 </div>
             </div>
         </div>
