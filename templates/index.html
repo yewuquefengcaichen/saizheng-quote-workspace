@@ -3837,9 +3837,9 @@
                 <div class="modal-header">
                     <div>
                         <h5 class="modal-title">
-                            <i class="bi bi-search text-primary me-2"></i><span id="quoteCatalogSearchModalTitle">全商城搜索</span>
+                            <i class="bi bi-search text-primary me-2"></i><span id="quoteCatalogSearchModalTitle">商城搜索</span>
                         </h5>
-                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">直接从商城里挑当前报价项要用的 SKU，选中后立即回填。</div>
+                        <div class="quote-search-modal-subtitle" id="quoteCatalogSearchModalMeta">直接选 SKU。</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
                 </div>
@@ -3857,7 +3857,7 @@
                         <h5 class="modal-title">
                             <i class="bi bi-file-earmark-arrow-down text-success me-2"></i>导出报价单
                         </h5>
-                        <div class="workspace-modal-subtitle">左侧浏览模板与扩展能力，右侧决定格式、价格口径与客户信息，再进入真实交付。</div>
+                        <div class="workspace-modal-subtitle">先选模板，再导出。</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -3865,8 +3865,8 @@
                     <div class="mb-3 export-modal-main" id="exportTemplateSection">
                         <div class="export-template-header">
                             <div>
-                                <label class="form-label fw-bold mb-1">导出模板中心</label>
-                                <div class="export-template-subtitle">先选模板，再决定价格口径。系统模板适合日常报价，商城模板更适合继续扩展为订单、发货单等单据。</div>
+                                <label class="form-label fw-bold mb-1">模板</label>
+                                <div class="export-template-subtitle">先选模板，再定价格口径。</div>
                             </div>
                             <div class="export-template-stats" id="exportTemplateStats"></div>
                         </div>
@@ -3875,13 +3875,13 @@
                         <div class="export-template-grid" id="exportTemplateCards"></div>
                         <div class="p-3 mt-2" id="exportTemplateMetaCard">
                             <div class="d-flex flex-wrap gap-2 mb-2" id="exportTemplateMetaBadges"></div>
-                            <div class="small text-muted" id="exportTemplateMetaSummary">请选择模板后查看适用场景与价格支持范围。</div>
+                            <div class="small text-muted" id="exportTemplateMetaSummary">选中后看适用场景和价格支持。</div>
                         </div>
                     <div class="export-template-preview" id="exportTemplatePreview">
                         <div class="export-template-preview-header">
                             <div>
                                 <div class="export-template-preview-title" id="exportTemplatePreviewTitle">模板预览</div>
-                                <div class="export-template-preview-subtitle" id="exportTemplatePreviewSubtitle">选择模板后，这里会显示该模板的导出字段、适用场景和后续延展方向。</div>
+                                <div class="export-template-preview-subtitle" id="exportTemplatePreviewSubtitle">选中后看字段、场景和后续链路。</div>
                             </div>
                             <span class="qe-badge qe-badge-neutral" id="exportTemplatePreviewFormat">未选择</span>
                         </div>
@@ -3889,19 +3889,19 @@
                             <div class="export-template-preview-block">
                                 <div class="export-template-preview-label">核心字段</div>
                                 <div class="export-template-chip-list" id="exportTemplatePreviewFields">
-                                    <span class="export-template-preview-empty">请选择模板后查看</span>
+                                    <span class="export-template-preview-empty">选中后查看</span>
                                 </div>
                             </div>
                             <div class="export-template-preview-block">
                                 <div class="export-template-preview-label">适用场景</div>
                                 <div class="export-template-chip-list" id="exportTemplatePreviewUseCases">
-                                    <span class="export-template-preview-empty">请选择模板后查看</span>
+                                    <span class="export-template-preview-empty">选中后查看</span>
                                 </div>
                             </div>
                             <div class="export-template-preview-block">
                                 <div class="export-template-preview-label">后续扩展</div>
                                 <ul class="export-template-flow-list" id="exportTemplatePreviewExtensions">
-                                    <li class="export-template-preview-empty">请选择模板后查看</li>
+                                    <li class="export-template-preview-empty">选中后查看</li>
                                 </ul>
                             </div>
                         </div>
@@ -4076,7 +4076,7 @@
                     </div>
                     <div class="export-template-roadmap" id="exportTemplateRoadmap">
                         <div class="export-template-roadmap-title">模板扩展方向</div>
-                        <div class="export-template-roadmap-subtitle" id="exportTemplateRoadmapSubtitle">选择模板后，这里会结合当前模板显示更清晰的扩展路径。</div>
+                        <div class="export-template-roadmap-subtitle" id="exportTemplateRoadmapSubtitle">选中后看扩展路径。</div>
                         <div class="export-template-roadmap-list" id="exportTemplateRoadmapList">
                             <div class="export-template-roadmap-item">
                                 <div>
@@ -6175,8 +6175,8 @@
             matches.slice(0, 3).forEach((match, idx) => {
                 candidateOptions.push(`
                     <li class="match-inspector-option">
-                        <strong>${idx === 0 ? '首选候选' : `候选 ${idx + 1}`}</strong>
-                        <span>${escapeHtml(match.product?.name || '未命名商品')} · 参考 ${Math.round((Number(match.score || 0) || 0) * 100)}% · ${escapeHtml(match.product?.supplier || '未填供应商')}</span>
+                        <strong>${idx === 0 ? '首选' : `候选${idx + 1}`}</strong>
+                        <span>${escapeHtml(match.product?.name || '未命名商品')} · ${Math.round((Number(match.score || 0) || 0) * 100)}% · ${escapeHtml(match.product?.supplier || '未填供应商')}</span>
                     </li>
                 `);
             });
@@ -6185,7 +6185,7 @@
                 candidateOptions.push(`
                     <li class="match-inspector-option">
                         <strong>当前建议</strong>
-                        <span>系统暂未形成稳定候选，建议先做人工搜索或保留异常结论。</span>
+                        <span>还没有稳定候选，先人工搜索。</span>
                     </li>
                 `);
             }
@@ -6203,7 +6203,7 @@
                 signalOptions.push(`
                     <li class="match-inspector-option">
                         <strong>历史反馈</strong>
-                        <span>累计 ${escapeHtml(feedbackSummary.feedback_count)} 条人工反馈，可作为当前判断的辅助证据。</span>
+                        <span>累计 ${escapeHtml(feedbackSummary.feedback_count)} 条。</span>
                     </li>
                 `);
             }
@@ -6213,7 +6213,7 @@
                 signalOptions.push(`
                     <li class="match-inspector-option">
                         <strong>识别风险</strong>
-                        <span>${escapeHtml(queryItem.low_confidence ? '当前项被标记为低置信度。' : '当前项来自 OCR 识别。')}${queryItem.source_type === 'ocr' ? ` 识别置信度 ${Math.round(ocrConfidence * 100) || 0}%。` : ''}</span>
+                        <span>${escapeHtml(queryItem.low_confidence ? '低置信度。' : '来自 OCR。')}${queryItem.source_type === 'ocr' ? ` 置信度 ${Math.round(ocrConfidence * 100) || 0}%。` : ''}</span>
                     </li>
                 `);
             }
@@ -6222,34 +6222,34 @@
                 signalOptions.push(`
                     <li class="match-inspector-option">
                         <strong>学习信号</strong>
-                        <span>当前没有更多历史学习信号，建议以候选商品、人工搜索和商品库核查为主。</span>
+                        <span>暂无更多历史信号，先看候选和人工搜索。</span>
                     </li>
                 `);
             }
 
-            let searchSummary = '尚未发起人工搜索。';
+            let searchSummary = '未搜索。';
             if (searchState.loading) {
-                searchSummary = '正在搜索商品库...';
+                searchSummary = '搜索中...';
             } else if (searchState.error) {
                 searchSummary = `搜索失败：${searchState.error}`;
             } else if (searchState.searched) {
-                searchSummary = `已搜索 "${searchState.keyword || ''}"，找到 ${searchState.total || 0} 个结果。`;
+                searchSummary = `已搜 "${searchState.keyword || ''}" · ${searchState.total || 0} 个。`;
             }
 
-            let nextStepText = '先检查首选候选，再决定是否确认、标记无匹配或转为问老板。';
+            let nextStepText = '先看首选，再决定确认 / 无匹配 / 问老板。';
             if (statusMeta.key === 'matched') {
-                nextStepText = '当前项已经可导出，如需复核可直接进入模板中心继续处理。';
+                nextStepText = '当前项已可导出。';
             } else if (statusMeta.key === 'no-match') {
-                nextStepText = '建议保留无匹配结论，或切到商品库继续做人工排查。';
+                nextStepText = '先保留无匹配，或去商品库继续查。';
             } else if (statusMeta.key === 'ask-boss') {
-                nextStepText = '建议先确认业务口径，再回到候选商品里做最终选择。';
+                nextStepText = '先确认口径，再回来选。';
             }
 
             return `
                 <div class="match-inspector">
                     <div class="match-inspector-card">
                         <div class="match-inspector-heading">快速核查</div>
-                        <div class="match-inspector-copy">右侧保留当前建议商品、预算关系和历史信号，减少在多张卡片之间往返。</div>
+                        <div class="match-inspector-copy">少来回跳。</div>
                         <div class="match-inspector-media">
                             <div>
                                 ${productForImage ? ProductImageManager.createImageHtml(productForImage, 'small') : '<div class="match-inspector-empty">暂无建议商品</div>'}
@@ -6282,22 +6282,22 @@
                             </div>
                         </div>
                         <div class="match-inspector-section">
-                            <div class="match-inspector-section-title">当前建议</div>
+                            <div class="match-inspector-section-title">建议</div>
                             <ul class="match-inspector-option-list">
                                 ${candidateOptions.join('')}
                             </ul>
                         </div>
                         <div class="match-inspector-section">
-                            <div class="match-inspector-section-title">风险与学习</div>
+                            <div class="match-inspector-section-title">信号</div>
                             <ul class="match-inspector-option-list">
                                 ${signalOptions.join('')}
                             </ul>
                         </div>
                         <div class="match-inspector-section">
-                            <div class="match-inspector-section-title">人工补充</div>
+                            <div class="match-inspector-section-title">补充</div>
                             <ul class="match-inspector-option-list">
                                 <li class="match-inspector-option">
-                                    <strong>商城人工搜索</strong>
+                                    <strong>人工搜索</strong>
                                     <span>${escapeHtml(searchSummary)}</span>
                                 </li>
                                 <li class="match-inspector-option">
@@ -6472,7 +6472,7 @@
             return `
                 <div class="quote-search-summary" id="quote-search-panel-${itemIndex}">
                     <div class="quote-search-summary-head">
-                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>全商城搜索</div>
+                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>商城搜索</div>
                         ${stateBadge}
                     </div>
                     <div class="quote-search-summary-inline">
@@ -6482,9 +6482,9 @@
                     ${error ? `<div class="small text-danger">${escapeHtml(error)}</div>` : ''}
                     <div class="quote-search-summary-actions">
                         <button class="btn btn-primary btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" type="button">
-                            <i class="bi bi-search me-1"></i>${searched ? '查看结果' : '搜全商城'}
+                            <i class="bi bi-search me-1"></i>${searched ? '结果' : '搜索'}
                         </button>
-                        ${results.length ? `<span class="quote-search-summary-hint">${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">弹窗选 SKU</span>'}
+                        ${results.length ? `<span class="quote-search-summary-hint">${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">弹窗选</span>'}
                     </div>
                 </div>
             `;
@@ -6503,7 +6503,7 @@
                 return `
                     <div class="quote-search-modal-empty">
                         <strong>还没搜索</strong>
-                        <span>输关键词后直接选 SKU。</span>
+                        <span>输词后直接选 SKU。</span>
                     </div>
                 `;
             }
@@ -6520,8 +6520,8 @@
             const cards = results.slice(0, 12).map(item => renderQuoteCatalogSearchCard(item, itemIndex)).join('');
             return `
                 <div class="quote-search-modal-results-head">
-                    <span>共找到 ${total} 个结果</span>
-                    <span>当前展示前 ${Math.min(results.length, 12)} 个，可继续换词搜索</span>
+                    <span>共 ${total} 个</span>
+                    <span>当前展示前 ${Math.min(results.length, 12)} 个</span>
                 </div>
                 <div class="quote-search-modal-list">
                     ${cards}
@@ -6893,7 +6893,7 @@
                                 <div class="match-score ${scoreClass}">
                                     ${Math.round(score * 100)}%
                                 </div>
-                                <span class="candidate-rank-badge">${isBest ? '首选候选' : `候选 ${idx + 1}`}</span>
+                                <span class="candidate-rank-badge">${isBest ? '首选' : `候选${idx + 1}`}</span>
                             </div>
                             <div class="candidate-main">
                                 <div class="candidate-title">${product.name || '-'}</div>
@@ -6920,7 +6920,7 @@
                                 </div>
                             </div>
                             <div class="candidate-price-panel">
-                                <div class="candidate-price-label">报价参考</div>
+                                <div class="candidate-price-label">售价</div>
                                 ${hasAdjustment ? `
                                     <div class="text-muted small" style="text-decoration: line-through;">¥${marketPrice.toFixed(2)}</div>
                                     <div class="price-highlight text-warning">¥${adjustedPrice.toFixed(2)}</div>
@@ -6947,7 +6947,7 @@
             if (!expandAll && matches.length > 3) {
                 html += `
                     <div class="text-center py-2">
-                        <span class="text-muted">还有 ${matches.length - 3} 个候选商品</span>
+                        <span class="text-muted">还有 ${matches.length - 3} 个候选</span>
                     </div>
                 `;
             }
@@ -6993,7 +6993,7 @@
                                 <div class="alt-score">
                                     <i class="bi bi-stars"></i>
                                 </div>
-                                <span class="alternative-rank-badge">备选 ${idx + 1}</span>
+                                <span class="alternative-rank-badge">备选${idx + 1}</span>
                             </div>
                             <div class="alternative-main">
                                 <div class="alternative-title">${product.name || '-'}</div>
@@ -7001,11 +7001,11 @@
                                     ${product.brand ? '品牌: ' + product.brand : '品牌待补充'}${product.category ? ' · ' + product.category : ''}
                                 </div>
                                 <div class="alternative-reason">
-                                    <strong>替代建议</strong> · ${reason}${score ? ` · 参考度 ${Math.round(score * 100)}%` : ''}
+                                    <strong>替代</strong> · ${reason}${score ? ` · ${Math.round(score * 100)}%` : ''}
                                 </div>
                             </div>
                             <div class="alternative-price-panel">
-                                <div class="candidate-price-label">备选价格</div>
+                                <div class="candidate-price-label">价格</div>
                                 <div class="price-highlight" style="font-size: 1rem;">${formatNumericPrice(product.market_price)}</div>
                                 <div class="alternative-cost-line">成本: ${renderCostPriceText(product)}${renderCostPriceHint(product, { ambiguousLabel: '历史数据待校正', missingLabel: '未导入' })}</div>
                                 ${profitHtml}
@@ -7019,7 +7019,7 @@
             if (alternatives.length > displayCount) {
                 html += `
                     <div class="text-center py-1">
-                        <small class="text-muted">还有 ${alternatives.length - displayCount} 个替代品</small>
+                        <small class="text-muted">还有 ${alternatives.length - displayCount} 个备选</small>
                     </div>
                 `;
             }
@@ -7823,7 +7823,7 @@
             const previewEl = document.getElementById('exportPreviewText');
             if (!previewEl) return;
             if (!canExportCurrentResults()) {
-                previewEl.textContent = '当前仅浏览模板中心。执行导出前，请先上传报价单并完成匹配。';
+                previewEl.textContent = '先上传并完成匹配，再导出。';
                 return;
             }
             const matchedCount = matchResults.filter(r => r.confirmed && r.action === 'select').length;
@@ -7831,7 +7831,7 @@
             const issueCount = matchResults.filter(r => r.action === 'no_match' || r.action === 'ask_boss').length;
 
             if (matchedCount === 0) {
-                previewEl.textContent = `当前共 ${matchResults.length} 项报价，尚未形成可导出的确认结果。请先完成待确认与异常处理。`;
+                previewEl.textContent = `共 ${matchResults.length} 项，先处理待确认和异常。`;
                 return;
             }
 
@@ -7839,7 +7839,7 @@
             if (pendingCount > 0) statusParts.push(`待确认 ${pendingCount} 项`);
             if (issueCount > 0) statusParts.push(`异常 ${issueCount} 项`);
 
-            previewEl.textContent = `将导出 ${matchedCount} 项已确认商品（共 ${matchResults.length} 项）${statusParts.length ? `，当前仍有 ${statusParts.join(' · ')}` : '，已接近最终交付。'}`;
+            previewEl.textContent = `将导出 ${matchedCount} / ${matchResults.length} 项${statusParts.length ? `，仍有 ${statusParts.join(' · ')}` : '。'}`;
         }
 
         function configureExportTemplateControls(initialFormat = 'standard', preferredTemplateKey = '') {
@@ -8342,7 +8342,7 @@
             if (!subtitleEl || !listEl) return;
 
             if (!template) {
-                subtitleEl.textContent = '选择模板后，这里会结合当前模板显示更清晰的扩展路径。';
+                subtitleEl.textContent = '选中后看扩展路径。';
                 listEl.innerHTML = `
                     <div class="export-template-roadmap-item">
                         <div>
@@ -8448,11 +8448,11 @@
 
             if (!template) {
                 titleEl.textContent = '模板预览';
-                subtitleEl.textContent = '选择模板后，这里会显示该模板的导出字段、适用场景和后续延展方向。';
+                subtitleEl.textContent = '选中后看字段、场景和后续链路。';
                 formatEl.textContent = '未选择';
-                fieldsEl.innerHTML = '<span class="export-template-preview-empty">请选择模板后查看</span>';
-                useCasesEl.innerHTML = '<span class="export-template-preview-empty">请选择模板后查看</span>';
-                extensionsEl.innerHTML = '<li class="export-template-preview-empty">请选择模板后查看</li>';
+                fieldsEl.innerHTML = '<span class="export-template-preview-empty">选中后查看</span>';
+                useCasesEl.innerHTML = '<span class="export-template-preview-empty">选中后查看</span>';
+                extensionsEl.innerHTML = '<li class="export-template-preview-empty">选中后查看</li>';
                 renderMallTemplateCapability(null);
                 renderMallDocumentPlaceholders(null);
                 renderMallExtensionHooks(null);
@@ -8511,7 +8511,7 @@
 
             if (!template) {
                 badgesEl.innerHTML = '';
-                summaryEl.textContent = '请选择模板后查看适用场景与价格支持范围。';
+                summaryEl.textContent = '选中后看适用场景和价格支持。';
                 renderExportTemplatePreview(null);
                 return;
             }
@@ -9337,8 +9337,6 @@
     <script src="/static/js/product_images.js?v=20260402c"></script>
     <!-- OCR图片识别 -->
     <script src="/static/js/ocr_manager.js?v=20260413a"></script>
-    <!-- 在线分享 -->
-    <script src="/static/js/share_manager.js"></script>
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->

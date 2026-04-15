@@ -8245,6 +8245,65 @@ body[data-route="quotes"] .quote-candidate-focus-bar .match-actions-hint {
   }
 }
 
+/* ===== Quotes final trim 20260415 ===== */
+body[data-route="quotes"] .quote-page-head--compact {
+  display: none !important;
+}
+
+body[data-route="quotes"] .quote-filter-bar {
+  top: 62px;
+  margin-bottom: 6px !important;
+  padding: 8px 10px !important;
+  border-radius: 18px !important;
+}
+
+body[data-route="quotes"] .quote-filter-inline {
+  grid-template-columns: minmax(240px, 1.3fr) 96px 104px auto minmax(0, max-content) !important;
+  gap: 6px !important;
+  align-items: center !important;
+}
+
+body[data-route="quotes"] .quote-filter-inline .input-group-text,
+body[data-route="quotes"] .quote-filter-inline .form-control,
+body[data-route="quotes"] .quote-filter-inline .form-select,
+body[data-route="quotes"] .quote-filter-inline .btn,
+body[data-route="quotes"] .quote-filter-bar .quote-toolbar-actions .btn {
+  min-height: 32px !important;
+  padding-top: 5px;
+  padding-bottom: 5px;
+}
+
+body[data-route="quotes"] .quote-toolbar-actions--dense {
+  gap: 5px !important;
+}
+
+body[data-route="quotes"] .quote-toolbar-actions--dense .btn {
+  padding-left: 9px;
+  padding-right: 9px;
+  font-size: 0.74rem;
+}
+
+body[data-route="quotes"] .quote-view-switch .btn {
+  min-width: 54px !important;
+}
+
+body[data-route="quotes"] .quote-item-section-copy,
+body[data-route="quotes"] .match-inspector-copy {
+  display: none !important;
+}
+
+body[data-route="quotes"] .quote-item-section-head {
+  padding: 6px 8px;
+}
+
+body[data-route="quotes"] .quote-item-section-title {
+  font-size: 0.8rem;
+}
+
+body[data-route="quotes"] .quote-candidate-scrollbox {
+  max-height: 250px;
+}
+
 /* ===== Final business-page cleanup 20260415 ===== */
 @media (min-width: 1281px) {
   body[data-route="catalog"] .workspace-shell,

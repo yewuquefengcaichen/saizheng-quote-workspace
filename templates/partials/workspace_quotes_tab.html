@@ -1,25 +1,11 @@
 <div id="matchTab" class="tab-content"{% if initial_tab != 'match' %} style="display: none;"{% endif %}>
-    <section class="quote-page-head quote-page-head--compact">
-        <div class="quote-page-headline">
-            <div class="quote-page-title">报价工作台</div>
-        </div>
-        <div class="quote-toolbar-actions">
-            <button type="button" class="btn btn-primary btn-sm" onclick="WorkspaceEntryActions.openQuoteUpload()">
-                <i class="bi bi-file-earmark-arrow-up me-1"></i>上传报价
-            </button>
-            <button type="button" class="btn btn-outline-info btn-sm" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
-                <i class="bi bi-camera me-1"></i>OCR 图片
-            </button>
-        </div>
-    </section>
-
     <div class="filter-bar quote-filter-bar">
         <div class="quote-filter-inline">
             <div class="quote-filter-search">
                 <label class="quote-filter-inline-label" for="searchInput">报价项</label>
                 <div class="input-group input-group-sm">
                     <span class="input-group-text"><i class="bi bi-search"></i></span>
-                    <input type="text" class="form-control" id="searchInput" placeholder="搜名称、规格、备注、品牌或供应商">
+                    <input type="text" class="form-control" id="searchInput" placeholder="搜名称 / 规格 / 品牌 / 供应商">
                     <button class="btn btn-outline-secondary" type="button" id="clearSearchBtn" title="清空搜索">
                         <i class="bi bi-x-lg"></i>
                     </button>
@@ -48,18 +34,24 @@
                 <i class="bi bi-arrow-counterclockwise me-1"></i>重置
             </button>
             <div class="quote-toolbar-actions quote-toolbar-actions--dense">
+                <button type="button" class="btn btn-primary btn-sm" onclick="WorkspaceEntryActions.openQuoteUpload()">
+                    <i class="bi bi-file-earmark-arrow-up me-1"></i>上传
+                </button>
+                <button type="button" class="btn btn-outline-info btn-sm" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
+                    <i class="bi bi-camera me-1"></i>OCR
+                </button>
                 <div class="btn-group btn-group-sm quote-view-switch" role="group" aria-label="候选视图切换">
-                    <button class="btn btn-outline-secondary is-active" type="button" id="candidateViewStandardBtn" data-candidate-view="standard">标准视图</button>
-                    <button class="btn btn-outline-secondary" type="button" id="candidateViewCompactBtn" data-candidate-view="compact">紧凑视图</button>
+                    <button class="btn btn-outline-secondary is-active" type="button" id="candidateViewStandardBtn" data-candidate-view="standard">标准</button>
+                    <button class="btn btn-outline-secondary" type="button" id="candidateViewCompactBtn" data-candidate-view="compact">紧凑</button>
                 </div>
                 <button class="btn btn-outline-secondary btn-sm" type="button" id="quoteSplitResetBtn" title="恢复默认分栏宽度">
-                    <i class="bi bi-layout-split me-1"></i>恢复分栏
+                    <i class="bi bi-layout-split me-1"></i>栏宽
                 </button>
                 <button class="btn btn-warning btn-sm" id="batchAdjustBtn">
-                    <i class="bi bi-percent me-1"></i>批量调价
+                    <i class="bi bi-percent me-1"></i>调价
                 </button>
                 <button class="btn btn-outline-primary btn-sm" type="button" onclick="showExportOptions('dropdown_default')">
-                    <i class="bi bi-list-check me-1"></i>候选报价单
+                    <i class="bi bi-list-check me-1"></i>候选单
                 </button>
                 <button class="btn btn-success btn-sm" id="exportBtn">
                     <i class="bi bi-download me-1"></i>导出
@@ -81,10 +73,10 @@
             <div class="quote-empty-layout quote-empty-layout--compact">
                 <div class="quote-empty-card quote-empty-stage">
                     <span class="quote-empty-card-kicker">上传</span>
-                    <strong class="quote-empty-card-title">先上传报价单</strong>
+                    <strong class="quote-empty-card-title">先传报价</strong>
                     <div class="quote-empty-actions">
                         <button type="button" class="btn btn-primary" onclick="WorkspaceEntryActions.openQuoteUpload()">
-                            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
+                            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传
                         </button>
                         <button type="button" class="btn btn-outline-info" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
                             <i class="bi bi-camera me-2"></i>OCR 图片
