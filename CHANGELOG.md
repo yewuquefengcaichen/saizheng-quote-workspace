@@ -42,6 +42,7 @@
 - Flask 报价台桥接图搜图闭环
 - 报价项支持“上传图片 -> 返回候选 -> 点选回填”
 - 新增手动同步入口，可把当前 `products.json` 同步进 V2
+- 报价主匹配器改为优先使用 PostgreSQL V2 商品快照
 - 商品库列表页改为优先查 PostgreSQL V2
 - 商品详情改为优先查 PostgreSQL V2
 - 核心 README / Runbook / 版本文档已清理乱码并重写

@@ -78,6 +78,7 @@
   - PostgreSQL 商品库
   - 图片归档与图搜图
   - 商品手动同步任务
+  - 报价主匹配优先使用 PostgreSQL 商品快照
   - 报价项人工搜索优先查 PostgreSQL
   - 商品库列表页优先查 PostgreSQL
   - 商品详情优先查 PostgreSQL
@@ -147,6 +148,7 @@
 
 ## 5. 当前已验证可用的重点能力
 
+- 报价主匹配器：优先使用 PostgreSQL V2 商品快照
 - 报价台人工文字搜商品：优先 PostgreSQL V2
 - 图搜图：走 PostgreSQL + 图片归档 + 精排
 - 商品库列表页：优先 PostgreSQL V2

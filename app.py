@@ -88,6 +88,7 @@ ALLOWED_EXTENSIONS = {'xls', 'xlsx', 'csv'}
 
 # 全局变量存储数据
 products_data = None
+products_data_source = 'none'
 matcher = None
 quote_items = []
 match_results = []
@@ -144,9 +145,69 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 
+def _set_runtime_products_snapshot(products, source='legacy_json'):
+    global products_data, products_data_source, matcher
+
+    products_data = list(products or [])
+    products_data_source = source if products_data else 'none'
+    matcher = ProductMatcher(products_data) if products_data else None
+    return bool(products_data)
+
+
+def _prepare_v2_products_for_runtime(products):
+    prepared = []
+    for product in products or []:
+        item = _annotate_product_cost_fields(dict(product or {}), source='loaded')
+        item['source'] = item.get('source') or 'postgres_v2'
+        item['catalog_source'] = 'postgres_v2'
+        images = [dict(image or {}) for image in (item.get('images') or [])]
+        item['images'] = images
+        if not item.get('image_url') and images:
+            item['image_url'] = _normalize_text_value(images[0].get('url'))
+        if not item.get('source_image_url') and images:
+            item['source_image_url'] = _normalize_text_value(images[0].get('source_url') or images[0].get('url'))
+        item['image_count'] = len(images)
+        item['has_image'] = bool(item.get('image_url') or item.get('source_image_url') or images)
+        prepared.append(item)
+    return prepared
+
+
+async def _load_v2_products_for_runtime_async():
+    if not V2_CATALOG_AVAILABLE:
+        return []
+
+    async with V2AsyncSessionLocal() as session:
+        products = list((
+            await session.scalars(
+                sa_select(V2Product)
+                .options(
+                    selectinload(V2Product.brand),
+                    selectinload(V2Product.category),
+                    selectinload(V2Product.supplier),
+                    selectinload(V2Product.variants),
+                    selectinload(V2Product.images),
+                )
+                .order_by(V2Product.id.asc())
+            )
+        ).all())
+
+    return _prepare_v2_products_for_runtime([
+        _normalize_v2_catalog_product_item(product, index=index)
+        for index, product in enumerate(products)
+    ])
+
+
 def load_products():
     """加载商品库"""
-    global products_data, matcher
+    global products_data, products_data_source, matcher
+
+    if V2_CATALOG_AVAILABLE:
+        try:
+            v2_products = _run_async_task(_load_v2_products_for_runtime_async())
+            if v2_products:
+                return _set_runtime_products_snapshot(v2_products, source='postgres_v2')
+        except Exception as exc:
+            print(f'从 PostgreSQL V2 加载商品库失败，回退到 JSON：{exc}')
 
     products_file = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], 'products.json')
     last_uploaded_file = os.path.join(app.root_path, app.config['UPLOAD_FOLDER'], 'products.last_uploaded.json')
@@ -172,13 +233,12 @@ def load_products():
 
     if not loaded_products:
         products_data = None
+        products_data_source = 'none'
         matcher = None
         return False
 
-    products_data = _prepare_products_for_runtime(loaded_products, source='loaded')
-
-    matcher = ProductMatcher(products_data)
-    return True
+    prepared_products = _prepare_products_for_runtime(loaded_products, source='loaded')
+    return _set_runtime_products_snapshot(prepared_products, source='legacy_json')
 
 
 
@@ -1841,6 +1901,7 @@ def _build_workspace_context(current_page='dashboard'):
     return {
         'products_loaded': products_loaded,
         'products_count': products_count,
+        'products_source': products_data_source,
         'synonyms': synonyms,
         'catalog_categories': categories,
         'catalog_suppliers': suppliers,
@@ -2132,9 +2193,11 @@ def run_catalog_sync_v2_manual():
     requested_by = _normalize_text_value((request.get_json(silent=True) or {}).get('requested_by')) or 'flask-workbench'
     try:
         result = _run_async_task(_run_v2_catalog_manual_sync_async(requested_by=requested_by))
+        load_products()
         return jsonify({
             'success': True,
             'message': f"V2 商品同步完成，处理 {result.get('stats', {}).get('processed', 0)} 条。",
+            'products_source': products_data_source,
             **result,
         })
     except Exception as e:
@@ -2147,7 +2210,7 @@ def run_catalog_sync_v2_manual():
 @app.route('/api/upload_products', methods=['POST'])
 def upload_products():
     """上传商品库"""
-    global products_data, matcher
+    global products_data, products_data_source, matcher
 
     if 'file' not in request.files:
         return jsonify({'success': False, 'message': '没有选择文件'})
@@ -2198,13 +2261,14 @@ def upload_products():
 
             products = [_annotate_product_cost_fields(product, source='uploaded') for product in products]
 
-            products_data = _prepare_products_for_runtime(products, source='uploaded')
-            matcher = ProductMatcher(products_data)
+            prepared_products = _prepare_products_for_runtime(products, source='uploaded')
+            _set_runtime_products_snapshot(prepared_products, source='uploaded_excel')
 
             return jsonify({
                 'success': True,
                 'message': f'成功导入 {len(products)} 个商品',
-                'count': len(products)
+                'count': len(products),
+                'products_source': products_data_source
             })
 
         except Exception as e:
@@ -2259,6 +2323,7 @@ def upload_quote():
             return jsonify({
                 'success': True,
                 'message': f'成功解析 {len(quote_items)} 个报价项，已完成商品匹配',
+                'products_source': products_data_source,
                 'quote_items': quote_items,
                 'match_results': match_results
             })
@@ -2382,6 +2447,7 @@ def confirm_mapping():
         return jsonify({
             'success': True,
             'message': f'成功解析 {len(quote_items)} 个报价项',
+            'products_source': products_data_source,
             'quote_items': quote_items,
             'match_results': match_results
         })
@@ -2397,6 +2463,7 @@ def get_match_results():
     """获取匹配结果"""
     return jsonify({
         'success': True,
+        'products_source': products_data_source,
         'quote_items': quote_items,
         'match_results': match_results
     })
@@ -2955,6 +3022,7 @@ def ai_chat():
     # 构建上下文
     context = {
         'products_count': len(products_data) if products_data else 0,
+        'products_source': products_data_source,
         'match_results': match_results[:3] if match_results else [],
         'current_item': match_results[0].get('query_item') if match_results else None
     }
@@ -3432,16 +3500,29 @@ def debug_product_image(product_code):
 @app.route('/api/debug/rebuild_product_images', methods=['POST'])
 def rebuild_product_images():
     """重建当前内存商品图片字段"""
-    global products_data, matcher
+    global products_data, products_data_source, matcher
 
     if not products_data:
         return jsonify({'success': False, 'message': '商品库未加载'})
 
+    if products_data_source == 'postgres_v2':
+        refreshed_products = _run_async_task(_load_v2_products_for_runtime_async())
+        _set_runtime_products_snapshot(refreshed_products, source='postgres_v2')
+        return jsonify({
+            'success': True,
+            'count': len(products_data),
+            'products_source': products_data_source
+        })
+
     ProductImageHandler.set_base_url(ProductImageHandler.BASE_URL)
     products_data = [_annotate_product_cost_fields(product, source='loaded') for product in products_data]
     products_data = ProductImageHandler.enrich_products_with_resolved_images(products_data)
-    matcher = ProductMatcher(products_data)
-    return jsonify({'success': True, 'count': len(products_data)})
+    _set_runtime_products_snapshot(products_data, source=products_data_source or 'legacy_json')
+    return jsonify({
+        'success': True,
+        'count': len(products_data),
+        'products_source': products_data_source
+    })
 
 
 @app.route('/api/debug/product_lookup/<product_code>', methods=['GET'])

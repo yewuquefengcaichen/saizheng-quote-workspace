@@ -425,6 +425,12 @@ class ProductMatcher:
                 keywords.add(word)
         return keywords
 
+    def _normalize_category_text(self, text: str) -> str:
+        value = str(text or '').lower()
+        for separator in ['ξ', '|', '/', '\\', '＞', '>']:
+            value = value.replace(separator, ' ')
+        return re.sub(r'\s+', '', value)
+
     def update_synonyms(self, synonyms: Dict[str, List[str]]):
         """更新同义词库"""
         self.synonyms = synonyms or {}
@@ -797,8 +803,14 @@ class ProductMatcher:
                     continue
                 product_category = product.get('category', '')
                 product_name = product.get('name', '')
+                normalized_product_category = self._normalize_category_text(product_category)
+                normalized_product_name = self._normalize_category_text(product_name)
                 for cat in target_categories:
-                    if cat in product_category or cat in product_name:
+                    normalized_cat = self._normalize_category_text(cat)
+                    if normalized_cat and (
+                        normalized_cat in normalized_product_category or
+                        normalized_cat in normalized_product_name
+                    ):
                         similarity = self._calculate_similarity(query_name, product_name)
                         if similarity >= 0.2:
                             alternatives.append({
