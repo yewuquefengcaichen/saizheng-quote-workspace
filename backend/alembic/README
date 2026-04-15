@@ -1,1 +1,9 @@
-???? Alembic ?????? V2 ?????
+这里是 Alembic 迁移目录，用来维护赛正报价工作台 V2 PostgreSQL 的数据库版本。
+
+常用命令：
+
+- 生成迁移：`alembic revision --autogenerate -m "message"`
+- 执行迁移：`alembic upgrade head`
+- 回退一步：`alembic downgrade -1`
+
+当前数据库默认连接：`postgresql+asyncpg://postgres:postgres@127.0.0.1:5432/saizheng_quote_v2`
