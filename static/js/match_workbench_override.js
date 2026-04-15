@@ -45,6 +45,81 @@
   const originalMarkAskBoss = markAskBoss;
   const originalFilterResults = filterResults;
   let workbenchUserPinnedFocus = false;
+  const CANDIDATE_VIEW_KEY = 'quotes-candidate-view';
+  const QUOTE_SPLIT_WIDTH_KEY = 'quotes-left-pane-width';
+  const DEFAULT_QUOTE_SPLIT_WIDTH = 352;
+  const MIN_QUOTE_SPLIT_WIDTH = 300;
+  const MAX_QUOTE_SPLIT_WIDTH = 460;
+  const expandedConfirmedWorkbenchItems = new Set();
+
+  function clampQuoteSplitWidth(value) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) {
+      return DEFAULT_QUOTE_SPLIT_WIDTH;
+    }
+    return Math.max(MIN_QUOTE_SPLIT_WIDTH, Math.min(MAX_QUOTE_SPLIT_WIDTH, Math.round(numeric)));
+  }
+
+  function getCandidateView() {
+    const stored = String(localStorage.getItem(CANDIDATE_VIEW_KEY) || '').trim();
+    return stored === 'compact' ? 'compact' : 'standard';
+  }
+
+  function applyCandidateView(view = getCandidateView()) {
+    const normalized = view === 'compact' ? 'compact' : 'standard';
+    const matchTab = document.getElementById('matchTab');
+    if (matchTab) {
+      matchTab.dataset.candidateView = normalized;
+    }
+    document.body?.setAttribute('data-quotes-candidate-view', normalized);
+    document.querySelectorAll('[data-candidate-view]').forEach(btn => {
+      const isActive = btn.dataset.candidateView === normalized;
+      btn.classList.toggle('is-active', isActive);
+      btn.classList.toggle('btn-primary', isActive);
+      btn.classList.toggle('btn-outline-secondary', !isActive);
+      btn.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+    });
+    return normalized;
+  }
+
+  function setCandidateView(view = 'standard') {
+    const normalized = view === 'compact' ? 'compact' : 'standard';
+    localStorage.setItem(CANDIDATE_VIEW_KEY, normalized);
+    applyCandidateView(normalized);
+    renderMatchResults(true);
+  }
+
+  function getQuoteSplitWidth() {
+    return clampQuoteSplitWidth(localStorage.getItem(QUOTE_SPLIT_WIDTH_KEY));
+  }
+
+  function applyQuoteSplitWidth(width = getQuoteSplitWidth()) {
+    const resolved = clampQuoteSplitWidth(width);
+    document.documentElement.style.setProperty('--quote-left-panel-width', `${resolved}px`);
+    document.body?.style?.setProperty('--quote-left-panel-width', `${resolved}px`);
+    return resolved;
+  }
+
+  function setQuoteSplitWidth(width = DEFAULT_QUOTE_SPLIT_WIDTH, { persist = true } = {}) {
+    const resolved = applyQuoteSplitWidth(width);
+    if (persist) {
+      localStorage.setItem(QUOTE_SPLIT_WIDTH_KEY, String(resolved));
+    }
+    return resolved;
+  }
+
+  function shouldCollapseConfirmedItem(result, itemIndex) {
+    return isMatchedResult(result) && !expandedConfirmedWorkbenchItems.has(itemIndex);
+  }
+
+  function toggleConfirmedWorkbenchItem(itemIndex) {
+    if (expandedConfirmedWorkbenchItems.has(itemIndex)) {
+      expandedConfirmedWorkbenchItems.delete(itemIndex);
+    } else {
+      expandedConfirmedWorkbenchItems.add(itemIndex);
+    }
+    renderMatchResults(true);
+  }
 
   function getMatchStatusMeta(result) {
     const matches = Array.isArray(result?.matches) ? result.matches : [];
@@ -211,21 +286,14 @@
 
   function renderQuotesFilteredEmpty() {
     return `
-      <div class="workspace-empty-orbit workspace-empty-orbit--quotes">
-        <div class="workspace-empty-orbit-visual">
-          <i class="bi bi-search"></i>
-        </div>
-        <div class="workspace-empty-orbit-title">当前筛选条件下没有可处理的报价项。</div>
-        <div class="workspace-empty-orbit-copy">试着放宽关键词、恢复全部状态或回到默认排序，让待处理项重新回到你的工作台里。</div>
-        <div class="workspace-empty-orbit-pills">
-          <span class="workspace-empty-orbit-pill">放宽关键词</span>
-          <span class="workspace-empty-orbit-pill">恢复全部状态</span>
-          <span class="workspace-empty-orbit-pill">回到默认排序</span>
-        </div>
-        <div class="quote-empty-actions">
-          <button class="btn btn-outline-primary" type="button" onclick="document.getElementById('resetFilterBtn')?.click()">
-            <i class="bi bi-arrow-counterclockwise me-2"></i>重置筛选
-          </button>
+      <div class="quote-empty-state quote-empty-state--filtered">
+        <div class="quote-empty-state-card">
+          <div class="quote-empty-state-title">当前筛选下没有报价项</div>
+          <div class="quote-empty-actions">
+            <button class="btn btn-outline-primary" type="button" onclick="document.getElementById('resetFilterBtn')?.click()">
+              <i class="bi bi-arrow-counterclockwise me-2"></i>重置筛选
+            </button>
+          </div>
         </div>
       </div>
     `;
@@ -600,10 +668,6 @@
     `;
   }
 
-  function renderWorkbenchSummary() {
-    return '';
-  }
-
   renderCandidates = function renderCompactCandidates(matches, itemIndex, selectedProduct, expandAll = false, budgetPrice = null) {
     if (!matches || matches.length === 0) {
       return '<div class="text-muted text-center py-3">没有找到匹配的商品</div>';
@@ -809,7 +873,51 @@
     return html;
   };
 
+  function renderCollapsedConfirmedCard(result, itemIndex) {
+    const queryItem = result?.query_item || {};
+    const primary = getPrimaryCandidate(result);
+    const product = primary?.product || {};
+    const selectedCode = [
+      product.code,
+      product.product_code,
+      product.item_code,
+      product.sku
+    ].map(value => String(value || '').trim()).find(Boolean) || "未选择";
+    const adjustedPrice = getAdjustedPrice(parseNumericPrice(product.market_price) || 0, itemIndex) || parseNumericPrice(product.market_price) || 0;
+    const collapsedPrice = adjustedPrice > 0 ? `¥${adjustedPrice.toFixed(2)}` : "待补充";
+
+    return `
+      <article class="quote-item-card quote-item-card--collapsed confirmed" data-item-index="${itemIndex}">
+        <div class="quote-item-collapsed-row">
+          <div class="quote-item-collapsed-main">
+            <div class="quote-item-collapsed-top">
+              <span class="quote-item-index">ITEM ${itemIndex + 1}</span>
+              <span class="status-badge status-matched">已确认</span>
+            </div>
+            <div class="quote-item-collapsed-title">${escapeHtml(queryItem.name || "未命名询价项")}</div>
+            <div class="quote-item-collapsed-meta">
+              <span>${escapeHtml(product.name || "未命名商品")}</span>
+              <span>${escapeHtml(product.supplier || "供应商待补充")}</span>
+              <span>${escapeHtml(selectedCode)}</span>
+              <span>${collapsedPrice}</span>
+            </div>
+          </div>
+          <div class="quote-item-collapsed-actions">
+            ${product.code ? `<button class="btn btn-sm btn-outline-secondary match-detail-btn" type="button" data-product-code="${escapeHtmlAttr(product.code || '')}"><i class="bi bi-eye me-1"></i>详情</button>` : ''}
+            <button class="btn btn-sm btn-outline-secondary toggle-confirmed-item" type="button" data-item-index="${itemIndex}">
+              <i class="bi bi-chevron-down me-1"></i>展开
+            </button>
+          </div>
+        </div>
+      </article>
+    `;
+  }
+
   function renderWorkbenchCard(result, itemIndex, isActive) {
+    if (shouldCollapseConfirmedItem(result, itemIndex)) {
+      return renderCollapsedConfirmedCard(result, itemIndex);
+    }
+
     const queryItem = result?.query_item || {};
     const matches = Array.isArray(result?.matches) ? result.matches : [];
     const alternatives = Array.isArray(result?.alternatives) ? result.alternatives : [];
@@ -833,20 +941,19 @@
       primaryProduct.item_code,
       primaryProduct.sku
     ].map(value => String(value || '').trim()).find(Boolean) || '';
-    const selectedProductCode = getSelectedProductCode(result);
     const manualSearchSelection = isManualSearchSelection(result);
     const noMatchActive = result?.action === 'no_match';
     const askBossActive = result?.action === 'ask_boss';
     const confirmedSelection = isMatchedResult(result);
     const confirmButtonLabel = confirmedSelection
-      ? (manualSearchSelection ? '已确认人工' : '已确认')
-      : (manualSearchSelection ? '确认人工' : '确认当前');
+      ? (manualSearchSelection ? "已确认人工" : "已确认")
+      : (manualSearchSelection ? "确认人工" : "确认当前");
     const marketPrice = parseNumericPrice(primaryProduct.market_price) || 0;
     const adjustedPrice = getAdjustedPrice(marketPrice, itemIndex) || marketPrice;
     const budgetPrice = parseNumericPrice(queryItem.price) || adjustedPrice || marketPrice;
     const costMeta = getCostPriceMeta(primaryProduct);
     const costPrice = costMeta.hasValue ? (parseNumericPrice(primaryProduct.cost_price) || 0) : null;
-    let marginText = '待补充';
+    let marginText = "待补充";
     let marginClass = '';
     if (costPrice && budgetPrice) {
       const margin = budgetPrice - costPrice;
@@ -855,55 +962,57 @@
       marginClass = margin >= 0 ? 'text-success' : 'text-danger';
     }
 
-    const currentSelectionName = primaryProduct.name || '暂无稳定候选';
-    const currentSelectionSupplier = primaryProduct.supplier || '供应商待补充';
-    const currentSelectionPrice = adjustedPrice > 0 ? `¥${adjustedPrice.toFixed(2)}` : '待补充';
+    const currentSelectionName = primaryProduct.name || "暂无稳定候选";
+    const currentSelectionSupplier = primaryProduct.supplier || "供应商待补充";
+    const currentSelectionPrice = adjustedPrice > 0 ? `¥${adjustedPrice.toFixed(2)}` : "待补充";
     const currentSelectionState = manualSearchSelection
-      ? '人工搜索已回写当前项'
-      : (confirmedSelection ? '当前商城 SKU 已确认' : '右侧候选框内可直接切换');
+      ? "人工已选"
+      : (confirmedSelection ? "已确认" : "待确认");
     const referenceMetaCards = [
       {
-        label: '数量',
+        label: "数量",
         value: `${escapeHtml(String(queryItem.quantity || '-'))} ${escapeHtml(queryItem.unit || '')}`.trim()
       },
       queryItem.price ? {
-        label: '预算',
+        label: "预算",
         value: `¥${escapeHtml(String(queryItem.price))}`
       } : null,
       queryItem.spec ? {
-        label: '规格',
+        label: "规格",
         value: escapeHtml(queryItem.spec)
       } : null,
       isOcrItem ? {
         label: 'OCR',
-        value: ocrConfidence ? `${Math.round(ocrConfidence * 100)}%` : '待补充'
+        value: ocrConfidence ? `${Math.round(ocrConfidence * 100)}%` : "待补充"
       } : null
     ].filter(Boolean);
     const remarkText = String(queryItem.remark || '').trim();
 
     return `
-      <article class="quote-item-card ${statusMeta.cardClass}" data-item-index="${itemIndex}">
-        <div class="quote-item-shell-top">
+      <article class="quote-item-card quote-item-card--expanded ${statusMeta.cardClass}" data-item-index="${itemIndex}">
+        <div class="quote-item-shell-top" data-focus-workbench="true" data-item-index="${itemIndex}">
           <div class="flex-grow-1 min-w-0">
             <div class="quote-item-shell-row">
               <span class="quote-item-index">ITEM ${itemIndex + 1}</span>
-              <span class="quote-item-source-pill"><i class="bi ${isOcrItem ? 'bi-camera' : 'bi-card-checklist'}"></i>${isOcrItem ? 'OCR' : '表格'}</span>
-              <span class="quote-item-source-pill"><i class="bi bi-file-earmark-spreadsheet"></i>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
-              <span class="quote-item-source-pill"><i class="bi bi-upc-scan"></i>当前 SKU ${escapeHtml(selectedReferenceCode || '未选择')}</span>
+              <span class="quote-item-source-pill"><i class="bi ${isOcrItem ? 'bi-camera' : 'bi-card-checklist'}"></i>${isOcrItem ? 'OCR' : "表格"}</span>
+              <span class="quote-item-source-pill"><i class="bi bi-file-earmark-spreadsheet"></i>${escapeHtml(queryReferenceCode || "未提供编码")}</span>
               ${manualSearchSelection ? '<span class="quote-item-source-pill quote-item-source-pill--accent"><i class="bi bi-search"></i>人工已选</span>' : ''}
-              ${primary ? `<span class="quote-item-score-pill"><i class="bi bi-bullseye"></i>${Math.round((primary.score || 0) * 100)}% 推荐</span>` : ''}
+              ${primary ? `<span class="quote-item-score-pill"><i class="bi bi-bullseye"></i>${Math.round((primary.score || 0) * 100)}%</span>` : ''}
             </div>
-            <div class="quote-item-title">${escapeHtml(queryItem.name || '未命名询价项')}</div>
+            <div class="quote-item-title">${escapeHtml(queryItem.name || "未命名询价项")}</div>
             <div class="quote-item-statusline">${getWorkbenchStatusLine(result)}</div>
           </div>
-          <span class="status-badge ${statusMeta.badgeClass}">${statusMeta.statusText}</span>
+          <div class="quote-item-head-actions">
+            <span class="status-badge ${statusMeta.badgeClass}">${statusMeta.statusText}</span>
+            ${confirmedSelection ? `<button class="btn btn-sm btn-outline-secondary toggle-confirmed-item" type="button" data-item-index="${itemIndex}"><i class="bi bi-chevron-up me-1"></i>收起</button>` : ''}
+          </div>
         </div>
         <div class="quote-item-body quote-item-body--split">
           <div class="quote-item-context-column">
             <div class="quote-origin-panel quote-reference-panel">
               <div class="quote-mini-section-head">
-                <div class="quote-mini-section-title">报价单对照</div>
-                <span class="quote-mini-section-tag">${manualSearchSelection ? '人工已选' : (isOcrItem ? `OCR ${ocrConfidence ? Math.round(ocrConfidence * 100) + '%' : ''}` : 'Excel 导入')}</span>
+                <div class="quote-mini-section-title">原始报价</div>
+                <span class="quote-mini-section-tag">${currentSelectionState}</span>
               </div>
               <div class="quote-item-meta-grid quote-item-meta-grid--dense">
                 ${referenceMetaCards.map(item => `
@@ -913,33 +1022,33 @@
                   </div>
                 `).join('')}
               </div>
-              <div class="quote-reference-state">${currentSelectionState}</div>
               <div class="quote-reference-compare">
                 <div class="quote-selection-row">
                   <span>SKU 对照</span>
-                  <strong>${escapeHtml(queryReferenceCode || '未提供')} → ${escapeHtml(selectedReferenceCode || '未选择')}</strong>
+                  <strong>${escapeHtml(queryReferenceCode || "未提供")}</strong>
+                  <strong>→ ${escapeHtml(selectedReferenceCode || "未选择")}</strong>
                 </div>
                 <div class="quote-selection-row">
-                  <span>当前报价</span>
-                  <strong class="${marginClass}">${escapeHtml(currentSelectionName)} · ${escapeHtml(currentSelectionSupplier)} · ${currentSelectionPrice}${marginText !== '待补充' ? ` · ${marginText}` : ''}</strong>
+                  <span>当前选择</span>
+                  <strong class="${marginClass}">${escapeHtml(currentSelectionName)} · ${escapeHtml(currentSelectionSupplier)} · ${currentSelectionPrice}${marginText !== "待补充" ? ` · ${marginText}` : ''}</strong>
                 </div>
               </div>
               ${remarkText ? `<div class="quote-origin-note">${escapeHtml(remarkText)}</div>` : ''}
             </div>
             ${renderQuoteCatalogSearchPanel(queryItem, itemIndex)}
           </div>
+          <div class="quote-item-splitter" role="separator" tabindex="0" aria-orientation="vertical" title="拖动调整左右宽度"></div>
           <div class="quote-item-candidates quote-item-candidates-frame">
             <div class="quote-item-section-head">
-              <div>
+              <div class="quote-item-section-head-copy">
                 <div class="quote-item-section-title">候选商品</div>
-                <div class="quote-item-section-copy">左边对照原始项，右边在固定框里切换 SKU。</div>
               </div>
-              <span class="quote-item-section-pill">${primary ? `${manualSearchSelection ? '人工已选' : '首选'} ${Math.round((primary.score || 0) * 100)}%` : '待人工检索'}</span>
+              <span class="quote-item-section-pill">${primary ? `${manualSearchSelection ? "人工已选" : "首选"} ${Math.round((primary.score || 0) * 100)}%` : "待检索"}</span>
             </div>
             <div class="quote-candidate-focus-bar">
-              ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>暂无自动候选，去全商城搜索</span>'}
+              ${primary ? `<button class="btn btn-sm ${confirmedSelection ? 'btn-success is-active' : 'btn-primary'} match-confirm-btn" data-item-index="${itemIndex}" type="button" aria-pressed="${confirmedSelection ? 'true' : 'false'}"><i class="bi bi-check2-circle me-1"></i>${confirmButtonLabel}</button>` : '<span class="match-actions-hint"><i class="bi bi-search me-1"></i>去全商城搜索</span>'}
               ${primaryProduct.code ? `<button class="btn btn-sm btn-outline-secondary match-detail-btn" data-product-code="${escapeHtmlAttr(primaryProduct.code || '')}" type="button"><i class="bi bi-eye me-1"></i>商品详情</button>` : ''}
-              ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>更多候选 (${matches.length})</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>当前候选已展开</span>'}
+              ${matches.length > 3 ? `<button class="btn btn-sm btn-outline-primary toggle-candidates" data-index="${itemIndex}" data-expanded="false" type="button"><i class="bi bi-chevron-down me-1"></i>更多候选 (${matches.length})</button>` : '<span class="match-actions-hint"><i class="bi bi-check2-circle me-1"></i>候选已展开</span>'}
               <button class="btn btn-sm ${noMatchActive ? 'btn-danger is-active' : 'btn-outline-danger'} mark-no-match" data-index="${itemIndex}" type="button" aria-pressed="${noMatchActive ? 'true' : 'false'}"><i class="bi bi-x-circle me-1"></i>无匹配</button>
               <button class="btn btn-sm ${askBossActive ? 'btn-warning is-active' : 'btn-outline-warning'} mark-ask-boss" data-index="${itemIndex}" type="button" aria-pressed="${askBossActive ? 'true' : 'false'}"><i class="bi bi-question-circle me-1"></i>问老板</button>
             </div>
@@ -952,7 +1061,6 @@
                   <div class="alternatives-header">
                     <i class="bi bi-lightbulb text-warning me-1"></i>
                     <span>替代候选 (${alternatives.length})</span>
-                    <small class="text-muted ms-2">自动候选不稳时优先看看这里</small>
                   </div>
                   <div class="alternatives-list" id="alternatives-list-${itemIndex}">
                     ${renderAlternatives(alternatives, itemIndex, result?.selected_product, queryItem.price)}
@@ -1187,6 +1295,57 @@
       updateStatsCardHighlight();
       renderMatchResults(true);
     });
+    bind(document.getElementById('candidateViewStandardBtn'), 'click', () => setCandidateView('standard'));
+    bind(document.getElementById('candidateViewCompactBtn'), 'click', () => setCandidateView('compact'));
+    bind(document.getElementById('quoteSplitResetBtn'), 'click', () => setQuoteSplitWidth(DEFAULT_QUOTE_SPLIT_WIDTH));
+    applyCandidateView();
+    applyQuoteSplitWidth();
+  }
+
+  function initQuoteSplitters() {
+    document.querySelectorAll('.quote-item-splitter').forEach(handle => {
+      if (handle.dataset.bound === '1') return;
+      handle.dataset.bound = '1';
+
+      const adjustBy = (delta) => {
+        setQuoteSplitWidth(getQuoteSplitWidth() + delta);
+      };
+
+      handle.addEventListener('keydown', (event) => {
+        if (event.key === 'ArrowLeft') {
+          event.preventDefault();
+          adjustBy(-16);
+        }
+        if (event.key === 'ArrowRight') {
+          event.preventDefault();
+          adjustBy(16);
+        }
+      });
+
+      handle.addEventListener('pointerdown', (event) => {
+        if (window.innerWidth <= 1199) return;
+        event.preventDefault();
+        const startX = event.clientX;
+        const startWidth = getQuoteSplitWidth();
+        document.body.classList.add('quote-split-resizing');
+
+        const onMove = (moveEvent) => {
+          const nextWidth = clampQuoteSplitWidth(startWidth + (moveEvent.clientX - startX));
+          setQuoteSplitWidth(nextWidth, { persist: false });
+        };
+
+        const onUp = (upEvent) => {
+          const nextWidth = clampQuoteSplitWidth(startWidth + (upEvent.clientX - startX));
+          setQuoteSplitWidth(nextWidth, { persist: true });
+          document.body.classList.remove('quote-split-resizing');
+          document.removeEventListener('pointermove', onMove);
+          document.removeEventListener('pointerup', onUp);
+        };
+
+        document.addEventListener('pointermove', onMove);
+        document.addEventListener('pointerup', onUp);
+      });
+    });
   }
 
   renderMatchResults = function renderWorkbenchResults(skipAutoMatch = false) {
@@ -1225,12 +1384,15 @@
     setQuotesWorkbenchState('ready');
 
     container.innerHTML = `
-      ${renderWorkbenchSummary()}
+      ${renderWorkbenchSummary(visibleItems, filters, activeEntry)}
       ${renderWorkbenchStream(visibleItems, filters, activeEntry)}
     `;
 
     updateStats();
+    applyCandidateView();
+    applyQuoteSplitWidth();
     initCandidateActions();
+    initQuoteSplitters();
     rebindWorkbenchFilterEvents();
     notifyAssistantContextChange('ready');
   };
@@ -1348,7 +1510,17 @@
     document.querySelectorAll('.quote-catalog-detail-btn, .match-detail-btn').forEach(btn => {
       btn.onclick = function(e) {
         e.stopPropagation();
-        showCatalogProductDetail(this.dataset.productCode || '');
+        showCatalogProductDetail(this.dataset.productCode || '', { preferredSurface: 'drawer' });
+      };
+    });
+
+    document.querySelectorAll('.toggle-confirmed-item').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const itemIndex = parseInt(this.dataset.itemIndex, 10);
+        if (Number.isFinite(itemIndex)) {
+          toggleConfirmedWorkbenchItem(itemIndex);
+        }
       };
     });
 
@@ -1439,6 +1611,8 @@
 
   window.addEventListener('load', () => {
     refreshQuotesPreludeCopy();
+    applyCandidateView();
+    applyQuoteSplitWidth();
     rebindWorkbenchFilterEvents();
   }, { once: true });
 
@@ -1449,59 +1623,21 @@
     const heading = filterBar.querySelector('.match-toolbar-heading');
     const subtitle = filterBar.querySelector('.match-toolbar-subtitle');
     if (heading) heading.textContent = '筛选器';
-    if (subtitle) subtitle.textContent = '先筛掉噪音，再按报价单顺序一直往下确认。整张单会连续展开，不再强制一次只看一项。';
+    if (subtitle) subtitle.textContent = '连续确认';
   }
 
   function renderQuotesLandingEmpty() {
     return `
-      <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
-        <div class="quote-empty-layout">
-          <div class="quote-empty-primary">
-            <div class="workspace-empty-orbit-visual">
-              <i class="bi bi-layout-text-window"></i>
-            </div>
-            <div class="workspace-empty-orbit-title">这里还没有待确认的报价结果</div>
-            <div class="workspace-empty-orbit-copy">上传 Excel 报价单或 OCR 图片后，这里会切换成待处理队列、当前报价项和候选核对区。整个流程尽量不再要求你来回切页。</div>
-            <div class="workspace-empty-orbit-pills">
-              <span class="workspace-empty-orbit-pill">本页直接上传</span>
-              <span class="workspace-empty-orbit-pill">统一确认</span>
-              <span class="workspace-empty-orbit-pill">确认后再导出</span>
-            </div>
-            <div class="quote-empty-primary-note">
-              <strong>当前建议</strong>
-              <span>先把报价来源推进来，再处理候选与异常，最后再去模板中心做交付选择。</span>
-            </div>
-          </div>
-          <div class="quote-empty-card quote-empty-stage">
-            <span class="quote-empty-card-kicker">Direct Upload</span>
-            <strong class="quote-empty-card-title">就在报价页开始，不再返回首页找入口</strong>
-            <span class="quote-empty-card-copy">这页本身就是报价确认台。选中文件之后，系统会立即进入解析和待确认流程，避免旧界面那种多层跳转。</span>
-            <div class="quote-empty-actions">
-              <button class="btn btn-primary" type="button" onclick="WorkspaceEntryActions.openQuoteUpload()">
-                <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
-              </button>
-              <button class="btn btn-outline-info" type="button" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
-                <i class="bi bi-camera me-2"></i>OCR 图片
-              </button>
-            </div>
-            <div class="quote-empty-helper">支持 \`.xls\` / \`.xlsx\` 和图片报价单，进入后统一做人工收口。</div>
-          </div>
-          <div class="quote-empty-shortcuts">
-            <a href="/catalog" class="quote-empty-shortcut-card">
-              <span class="quote-empty-card-kicker">Catalog</span>
-              <strong class="quote-empty-card-title">先补商品库</strong>
-              <span class="quote-empty-card-copy">品牌、规格、供应商和图片越完整，自动匹配越稳，候选也更像人会选的结果。</span>
-            </a>
-            <a href="/templates" class="quote-empty-shortcut-card">
-              <span class="quote-empty-card-kicker">Templates</span>
-              <strong class="quote-empty-card-title">模板中心</strong>
-              <span class="quote-empty-card-copy">确认完成后再去模板页选交付方式，把“确认”和“导出”明确拆开。</span>
-            </a>
-            <a href="/guide" class="quote-empty-shortcut-card">
-              <span class="quote-empty-card-kicker">Guide</span>
-              <strong class="quote-empty-card-title">上手说明</strong>
-              <span class="quote-empty-card-copy">给同事看的短说明会放在这里，帮助快速理解字段、流程和模板差异。</span>
-            </a>
+      <div class="quote-empty-state quote-empty-state--landing">
+        <div class="quote-empty-state-card">
+          <div class="quote-empty-state-title">先上传报价单</div>
+          <div class="quote-empty-actions">
+            <button class="btn btn-primary" type="button" onclick="WorkspaceEntryActions.openQuoteUpload()">
+              <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
+            </button>
+            <button class="btn btn-outline-info" type="button" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
+              <i class="bi bi-camera me-2"></i>OCR 图片
+            </button>
           </div>
         </div>
       </div>
@@ -1510,12 +1646,12 @@
 
   function getWorkbenchStatusLine(result) {
     const matchesCount = Array.isArray(result?.matches) ? result.matches.length : 0;
-    if (result?.confirmed && result?.action === 'select') return '已确认，可进入导出。';
-    if (!result?.confirmed && result?.action === 'select' && result?.selected_product) return '系统已预选，等待人工确认。';
-    if (result?.action === 'no_match') return '当前标记为无匹配，请人工检索或补充商品库。';
-    if (result?.action === 'ask_boss') return '当前需问老板，请补充说明或备选。';
-    if (matchesCount > 0) return '已有候选商品，优先核对首选。';
-    return '暂无自动候选，建议人工搜索。';
+    if (result?.confirmed && result?.action === 'select') return '已确认。';
+    if (!result?.confirmed && result?.action === 'select' && result?.selected_product) return '待人工确认。';
+    if (result?.action === 'no_match') return '已标记无匹配。';
+    if (result?.action === 'ask_boss') return '待问老板。';
+    if (matchesCount > 0) return '有候选商品。';
+    return '暂无候选。';
   }
 
   function getActiveSectionInfo(visibleItems, filters, activeEntry) {
@@ -1565,8 +1701,43 @@
     };
   }
 
-  function renderWorkbenchSummary() {
-    return '';
+  function renderWorkbenchSummary(visibleItems = [], filters = getWorkbenchFilters(), activeEntry = null) {
+    const allResults = Array.isArray(matchResults) ? matchResults : [];
+    const totalCount = allResults.length;
+    if (!totalCount) {
+      return '';
+    }
+
+    const matchedCount = allResults.filter(result => isMatchedResult(result)).length;
+    const pendingCount = allResults.filter(result => isPendingResult(result)).length;
+    const issueCount = allResults.filter(result => !!(result?.confirmed && isIssueResult(result))).length;
+    const visibleCount = Array.isArray(visibleItems) ? visibleItems.length : totalCount;
+    const filtersActive = !!(filters?.rawSearchText || filters?.statusFilter !== 'all' || filters?.sortFilter !== 'default');
+    const focusEntry = getPriorityQueueItems(visibleItems.length ? visibleItems : allResults.map((result, itemIndex) => ({ result, itemIndex })), 1)[0]
+      || activeEntry
+      || visibleItems[0]
+      || null;
+    const unresolvedCount = pendingCount + issueCount;
+
+    return `
+      <section class="quote-workspace-summarybar">
+        <div class="quote-workspace-summarybar-group">
+          <span class="quote-workspace-summary-pill">总计 ${totalCount}</span>
+          <span class="quote-workspace-summary-pill is-pending">待确认 ${pendingCount}</span>
+          <span class="quote-workspace-summary-pill is-issue">异常 ${issueCount}</span>
+          <span class="quote-workspace-summary-pill is-matched">已确认 ${matchedCount}</span>
+          ${filtersActive ? `<span class="quote-workspace-summary-pill">当前筛中 ${visibleCount}</span>` : ''}
+        </div>
+        <div class="quote-workspace-summarybar-group quote-workspace-summarybar-group--actions">
+          <span class="quote-workspace-focus">${focusEntry ? `ITEM ${focusEntry.itemIndex + 1} · ${escapeHtml(focusEntry.result?.query_item?.name || "未命名询价项")}` : "当前无焦点项"}</span>
+          ${unresolvedCount === 0 ? `
+            <button class="btn btn-sm btn-primary" type="button" onclick="showExportOptionsForCurrentMatch()">
+              <i class="bi bi-box-arrow-up-right me-1"></i>去导出
+            </button>
+          ` : ''}
+        </div>
+      </section>
+    `;
   }
 
   function renderWorkbenchRail() {
@@ -1577,10 +1748,6 @@
     if (!visibleItems.length) {
       return `
         <section class="match-stream">
-          <div class="match-stream-header">
-            <div class="match-stream-heading">没有命中结果</div>
-            <div class="match-stream-subtitle">请放宽搜索词或点击重置筛选。</div>
-          </div>
           <div class="match-inspector-empty match-stream-empty">
             <div>
               <div class="fw-semibold mb-2">当前没有可处理项</div>
@@ -1591,27 +1758,8 @@
       `;
     }
 
-    const pendingCount = visibleItems.filter(({ result }) => isPendingResult(result)).length;
-    const issueCount = visibleItems.filter(({ result }) => !!(result?.confirmed && isIssueResult(result))).length;
-    const matchedCount = visibleItems.filter(({ result }) => isMatchedResult(result)).length;
-    const filterLabels = getWorkbenchFilterLabels(filters);
-    const searchText = filters.rawSearchText ? `搜索：${filters.rawSearchText}` : '未输入关键词';
-
     return `
-      <section class="match-stream">
-        <div class="match-stream-header">
-          <div class="match-stream-heading">整张报价单连续确认</div>
-          <div class="match-stream-subtitle">当前筛选结果会按顺序整页展开。你可以一直往下滑确认，不再强制一次只看一个 ITEM，也不需要上一项 / 下一项地跳。</div>
-        </div>
-        <div class="match-stream-section-overview">
-          <span class="match-stream-section-pill is-pending">当前筛选 ${visibleItems.length} 项</span>
-          <span class="match-stream-section-pill">待确认 ${pendingCount}</span>
-          <span class="match-stream-section-pill is-issue">异常 ${issueCount}</span>
-          <span class="match-stream-section-pill is-matched">已确认 ${matchedCount}</span>
-          <span class="match-stream-section-pill">状态 ${escapeHtml(filterLabels.statusLabel)}</span>
-          <span class="match-stream-section-pill">排序 ${escapeHtml(filterLabels.sortLabel)}</span>
-          <span class="match-stream-section-pill">${escapeHtml(searchText)}</span>
-        </div>
+      <section class="match-stream match-stream--sheet">
         <div class="match-stream-list quote-sheet-list">
           ${visibleItems.map(({ result, itemIndex }) => renderWorkbenchCard(result, itemIndex, false)).join('')}
         </div>
@@ -1619,6 +1767,9 @@
     `;
   }
 
+  function renderWorkbenchInspector() {
+    return '';
+  }
   function renderWorkbenchInspector() {
     return '';
   }

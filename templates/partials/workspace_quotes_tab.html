@@ -1,9 +1,7 @@
 <div id="matchTab" class="tab-content"{% if initial_tab != 'match' %} style="display: none;"{% endif %}>
-    <section class="quote-page-head">
-        <div>
-            <div class="quote-page-kicker">报价确认台</div>
-            <div class="quote-page-title">上传、确认、导出，尽量在一条工作线上完成。</div>
-            <div class="quote-page-subtitle">这里不是旧式后台表格堆栈，而是一页式工作台。上传报价后，直接在这里完成筛选、候选判断和导出准备。</div>
+    <section class="quote-page-head quote-page-head--compact">
+        <div class="quote-page-headline">
+            <div class="quote-page-title">报价工作台</div>
         </div>
         <div class="quote-toolbar-actions">
             <button type="button" class="btn btn-primary btn-sm" onclick="WorkspaceEntryActions.openQuoteUpload()">
@@ -12,9 +10,6 @@
             <button type="button" class="btn btn-outline-info btn-sm" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
                 <i class="bi bi-camera me-1"></i>OCR 图片
             </button>
-            <a href="{{ workspace_routes.templates }}" class="btn btn-outline-secondary btn-sm">
-                <i class="bi bi-files me-1"></i>模板中心
-            </a>
         </div>
     </section>
 
@@ -52,9 +47,13 @@
             <button class="btn btn-outline-secondary btn-sm quote-filter-reset" id="resetFilterBtn">
                 <i class="bi bi-arrow-counterclockwise me-1"></i>重置
             </button>
-            <div class="quote-toolbar-actions">
-                <button class="btn btn-primary btn-sm" type="button" onclick="WorkspaceEntryActions.openQuoteUpload()">
-                    <i class="bi bi-file-earmark-arrow-up me-1"></i>上传报价
+            <div class="quote-toolbar-actions quote-toolbar-actions--dense">
+                <div class="btn-group btn-group-sm quote-view-switch" role="group" aria-label="候选视图切换">
+                    <button class="btn btn-outline-secondary is-active" type="button" id="candidateViewStandardBtn" data-candidate-view="standard">标准视图</button>
+                    <button class="btn btn-outline-secondary" type="button" id="candidateViewCompactBtn" data-candidate-view="compact">紧凑视图</button>
+                </div>
+                <button class="btn btn-outline-secondary btn-sm" type="button" id="quoteSplitResetBtn" title="恢复默认分栏宽度">
+                    <i class="bi bi-layout-split me-1"></i>恢复分栏
                 </button>
                 <button class="btn btn-warning btn-sm" id="batchAdjustBtn">
                     <i class="bi bi-percent me-1"></i>批量调价
@@ -64,9 +63,6 @@
                 </button>
                 <button class="btn btn-success btn-sm" id="exportBtn">
                     <i class="bi bi-download me-1"></i>导出
-                </button>
-                <button class="btn btn-info btn-sm" id="shareBtn">
-                    <i class="bi bi-share me-1"></i>分享
                 </button>
             </div>
         </div>
@@ -82,28 +78,10 @@
 
     <div id="matchResults">
         <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
-            <div class="quote-empty-layout">
-                <div class="quote-empty-primary">
-                    <div class="workspace-empty-orbit-visual">
-                        <i class="bi bi-layout-text-window"></i>
-                    </div>
-                    <div class="workspace-empty-orbit-title">这里还没有待确认的报价结果</div>
-                    <div class="workspace-empty-orbit-copy">上传 Excel 报价单或 OCR 图片后，这里会切换成待处理队列、当前报价项和候选核对区。整个流程尽量不再要求你来回切页。</div>
-                    <div class="workspace-empty-orbit-pills">
-                        <span class="workspace-empty-orbit-pill">本页直接上传</span>
-                        <span class="workspace-empty-orbit-pill">统一确认</span>
-                        <span class="workspace-empty-orbit-pill">确认后再导出</span>
-                    </div>
-                    <div class="quote-empty-primary-note">
-                        <strong>当前建议</strong>
-                        <span>先把报价来源推进来，再处理候选与异常，最后再去模板中心做交付选择。</span>
-                    </div>
-                </div>
-
+            <div class="quote-empty-layout quote-empty-layout--compact">
                 <div class="quote-empty-card quote-empty-stage">
-                    <span class="quote-empty-card-kicker">Direct Upload</span>
-                    <strong class="quote-empty-card-title">就在报价页开始，不再返回首页找入口</strong>
-                    <span class="quote-empty-card-copy">这页本身就是报价确认台。选中文件之后，系统会立即进入解析和待确认流程，避免旧界面那种多层跳转。</span>
+                    <span class="quote-empty-card-kicker">上传</span>
+                    <strong class="quote-empty-card-title">先上传报价单</strong>
                     <div class="quote-empty-actions">
                         <button type="button" class="btn btn-primary" onclick="WorkspaceEntryActions.openQuoteUpload()">
                             <i class="bi bi-file-earmark-arrow-up me-2"></i>上传报价单
@@ -112,25 +90,6 @@
                             <i class="bi bi-camera me-2"></i>OCR 图片
                         </button>
                     </div>
-                    <div class="quote-empty-helper">支持 `.xls` / `.xlsx` 和图片报价单，进入后统一做人工收口。</div>
-                </div>
-
-                <div class="quote-empty-shortcuts">
-                    <a href="{{ workspace_routes.catalog }}" class="quote-empty-shortcut-card">
-                        <span class="quote-empty-card-kicker">Catalog</span>
-                        <strong class="quote-empty-card-title">先补商品库</strong>
-                        <span class="quote-empty-card-copy">品牌、规格、供应商和图片越完整，自动匹配越稳，候选也更像人会选的结果。</span>
-                    </a>
-                    <a href="{{ workspace_routes.templates }}" class="quote-empty-shortcut-card">
-                        <span class="quote-empty-card-kicker">Templates</span>
-                        <strong class="quote-empty-card-title">模板中心</strong>
-                        <span class="quote-empty-card-copy">确认完成后再去模板页选交付方式，把“确认”和“导出”明确拆开。</span>
-                    </a>
-                    <a href="{{ workspace_routes.guide }}" class="quote-empty-shortcut-card">
-                        <span class="quote-empty-card-kicker">Guide</span>
-                        <strong class="quote-empty-card-title">上手说明</strong>
-                        <span class="quote-empty-card-copy">给同事看的短说明会放在这里，帮助快速理解字段、流程和模板差异。</span>
-                    </a>
                 </div>
             </div>
         </div>

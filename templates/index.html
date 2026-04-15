@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260413k" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260415b" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -3686,6 +3686,17 @@
                 </div>
             </div>
         </div>
+    </div>
+
+    <div class="offcanvas offcanvas-end product-detail-drawer" id="productDetailDrawer" tabindex="-1" aria-labelledby="productDetailDrawerTitle">
+        <div class="offcanvas-header">
+            <div>
+                <h5 class="offcanvas-title" id="productDetailDrawerTitle">商品详情</h5>
+                <div class="product-detail-drawer-subtitle">右侧查看完整商品信息</div>
+            </div>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="关闭"></button>
+        </div>
+        <div class="offcanvas-body" id="productDetailDrawerContent"></div>
     </div>
 
     <!-- 列映射确认模态框 -->
@@ -4892,13 +4903,46 @@
             });
         }
 
-        function showCatalogProductDetail(productCode) {
+        let activeProductDetailSurface = null;
+        let productDetailDrawerInstance = null;
+
+        function resolveProductDetailSurface(options = {}) {
+            const preferDrawer = options.preferredSurface === 'drawer' || document.body?.dataset?.route === 'quotes';
+            const drawerEl = document.getElementById('productDetailDrawer');
+            const drawerContent = document.getElementById('productDetailDrawerContent');
+            const modalEl = document.getElementById('productDetailModal');
+            const modalContent = document.getElementById('productDetailContent');
+
+            if (preferDrawer && drawerEl && drawerContent && typeof bootstrap !== 'undefined' && bootstrap.Offcanvas) {
+                productDetailDrawerInstance = productDetailDrawerInstance || bootstrap.Offcanvas.getOrCreateInstance(drawerEl);
+                return {
+                    type: 'drawer',
+                    content: drawerContent,
+                    show() {
+                        productDetailDrawerInstance.show();
+                    }
+                };
+            }
+
+            return {
+                type: 'modal',
+                content: modalContent,
+                show() {
+                    const modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
+            };
+        }
+
+        function showCatalogProductDetail(productCode, options = {}) {
             if (!productCode) {
                 showToast('error', '缺少商品编码');
                 return;
             }
 
-            const content = document.getElementById('productDetailContent');
+            const surface = resolveProductDetailSurface(options);
+            activeProductDetailSurface = surface;
+            const content = surface?.content;
             if (content) {
                 content.innerHTML = `
                     <div class="text-center py-4 text-muted">
@@ -4908,8 +4952,7 @@
                 `;
             }
 
-            const modal = new bootstrap.Modal(document.getElementById('productDetailModal'));
-            modal.show();
+            surface?.show?.();
 
             fetch(`/api/catalog/product/${encodeURIComponent(productCode)}`)
                 .then(response => response.json())
@@ -4917,7 +4960,7 @@
                     if (!result.success || !result.product) {
                         throw new Error(result.message || '商品详情加载失败');
                     }
-                    renderCatalogProductDetail(result.product);
+                    renderCatalogProductDetail(result.product, surface);
                 })
                 .catch(error => {
                     if (content) {
@@ -4928,8 +4971,8 @@
                 });
         }
 
-        function renderCatalogProductDetail(product) {
-            const content = document.getElementById('productDetailContent');
+        function renderCatalogProductDetail(product, surface = null) {
+            const content = surface?.content || activeProductDetailSurface?.content || document.getElementById('productDetailContent');
             if (!content) return;
 
             const images = ProductImageManager.getImages(product);
@@ -6413,18 +6456,18 @@
                 selectedProductInfo?.sku
             ].map(value => String(value || '').trim()).find(Boolean) || '';
             const manualSelected = !!(selectedProduct?.manual_selected || selectedProduct?.source === 'catalog_search');
-            let stateBadge = '<span class="quote-search-state-badge">未打开</span>';
+            let stateBadge = '<span class="quote-search-state-badge">未开</span>';
             if (loading) {
                 stateBadge = '<span class="quote-search-state-badge is-loading">搜索中</span>';
             } else if (manualSelected && selectedProductCode) {
                 stateBadge = `<span class="quote-search-state-badge is-selected">已选 ${escapeHtml(selectedProductCode)}</span>`;
             } else if (searched) {
-                stateBadge = `<span class="quote-search-state-badge is-searched">已搜 ${total} 个</span>`;
+                stateBadge = `<span class="quote-search-state-badge is-searched">已搜 ${total}</span>`;
             }
 
             const selectedSummary = selectedProductCode || selectedProductInfo?.name
                 ? `${escapeHtml(selectedProductInfo?.name || '未命名商品')} · ${escapeHtml(selectedProductCode || '未提供')}${selectedProductInfo?.supplier ? ` · ${escapeHtml(selectedProductInfo.supplier)}` : ''}${selectedProductInfo?.market_price ? ` · ¥${formatPrice(selectedProductInfo.market_price)}` : ''}`
-                : (searched ? `已搜 ${total} 个结果，打开弹窗继续筛 SKU。` : '还没有人工搜索结果');
+                : (searched ? `已搜 ${total} 个结果` : '未人工搜索');
 
             return `
                 <div class="quote-search-summary" id="quote-search-panel-${itemIndex}">
@@ -6439,9 +6482,9 @@
                     ${error ? `<div class="small text-danger">${escapeHtml(error)}</div>` : ''}
                     <div class="quote-search-summary-actions">
                         <button class="btn btn-primary btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" type="button">
-                            <i class="bi bi-search me-1"></i>${searched ? '查看搜索结果' : '全商城搜索'}
+                            <i class="bi bi-search me-1"></i>${searched ? '查看结果' : '搜全商城'}
                         </button>
-                        ${results.length ? `<span class="quote-search-summary-hint">已缓存 ${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">去弹窗里选 SKU</span>'}
+                        ${results.length ? `<span class="quote-search-summary-hint">${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">弹窗选 SKU</span>'}
                     </div>
                 </div>
             `;
@@ -6459,8 +6502,8 @@
             if (!searched) {
                 return `
                     <div class="quote-search-modal-empty">
-                        <strong>还没有开始搜索</strong>
-                        <span>输入名称、型号、规格或编码后，直接在弹窗里选 SKU。</span>
+                        <strong>还没搜索</strong>
+                        <span>输关键词后直接选 SKU。</span>
                     </div>
                 `;
             }
@@ -6469,7 +6512,7 @@
                 return `
                     <div class="quote-search-modal-empty">
                         <strong>没有找到结果</strong>
-                        <span>换个关键词，或者保留当前自动候选后继续处理下一项。</span>
+                        <span>换个词再搜。</span>
                     </div>
                 `;
             }
@@ -6599,7 +6642,7 @@
                 : (searched ? '<i class="bi bi-arrow-repeat me-1"></i>重新搜索' : '<i class="bi bi-search me-1"></i>开始搜索');
 
             modalTitle.textContent = `ITEM ${itemIndex + 1} · 全商城选 SKU`;
-            modalMeta.textContent = '先看原始报价项，再从下面结果里直接选一个 SKU。';
+            modalMeta.textContent = '点选结果后立即回填。';
 
             modalBody.innerHTML = `
                 <div class="quote-search-modal-query">
@@ -6611,7 +6654,7 @@
                             <span>规格 ${escapeHtml(queryItem.spec || '未提供')}</span>
                             <span>当前候选 ${escapeHtml(selectedCode || '未选择')}</span>
                         </div>
-                        <div class="quote-search-modal-query-copy">${escapeHtml(queryItem.remark || queryItem.spec || '没有附加备注')}</div>
+                        <div class="quote-search-modal-query-copy">${escapeHtml(queryItem.remark || queryItem.spec || '无补充备注')}</div>
                     </div>
                     <div class="quote-search-modal-query-item quote-search-modal-query-item--search">
                         <span class="quote-search-modal-query-label">搜索词</span>
@@ -6622,7 +6665,7 @@
                                 ${searchButtonLabel}
                             </button>
                         </div>
-                        <div class="quote-search-modal-search-hint">名称、型号、编码、规格都可以直接搜。</div>
+                        <div class="quote-search-modal-search-hint">名称 / 型号 / 编码 / 规格</div>
                     </div>
                 </div>
                 ${error ? `<div class="small text-danger mb-3">${escapeHtml(error)}</div>` : ''}
@@ -9299,7 +9342,7 @@
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260413k"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260415a"></script>
 </body>
 </html>
 

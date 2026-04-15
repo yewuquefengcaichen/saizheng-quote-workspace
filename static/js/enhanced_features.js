@@ -72,7 +72,12 @@ function initWorkspaceWheelPassthrough() {
         '.workspace-scene-hero',
         '.workspace-ingress-shell',
         '.workspace-stage-shell',
-        '.scene-panel'
+        '.scene-panel',
+        '.quote-candidate-scrollbox',
+        '.quote-item-context-column',
+        '.quote-item-candidates-frame',
+        '.product-detail-drawer .offcanvas-body',
+        '#quoteCatalogSearchModal .modal-body'
     ].join(',');
 
     if (document.documentElement.dataset.workspaceWheelPassthroughBound === '1') {
@@ -414,11 +419,7 @@ const WorkspaceQuickActions = {
     getActionsByRoute(route) {
         switch (route) {
             case 'quotes':
-                return [
-                    { id: 'quick-quote-upload', kind: 'button', icon: 'bi-file-earmark-arrow-up', label: '上传报价', tone: 'primary', handler: 'WorkspaceEntryActions.openQuoteUpload()' },
-                    { id: 'quick-ocr-upload', kind: 'button', icon: 'bi-camera', label: 'OCR', handler: 'WorkspaceEntryActions.openOCRUpload()', dataAttrs: 'data-ocr-entry="true"' },
-                    { id: 'quick-products-page', kind: 'link', icon: 'bi-grid-3x3-gap', label: '商品库', href: '/catalog' }
-                ];
+                return [];
             case 'catalog':
                 return [
                     { id: 'quick-products-upload', kind: 'button', icon: 'bi-box-arrow-in-up-right', label: '更新商品库', tone: 'primary', handler: 'WorkspaceEntryActions.openProductsUpload()' },
