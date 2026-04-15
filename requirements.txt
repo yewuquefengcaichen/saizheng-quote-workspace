@@ -19,9 +19,14 @@ sentence-transformers  # 本地模型（降级方案）
 
 # 异步支持
 aiohttp>=3.9.0
+sqlalchemy>=2.0.40
+asyncpg>=0.30.0
+pgvector>=0.4.0
 
 # 配置文件
 pyyaml>=6.0
+python-dotenv>=1.0.1
+pydantic-settings>=2.10.0
 
 # PDF导出（可选）
 reportlab>=4.0.0       # PDF生成

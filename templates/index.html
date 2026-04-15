@@ -4293,6 +4293,8 @@
         let quoteCatalogSearchState = {};
         let activeQuoteCatalogModalItemIndex = null;
         let quoteCatalogSearchModalInstance = null;
+        const QUOTE_SEARCH_TAB_TEXT = 'text';
+        const QUOTE_SEARCH_TAB_IMAGE = 'image';
         const exportTemplates = {{ export_templates|tojson|safe }};
         const exportTemplateDefaults = {{ export_template_defaults|tojson|safe }};
         let currentExportTemplateKey = '';
@@ -6431,21 +6433,57 @@
             bindMatchWorkbenchInteractions();
         }
 
+        function getQuoteCatalogSearchState(itemIndex) {
+            const rawState = quoteCatalogSearchState[itemIndex] || {};
+            return {
+                keyword: rawState.keyword !== undefined ? rawState.keyword : '',
+                loading: !!rawState.loading,
+                searched: !!rawState.searched,
+                results: Array.isArray(rawState.results) ? rawState.results : [],
+                total: Number(rawState.total || 0),
+                error: rawState.error || '',
+                imageLoading: !!rawState.imageLoading,
+                imageSearched: !!rawState.imageSearched,
+                imageResults: Array.isArray(rawState.imageResults) ? rawState.imageResults : [],
+                imageTotal: Number(rawState.imageTotal || 0),
+                imageError: rawState.imageError || '',
+                imagePreviewUrl: rawState.imagePreviewUrl || '',
+                imageQueryName: rawState.imageQueryName || '',
+                imageMimeType: rawState.imageMimeType || '',
+                provider: rawState.provider || '',
+                modelName: rawState.modelName || '',
+                activeTab: rawState.activeTab || QUOTE_SEARCH_TAB_TEXT
+            };
+        }
+
         function getQuoteCatalogDefaultKeyword(queryItem, itemIndex) {
-            const state = quoteCatalogSearchState[itemIndex] || {};
-            return state.keyword !== undefined
+            const state = getQuoteCatalogSearchState(itemIndex);
+            return state.keyword !== undefined && state.keyword !== ''
                 ? state.keyword
                 : (queryItem.name || queryItem.spec || queryItem.remark || '');
         }
 
+        function setQuoteCatalogSearchTab(itemIndex, tab) {
+            const safeTab = tab === QUOTE_SEARCH_TAB_IMAGE ? QUOTE_SEARCH_TAB_IMAGE : QUOTE_SEARCH_TAB_TEXT;
+            quoteCatalogSearchState[itemIndex] = {
+                ...(quoteCatalogSearchState[itemIndex] || {}),
+                activeTab: safeTab
+            };
+            updateQuoteCatalogSearchPanel(itemIndex);
+        }
+
+        function getQuoteCatalogResultLabel(item) {
+            if (item?.search_type === 'image') {
+                return item.image_similarity !== undefined
+                    ? `相似 ${Math.round(Number(item.image_similarity || 0) * 100)}%`
+                    : '图搜结果';
+            }
+            return item?.catalog_score ? `匹配 ${item.catalog_score}` : '商城结果';
+        }
+
         function renderQuoteCatalogSearchPanel(queryItem, itemIndex) {
-            const state = quoteCatalogSearchState[itemIndex] || {};
+            const state = getQuoteCatalogSearchState(itemIndex);
             const defaultKeyword = getQuoteCatalogDefaultKeyword(queryItem, itemIndex);
-            const loading = !!state.loading;
-            const searched = !!state.searched;
-            const results = Array.isArray(state.results) ? state.results : [];
-            const total = Number(state.total || 0);
-            const error = state.error || '';
             const currentResult = Array.isArray(matchResults) ? (matchResults[itemIndex] || {}) : {};
             const selectedProduct = currentResult.selected_product || {};
             const selectedProductInfo = selectedProduct?.product || {};
@@ -6455,46 +6493,88 @@
                 selectedProductInfo?.item_code,
                 selectedProductInfo?.sku
             ].map(value => String(value || '').trim()).find(Boolean) || '';
-            const manualSelected = !!(selectedProduct?.manual_selected || selectedProduct?.source === 'catalog_search');
-            let stateBadge = '<span class="quote-search-state-badge">未开</span>';
-            if (loading) {
-                stateBadge = '<span class="quote-search-state-badge is-loading">搜索中</span>';
-            } else if (manualSelected && selectedProductCode) {
-                stateBadge = `<span class="quote-search-state-badge is-selected">已选 ${escapeHtml(selectedProductCode)}</span>`;
-            } else if (searched) {
-                stateBadge = `<span class="quote-search-state-badge is-searched">已搜 ${total}</span>`;
+            const manualSelected = !!(
+                selectedProduct?.manual_selected
+                || selectedProduct?.source === 'catalog_search'
+                || selectedProduct?.source === 'catalog_image_search'
+            );
+            const hasSelectedProduct = !!(selectedProductCode || selectedProductInfo?.name);
+            const selectedParts = [];
+            if (selectedProductInfo?.name) selectedParts.push(escapeHtml(selectedProductInfo.name));
+            if (selectedProductCode) selectedParts.push(escapeHtml(selectedProductCode));
+            if (selectedProductInfo?.supplier) selectedParts.push(escapeHtml(selectedProductInfo.supplier));
+            if (selectedProductInfo?.market_price !== undefined && selectedProductInfo?.market_price !== null && selectedProductInfo?.market_price !== '') {
+                selectedParts.push(escapeHtml(formatNumericPrice(selectedProductInfo.market_price)));
             }
 
-            const selectedSummary = selectedProductCode || selectedProductInfo?.name
-                ? `${escapeHtml(selectedProductInfo?.name || '未命名商品')} · ${escapeHtml(selectedProductCode || '未提供')}${selectedProductInfo?.supplier ? ` · ${escapeHtml(selectedProductInfo.supplier)}` : ''}${selectedProductInfo?.market_price ? ` · ¥${formatPrice(selectedProductInfo.market_price)}` : ''}`
-                : (searched ? `已搜 ${total} 个结果` : '未人工搜索');
+            let stateBadge = '<span class="quote-search-state-badge">未搜</span>';
+            if (state.loading || state.imageLoading) {
+                stateBadge = '<span class="quote-search-state-badge is-loading">检索中</span>';
+            } else if (manualSelected && selectedProductCode) {
+                const prefix = selectedProduct?.source === 'catalog_image_search' ? '图选' : '已选';
+                stateBadge = `<span class="quote-search-state-badge is-selected">${prefix} ${escapeHtml(selectedProductCode)}</span>`;
+            } else if (state.imageSearched) {
+                stateBadge = `<span class="quote-search-state-badge is-searched">图搜 ${state.imageTotal}</span>`;
+            } else if (state.searched) {
+                stateBadge = `<span class="quote-search-state-badge is-searched">词搜 ${state.total}</span>`;
+            }
+
+            const selectedSummary = hasSelectedProduct
+                ? selectedParts.join(' · ')
+                : ((state.imageSearched || state.searched)
+                    ? `词搜 ${state.total} · 图搜 ${state.imageTotal}`
+                    : '未人工搜索');
 
             return `
                 <div class="quote-search-summary" id="quote-search-panel-${itemIndex}">
                     <div class="quote-search-summary-head">
-                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>商城搜索</div>
+                        <div class="quote-search-summary-title"><i class="bi bi-search me-1"></i>商城检索</div>
                         ${stateBadge}
                     </div>
                     <div class="quote-search-summary-inline">
-                        <span class="quote-search-summary-inline-item"><i class="bi bi-funnel"></i>${escapeHtml(defaultKeyword || '未设置搜索词')}</span>
+                        <span class="quote-search-summary-inline-item"><i class="bi bi-funnel"></i>${escapeHtml(defaultKeyword || '未生成搜索词')}</span>
                         <span class="quote-search-summary-inline-item">${selectedSummary}</span>
                     </div>
-                    ${error ? `<div class="small text-danger">${escapeHtml(error)}</div>` : ''}
+                    ${(state.error || state.imageError) ? `<div class="small text-danger">${escapeHtml(state.imageError || state.error)}</div>` : ''}
                     <div class="quote-search-summary-actions">
-                        <button class="btn btn-primary btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" type="button">
-                            <i class="bi bi-search me-1"></i>${searched ? '结果' : '搜索'}
+                        <button class="btn btn-primary btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" data-search-tab="${QUOTE_SEARCH_TAB_TEXT}" type="button">
+                            <i class="bi bi-search me-1"></i>${state.searched ? '重新词搜' : '文字搜'}
                         </button>
-                        ${results.length ? `<span class="quote-search-summary-hint">${Math.min(results.length, 12)} / ${total}</span>` : '<span class="quote-search-summary-hint">弹窗选</span>'}
+                        <button class="btn btn-outline-info btn-sm quote-catalog-open-btn" data-item-index="${itemIndex}" data-search-tab="${QUOTE_SEARCH_TAB_IMAGE}" type="button">
+                            <i class="bi bi-camera me-1"></i>${state.imageSearched ? '重新图搜' : '以图识图'}
+                        </button>
+                        <span class="quote-search-summary-hint">词搜 ${state.searched ? `${Math.min(state.results.length, 12)} / ${state.total}` : '--'} · 图搜 ${state.imageSearched ? `${Math.min(state.imageResults.length, 12)} / ${state.imageTotal}` : '--'}</span>
                     </div>
                 </div>
             `;
         }
 
-        function renderQuoteCatalogSearchResults(itemIndex, results, total, searched, loading) {
+        function renderQuoteCatalogSearchTabs(itemIndex, activeTab, state) {
+            return `
+                <div class="quote-search-modal-tabs" role="tablist" aria-label="搜索方式切换">
+                    <button class="btn btn-sm quote-search-tab-btn ${activeTab === QUOTE_SEARCH_TAB_TEXT ? 'is-active' : ''}" data-item-index="${itemIndex}" data-search-tab="${QUOTE_SEARCH_TAB_TEXT}" type="button">
+                        <i class="bi bi-search me-1"></i>文字搜${state.searched ? ` · ${state.total}` : ''}
+                    </button>
+                    <button class="btn btn-sm quote-search-tab-btn ${activeTab === QUOTE_SEARCH_TAB_IMAGE ? 'is-active' : ''}" data-item-index="${itemIndex}" data-search-tab="${QUOTE_SEARCH_TAB_IMAGE}" type="button">
+                        <i class="bi bi-camera me-1"></i>以图识图${state.imageSearched ? ` · ${state.imageTotal}` : ''}
+                    </button>
+                </div>
+            `;
+        }
+
+        function renderQuoteCatalogSearchResults(itemIndex, options = {}) {
+            const {
+                results = [],
+                total = 0,
+                searched = false,
+                loading = false,
+                mode = QUOTE_SEARCH_TAB_TEXT
+            } = options;
+
             if (loading) {
                 return `
                     <div class="text-muted small py-3">
-                        <span class="spinner-border spinner-border-sm me-2"></span>正在搜索商品库...
+                        <span class="spinner-border spinner-border-sm me-2"></span>${mode === QUOTE_SEARCH_TAB_IMAGE ? '正在识别相似商品...' : '正在搜索商品库...'}
                     </div>
                 `;
             }
@@ -6502,8 +6582,8 @@
             if (!searched) {
                 return `
                     <div class="quote-search-modal-empty">
-                        <strong>还没搜索</strong>
-                        <span>输词后直接选 SKU。</span>
+                        <strong>${mode === QUOTE_SEARCH_TAB_IMAGE ? '还没上传图片' : '还没搜索'}</strong>
+                        <span>${mode === QUOTE_SEARCH_TAB_IMAGE ? '上传图片后直接选 SKU。' : '输词后直接选 SKU。'}</span>
                     </div>
                 `;
             }
@@ -6512,7 +6592,7 @@
                 return `
                     <div class="quote-search-modal-empty">
                         <strong>没有找到结果</strong>
-                        <span>换个词再搜。</span>
+                        <span>${mode === QUOTE_SEARCH_TAB_IMAGE ? '换一张更清晰的图。' : '换个词再搜。'}</span>
                     </div>
                 `;
             }
@@ -6550,6 +6630,17 @@
                 selectedResult?.product?.sku
             ].map(value => String(value || '').trim()).find(Boolean) || '';
             const isCurrentSelected = !!selectedCode && selectedCode === String(item.code || '').trim();
+            const searchType = item?.search_type === 'image' ? 'image' : 'text';
+            const primaryMeta = [
+                `SKU ${escapeHtml(item.code || '-')}`,
+                `型号 ${escapeHtml(item.model || '-')}`,
+                `单位 ${escapeHtml(item.unit || '-')}`
+            ].join(' · ');
+            const secondaryMeta = [
+                `供应商 ${escapeHtml(item.supplier || '-')}`,
+                `品牌 ${escapeHtml(item.brand || '-')}`,
+                item.category ? `分类 ${escapeHtml(item.category)}` : ''
+            ].filter(Boolean).join(' · ');
 
             return `
                 <div class="quote-search-result-card ${isCurrentSelected ? 'is-selected' : ''}" data-item-index="${itemIndex}" data-product-code="${escapeHtmlAttr(item.code || '')}">
@@ -6559,27 +6650,24 @@
                         </div>
                         <div class="quote-search-result-main">
                             <div class="quote-search-result-name">${escapeHtml(item.name || '未命名商品')}</div>
-                            <div class="quote-search-result-meta">
-                                编码 ${escapeHtml(item.code || '-')} · 型号 ${escapeHtml(item.model || '-')} · 单位 ${escapeHtml(item.unit || '-')}
-                            </div>
-                            <div class="quote-search-result-meta">
-                                供应商 ${escapeHtml(item.supplier || '-')} · 品牌 ${escapeHtml(item.brand || '-')} ${item.category ? `· 分类 ${escapeHtml(item.category)}` : ''}
-                            </div>
+                            <div class="quote-search-result-meta">${primaryMeta}</div>
+                            <div class="quote-search-result-meta">${secondaryMeta}</div>
                             <div class="quote-search-result-flags">
                                 ${hasImage ? '<span class="qe-badge qe-badge-info"><i class="bi bi-image me-1"></i>有图</span>' : ''}
+                                ${searchType === 'image' ? '<span class="qe-badge qe-badge-primary"><i class="bi bi-camera me-1"></i>图搜</span>' : ''}
                                 ${isCurrentSelected ? '<span class="qe-badge qe-badge-success"><i class="bi bi-check2-circle me-1"></i>当前高亮</span>' : ''}
                             </div>
                         </div>
                         <div class="quote-search-result-side">
-                            <div class="quote-search-result-price">¥${formatPrice(item.market_price)}</div>
-                            <div class="quote-search-result-side-meta">${item.catalog_score ? `搜索分 ${item.catalog_score}` : '商城结果'}</div>
+                            <div class="quote-search-result-price">${formatNumericPrice(item.market_price)}</div>
+                            <div class="quote-search-result-side-meta">${getQuoteCatalogResultLabel(item)}</div>
                         </div>
                         <div class="quote-search-result-actions">
                             <button class="btn btn-outline-primary btn-sm quote-catalog-detail-btn" data-product-code="${escapeHtmlAttr(item.code || '')}" type="button">
                                 <i class="bi bi-eye me-1"></i>详情
                             </button>
                             <button class="btn btn-sm ${isCurrentSelected ? 'btn-success is-active' : 'btn-success'} quote-catalog-use-btn" data-item-index="${itemIndex}" data-manual-match="${escapeHtmlAttr(encodeURIComponent(JSON.stringify(manualMatch)))}" type="button" aria-pressed="${isCurrentSelected ? 'true' : 'false'}">
-                                <i class="bi bi-check-lg me-1"></i>${isCurrentSelected ? '当前高亮' : '选这个'}
+                                <i class="bi bi-check-lg me-1"></i>${isCurrentSelected ? '已选' : '选这个'}
                             </button>
                         </div>
                     </div>
@@ -6614,12 +6702,7 @@
 
             const result = matchResults[itemIndex] || {};
             const queryItem = result.query_item || {};
-            const state = quoteCatalogSearchState[itemIndex] || {};
-            const loading = !!state.loading;
-            const searched = !!state.searched;
-            const results = Array.isArray(state.results) ? state.results : [];
-            const total = Number(state.total || 0);
-            const error = state.error || '';
+            const state = getQuoteCatalogSearchState(itemIndex);
             const keyword = getQuoteCatalogDefaultKeyword(queryItem, itemIndex);
             const selectedProduct = result.selected_product?.product || {};
             const selectedCode = [
@@ -6636,13 +6719,38 @@
                 queryItem.material_code,
                 queryItem.product_sku
             ].map(value => String(value || '').trim()).find(Boolean) || '';
-            const searchButtonClass = loading || searched ? 'btn-primary is-active' : 'btn-outline-primary';
-            const searchButtonLabel = loading
+            const activeTab = state.activeTab === QUOTE_SEARCH_TAB_IMAGE ? QUOTE_SEARCH_TAB_IMAGE : QUOTE_SEARCH_TAB_TEXT;
+            const searchButtonClass = state.loading || state.searched ? 'btn-primary is-active' : 'btn-outline-primary';
+            const searchButtonLabel = state.loading
                 ? '<span class="spinner-border spinner-border-sm"></span>'
-                : (searched ? '<i class="bi bi-arrow-repeat me-1"></i>重新搜索' : '<i class="bi bi-search me-1"></i>开始搜索');
+                : (state.searched ? '<i class="bi bi-arrow-repeat me-1"></i>重新搜索' : '<i class="bi bi-search me-1"></i>开始搜索');
+            const imageButtonClass = state.imageLoading || state.imageSearched ? 'btn-info is-active' : 'btn-outline-info';
+            const imageButtonLabel = state.imageLoading
+                ? '<span class="spinner-border spinner-border-sm"></span>'
+                : (state.imageSearched ? '<i class="bi bi-arrow-repeat me-1"></i>重新识图' : '<i class="bi bi-camera me-1"></i>上传图片');
+            const imagePreview = state.imagePreviewUrl
+                ? `<img src="${escapeHtmlAttr(state.imagePreviewUrl)}" class="quote-image-search-preview" alt="图搜预览">`
+                : `<div class="quote-image-search-placeholder"><i class="bi bi-image"></i></div>`;
+            const imageProviderMeta = [state.provider, state.modelName].filter(Boolean).join(' · ');
+            const activeResultsHtml = activeTab === QUOTE_SEARCH_TAB_IMAGE
+                ? renderQuoteCatalogSearchResults(itemIndex, {
+                    results: state.imageResults,
+                    total: state.imageTotal,
+                    searched: state.imageSearched,
+                    loading: state.imageLoading,
+                    mode: QUOTE_SEARCH_TAB_IMAGE
+                })
+                : renderQuoteCatalogSearchResults(itemIndex, {
+                    results: state.results,
+                    total: state.total,
+                    searched: state.searched,
+                    loading: state.loading,
+                    mode: QUOTE_SEARCH_TAB_TEXT
+                });
+            const activeError = activeTab === QUOTE_SEARCH_TAB_IMAGE ? state.imageError : state.error;
 
-            modalTitle.textContent = `ITEM ${itemIndex + 1} · 全商城选 SKU`;
-            modalMeta.textContent = '点选结果后立即回填。';
+            modalTitle.textContent = `ITEM ${itemIndex + 1} · 选择商城 SKU`;
+            modalMeta.textContent = activeTab === QUOTE_SEARCH_TAB_IMAGE ? '上传图片后直接点选。' : '点选结果后立即回填。';
 
             modalBody.innerHTML = `
                 <div class="quote-search-modal-query">
@@ -6650,27 +6758,46 @@
                         <span class="quote-search-modal-query-label">原始报价项</span>
                         <strong>${escapeHtml(queryItem.name || '未命名报价项')}</strong>
                         <div class="quote-search-modal-query-meta">
-                            <span>Excel SKU ${escapeHtml(queryReferenceCode || '未提供')}</span>
-                            <span>规格 ${escapeHtml(queryItem.spec || '未提供')}</span>
-                            <span>当前候选 ${escapeHtml(selectedCode || '未选择')}</span>
+                            <span>Excel SKU ${escapeHtml(queryReferenceCode || '未填')}</span>
+                            <span>规格 ${escapeHtml(queryItem.spec || '未填')}</span>
+                            <span>当前已选 ${escapeHtml(selectedCode || '未选')}</span>
                         </div>
-                        <div class="quote-search-modal-query-copy">${escapeHtml(queryItem.remark || queryItem.spec || '无补充备注')}</div>
+                        <div class="quote-search-modal-query-copy">${escapeHtml(queryItem.remark || queryItem.spec || '暂无补充说明')}</div>
                     </div>
                     <div class="quote-search-modal-query-item quote-search-modal-query-item--search">
                         <span class="quote-search-modal-query-label">搜索词</span>
                         <div class="input-group input-group-sm">
                             <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="text" class="form-control quote-catalog-keyword" data-item-index="${itemIndex}" value="${escapeHtmlAttr(keyword)}" placeholder="输入名称、型号、编码或规格搜索">
+                            <input type="text" class="form-control quote-catalog-keyword" data-item-index="${itemIndex}" value="${escapeHtmlAttr(keyword)}" placeholder="输入名称 / 型号 / 品牌 / 规格">
                             <button class="btn ${searchButtonClass} quote-catalog-search-btn" data-item-index="${itemIndex}" type="button">
                                 ${searchButtonLabel}
                             </button>
                         </div>
-                        <div class="quote-search-modal-search-hint">名称 / 型号 / 编码 / 规格</div>
+                        <div class="quote-search-modal-search-hint">名称 / 型号 / 品牌 / 规格</div>
+                    </div>
+                    <div class="quote-search-modal-query-item quote-search-modal-query-item--image">
+                        <span class="quote-search-modal-query-label">以图识图</span>
+                        <div class="quote-image-search-box">
+                            <div class="quote-image-search-media">
+                                ${imagePreview}
+                            </div>
+                            <div class="quote-image-search-copy">
+                                <strong>${escapeHtml(state.imageQueryName || '上传图片后直接找 SKU')}</strong>
+                                <div class="quote-search-modal-search-hint">${imageProviderMeta ? escapeHtml(imageProviderMeta) : '拍照 / 截图 / 主图'}</div>
+                            </div>
+                            <div class="quote-image-search-actions">
+                                <input type="file" class="d-none quote-catalog-image-input" data-item-index="${itemIndex}" accept="image/*">
+                                <button class="btn btn-sm ${imageButtonClass} quote-catalog-image-trigger-btn" data-item-index="${itemIndex}" type="button">
+                                    ${imageButtonLabel}
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 </div>
-                ${error ? `<div class="small text-danger mb-3">${escapeHtml(error)}</div>` : ''}
+                ${renderQuoteCatalogSearchTabs(itemIndex, activeTab, state)}
+                ${activeError ? `<div class="small text-danger mb-3">${escapeHtml(activeError)}</div>` : ''}
                 <div class="quote-search-results" id="quote-search-results-${itemIndex}">
-                    ${renderQuoteCatalogSearchResults(itemIndex, results, total, searched, loading)}
+                    ${activeResultsHtml}
                 </div>
             `;
 
@@ -6682,13 +6809,25 @@
             renderQuoteCatalogSearchModal(itemIndex);
         }
 
-        function openQuoteCatalogSearchModal(itemIndex) {
+        function openQuoteCatalogSearchModal(itemIndex, options = {}) {
+            const nextTab = options.tab === QUOTE_SEARCH_TAB_IMAGE ? QUOTE_SEARCH_TAB_IMAGE : QUOTE_SEARCH_TAB_TEXT;
+            quoteCatalogSearchState[itemIndex] = {
+                ...(quoteCatalogSearchState[itemIndex] || {}),
+                activeTab: nextTab
+            };
             activeQuoteCatalogModalItemIndex = itemIndex;
             renderQuoteCatalogSearchModal(itemIndex);
             const modalRef = ensureQuoteCatalogSearchModal();
             if (!modalRef) return;
             modalRef.modal.show();
             requestAnimationFrame(() => {
+                if (nextTab === QUOTE_SEARCH_TAB_IMAGE) {
+                    const imageTrigger = modalRef.modalEl.querySelector(`.quote-catalog-image-trigger-btn[data-item-index="${itemIndex}"]`);
+                    if (imageTrigger) {
+                        imageTrigger.focus();
+                    }
+                    return;
+                }
                 const input = modalRef.modalEl.querySelector(`.quote-catalog-keyword[data-item-index="${itemIndex}"]`);
                 if (!input) return;
                 input.focus();
@@ -6721,33 +6860,38 @@
                 cost_price_missing: !!item.cost_price_missing,
                 cost_price_ambiguous: !!item.cost_price_ambiguous,
                 product_id: item.product_id || '',
+                asset_id: item.asset_id || '',
                 image_url: item.image_url || '',
                 source_image_url: item.source_image_url || '',
                 images: item.images || []
             };
+            const searchType = item?.search_type === 'image' ? 'catalog_image_search' : 'catalog_search';
+            const itemScore = item?.search_type === 'image'
+                ? Math.round(Number(item.image_similarity || 0) * 100)
+                : Number(item.catalog_score || 0);
 
             return {
                 index: typeof item.index === 'number' ? item.index : -1,
-                score: Math.min(0.99, Math.max(0.2, Number(item.catalog_score || 0) / 100)),
+                score: Math.min(0.99, Math.max(0.2, Number(itemScore || 0) / 100)),
                 product,
                 has_image: !!item.has_image,
                 score_details: {
-                    manual_catalog_search: Number(item.catalog_score || 0),
+                    manual_catalog_search: Number(itemScore || 0),
                     traditional: 0,
                     semantic: 0
                 },
-                learning_reason: '人工检索',
+                learning_reason: item?.search_type === 'image' ? '图片检索人工确认' : '文字检索人工确认',
                 manual_selected: true,
-                source: 'catalog_search',
+                source: searchType,
                 quote_item_index: itemIndex
             };
         }
 
         function autoMatchHighScore() {
-            // 后端已经在 match_all 中处理了自动选择逻辑
-            // 这里只处理旧数据兼容：没有设置 action 但有高匹配度商品的情况
+            // 兼容旧的 match_all 结果，保留默认自动选中逻辑
+            // 只有用户还没做动作的项，才会沿用已有的高分候选
             matchResults.forEach((result) => {
-                // 如果已经有 action，说明后端已处理，跳过
+                // 已经有 action 的项不再自动覆盖
                 if (result.action) return;
 
                 if (result.matches && result.matches.length > 0) {
@@ -6776,13 +6920,14 @@
             const nextKeyword = String(keyword !== null ? keyword : (input?.value || '')).trim();
 
             quoteCatalogSearchState[itemIndex] = {
-                ...(quoteCatalogSearchState[itemIndex] || {}),
+                ...getQuoteCatalogSearchState(itemIndex),
                 keyword: nextKeyword,
                 loading: false,
                 searched: false,
                 results: [],
                 total: 0,
-                error: ''
+                error: '',
+                activeTab: QUOTE_SEARCH_TAB_TEXT
             };
 
             if (!nextKeyword) {
@@ -6805,27 +6950,101 @@
             .then(response => response.json())
             .then(data => {
                 if (!data.success) {
-                    throw new Error(data.message || '搜索失败');
+                    throw new Error(data.message || '商城搜索失败');
                 }
 
                 quoteCatalogSearchState[itemIndex] = {
+                    ...getQuoteCatalogSearchState(itemIndex),
                     keyword: nextKeyword,
                     loading: false,
                     searched: true,
                     results: Array.isArray(data.items) ? data.items : [],
                     total: Number(data.total || 0),
-                    error: ''
+                    error: '',
+                    activeTab: QUOTE_SEARCH_TAB_TEXT
                 };
                 updateQuoteCatalogSearchPanel(itemIndex);
             })
             .catch(error => {
                 quoteCatalogSearchState[itemIndex] = {
+                    ...getQuoteCatalogSearchState(itemIndex),
                     keyword: nextKeyword,
                     loading: false,
                     searched: true,
                     results: [],
                     total: 0,
-                    error: error.message || '搜索失败'
+                    error: error.message || '商城搜索失败',
+                    activeTab: QUOTE_SEARCH_TAB_TEXT
+                };
+                updateQuoteCatalogSearchPanel(itemIndex);
+            });
+        }
+
+        function searchCatalogByImageForQuoteItem(itemIndex, file) {
+            if (!file) return;
+
+            const currentState = getQuoteCatalogSearchState(itemIndex);
+            if (currentState.imagePreviewUrl && currentState.imagePreviewUrl.startsWith('blob:')) {
+                URL.revokeObjectURL(currentState.imagePreviewUrl);
+            }
+
+            const previewUrl = URL.createObjectURL(file);
+            quoteCatalogSearchState[itemIndex] = {
+                ...currentState,
+                imageLoading: true,
+                imageSearched: true,
+                imageResults: [],
+                imageTotal: 0,
+                imageError: '',
+                imagePreviewUrl: previewUrl,
+                imageQueryName: file.name || '未命名图片',
+                imageMimeType: file.type || '',
+                activeTab: QUOTE_SEARCH_TAB_IMAGE
+            };
+            updateQuoteCatalogSearchPanel(itemIndex);
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('top_k', '12');
+
+            fetch('/api/catalog/search_by_image_for_quote', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (!data.success) {
+                    throw new Error(data.message || '图片识别失败');
+                }
+
+                quoteCatalogSearchState[itemIndex] = {
+                    ...getQuoteCatalogSearchState(itemIndex),
+                    imageLoading: false,
+                    imageSearched: true,
+                    imageResults: Array.isArray(data.items) ? data.items : [],
+                    imageTotal: Number(data.total || 0),
+                    imageError: '',
+                    imagePreviewUrl: previewUrl,
+                    imageQueryName: file.name || '未命名图片',
+                    imageMimeType: file.type || '',
+                    provider: data.provider || '',
+                    modelName: data.model_name || '',
+                    activeTab: QUOTE_SEARCH_TAB_IMAGE
+                };
+                updateQuoteCatalogSearchPanel(itemIndex);
+            })
+            .catch(error => {
+                quoteCatalogSearchState[itemIndex] = {
+                    ...getQuoteCatalogSearchState(itemIndex),
+                    imageLoading: false,
+                    imageSearched: true,
+                    imageResults: [],
+                    imageTotal: 0,
+                    imageError: error.message || '图片识别失败',
+                    imagePreviewUrl: previewUrl,
+                    imageQueryName: file.name || '未命名图片',
+                    imageMimeType: file.type || '',
+                    activeTab: QUOTE_SEARCH_TAB_IMAGE
                 };
                 updateQuoteCatalogSearchPanel(itemIndex);
             });
@@ -7115,6 +7334,24 @@
                 });
             });
 
+            document.querySelectorAll('.quote-catalog-open-btn').forEach(btn => {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.itemIndex);
+                    const tab = this.dataset.searchTab || QUOTE_SEARCH_TAB_TEXT;
+                    openQuoteCatalogSearchModal(itemIndex, { tab });
+                };
+            });
+
+            document.querySelectorAll('.quote-search-tab-btn').forEach(btn => {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.itemIndex);
+                    const tab = this.dataset.searchTab || QUOTE_SEARCH_TAB_TEXT;
+                    setQuoteCatalogSearchTab(itemIndex, tab);
+                };
+            });
+
             document.querySelectorAll('.quote-catalog-search-btn').forEach(btn => {
                 btn.onclick = function(e) {
                     e.stopPropagation();
@@ -7130,6 +7367,28 @@
                     e.stopPropagation();
                     const itemIndex = parseInt(this.dataset.itemIndex);
                     searchCatalogForQuoteItem(itemIndex, this.value);
+                };
+            });
+
+            document.querySelectorAll('.quote-catalog-image-trigger-btn').forEach(btn => {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.itemIndex);
+                    const input = document.querySelector(`#quoteCatalogSearchModal .quote-catalog-image-input[data-item-index="${itemIndex}"]`)
+                        || this.closest('.quote-image-search-actions')?.querySelector('.quote-catalog-image-input');
+                    input?.click();
+                };
+            });
+
+            document.querySelectorAll('.quote-catalog-image-input').forEach(input => {
+                input.onchange = function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.itemIndex);
+                    const file = this.files && this.files[0] ? this.files[0] : null;
+                    if (file) {
+                        searchCatalogByImageForQuoteItem(itemIndex, file);
+                    }
+                    this.value = '';
                 };
             });
 

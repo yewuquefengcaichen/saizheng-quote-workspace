@@ -449,6 +449,10 @@ output/
 - 已生成 `3300` 条图片向量
 - 已新增图片检索 API：`POST /api/v1/image-search/query`
 - 已新增归档图片访问 API：`GET /api/v1/image-search/assets/{asset_id}/file`
+- 当前稳定版 `/quotes` 报价台也已经桥接这套能力，可直接在“以图识图”里上传图片选 SKU
+- Flask 侧桥接接口：
+  - `POST /api/catalog/search_by_image_for_quote`
+  - `GET /api/catalog/image_asset/<asset_id>/file`
 
 当前向量方案使用：
 

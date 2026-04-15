@@ -6,14 +6,18 @@
 
 from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, Response, stream_with_context
 from werkzeug.utils import secure_filename
+import asyncio
 import os
 import json
 import math
 import html
 import hashlib
 import re
+import sys
+import threading
 import pandas as pd
 from datetime import datetime
+from pathlib import Path
 
 # 导入自定义模块
 from utils.excel_handler import ExcelHandler
@@ -22,6 +26,29 @@ from utils.smart_parser import SmartQuoteParser
 from utils.database import QuoteHistoryDB
 from utils.image_handler import ProductImageHandler, get_image_url_from_product
 from utils.normalizer import normalize_quote_item
+
+BACKEND_ROOT = Path(__file__).resolve().parent / 'backend'
+if str(BACKEND_ROOT) not in sys.path:
+    sys.path.insert(0, str(BACKEND_ROOT))
+
+try:
+    from sqlalchemy import select as sa_select
+    from app.db.session import AsyncSessionLocal as V2AsyncSessionLocal
+    from app.models import ImageAsset as V2ImageAsset
+    from app.services.image_embedding import (
+        DEFAULT_EMBEDDING_MODEL_NAME as V2_IMAGE_EMBEDDING_MODEL_NAME,
+        DEFAULT_EMBEDDING_PROVIDER as V2_IMAGE_EMBEDDING_PROVIDER,
+        DEFAULT_EMBEDDING_VECTOR_DIM as V2_IMAGE_EMBEDDING_VECTOR_DIM,
+        compute_query_image_features as v2_compute_query_image_features,
+        resolve_archive_file_path as v2_resolve_archive_file_path,
+        search_similar_products as v2_search_similar_products,
+    )
+    V2_IMAGE_SEARCH_AVAILABLE = True
+    V2_IMAGE_SEARCH_IMPORT_ERROR = ''
+except Exception as e:
+    print(f"V2图搜图模块导入失败，将跳过图片检索能力: {e}")
+    V2_IMAGE_SEARCH_AVAILABLE = False
+    V2_IMAGE_SEARCH_IMPORT_ERROR = str(e)
 
 # AI服务模块（可选，如果依赖未安装则降级）
 try:
@@ -51,6 +78,9 @@ parse_result_cache = None  # 缓存解析结果，等待用户确认
 quote_db = None  # 报价历史数据库
 ai_service = None  # AI服务实例
 use_ai_matcher = True  # 是否使用AI匹配器
+_async_runtime_loop = None
+_async_runtime_thread = None
+_async_runtime_lock = threading.Lock()
 current_match_context = {
     'source_type': '',
     'template_name': '',
@@ -58,6 +88,37 @@ current_match_context = {
     'mapping_changed': False,
     'mapping_signature': ''
 }
+
+
+def _ensure_async_runtime_loop():
+    global _async_runtime_loop, _async_runtime_thread
+
+    with _async_runtime_lock:
+        if _async_runtime_loop and _async_runtime_loop.is_running():
+            return _async_runtime_loop
+
+        loop = asyncio.new_event_loop()
+
+        def _loop_worker():
+            asyncio.set_event_loop(loop)
+            loop.run_forever()
+
+        thread = threading.Thread(
+            target=_loop_worker,
+            name='quote-v2-async-runtime',
+            daemon=True
+        )
+        thread.start()
+
+        _async_runtime_loop = loop
+        _async_runtime_thread = thread
+        return _async_runtime_loop
+
+
+def _run_async_task(coro):
+    loop = _ensure_async_runtime_loop()
+    future = asyncio.run_coroutine_threadsafe(coro, loop)
+    return future.result()
 
 
 def allowed_file(filename):
@@ -620,6 +681,87 @@ def _build_catalog_detail_response(product_code):
     detail['has_image'] = bool(detail['images'] or detail.get('image_url') or detail.get('source_image_url'))
     detail['image_count'] = len(detail['images'])
     return detail
+
+
+def _normalize_image_search_product_item(candidate):
+    product_code = _normalize_text_value(candidate.product_code)
+    image_url = f"/api/catalog/image_asset/{candidate.asset_id}/file"
+    similarity = max(0.0, min(1.0, float(candidate.similarity or 0.0)))
+
+    return {
+        'index': int(candidate.product_id or 0),
+        'code': product_code,
+        'name': _normalize_text_value(candidate.product_name),
+        'model': _normalize_text_value(candidate.variant_name),
+        'category': _normalize_text_value(candidate.category_name),
+        'unit': '',
+        'brand': _normalize_text_value(candidate.brand_name),
+        'supplier': '',
+        'status': 'active',
+        'intro': '',
+        'intro_html': '',
+        'intro_text': '',
+        'market_price': float(candidate.reference_price) if candidate.reference_price is not None else None,
+        'cost_price': None,
+        'product_id': str(candidate.product_id or ''),
+        'image_url': image_url,
+        'source_image_url': _normalize_text_value(candidate.resolved_url) or image_url,
+        'images': [{
+            'title': _normalize_text_value(candidate.product_name) or '图片检索结果',
+            'thumb': image_url,
+            'source_url': _normalize_text_value(candidate.resolved_url) or image_url,
+            'url': image_url,
+            'proxy_url': image_url,
+            'product_id': str(candidate.product_id or '')
+        }],
+        'image_count': 1,
+        'has_image': True,
+        'catalog_score': round(similarity * 100),
+        'image_similarity': similarity,
+        'image_distance': float(candidate.distance or 0.0),
+        'asset_id': int(candidate.asset_id),
+        'search_type': 'image',
+        'archive_file_url': image_url,
+        'resolved_url': _normalize_text_value(candidate.resolved_url),
+        'source_url': _normalize_text_value(candidate.source_url),
+        'mime_type': _normalize_text_value(candidate.mime_type),
+        'width': candidate.width,
+        'height': candidate.height,
+        'search_text': ' '.join(filter(None, [
+            _normalize_text_value(candidate.product_code),
+            _normalize_text_value(candidate.product_name),
+            _normalize_text_value(candidate.variant_name),
+            _normalize_text_value(candidate.brand_name),
+            _normalize_text_value(candidate.category_name),
+        ])).lower()
+    }
+
+
+async def _search_catalog_by_image_async(file_bytes, top_k=12):
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
+
+    async with V2AsyncSessionLocal() as session:
+        query_features = v2_compute_query_image_features(file_bytes)
+        candidates = await v2_search_similar_products(
+            session,
+            query_vector=query_features.vector,
+            top_k=top_k,
+            provider=V2_IMAGE_EMBEDDING_PROVIDER,
+            model_name=V2_IMAGE_EMBEDDING_MODEL_NAME,
+        )
+        items = [_normalize_image_search_product_item(candidate) for candidate in candidates]
+        return {
+            'provider': V2_IMAGE_EMBEDDING_PROVIDER,
+            'model_name': V2_IMAGE_EMBEDDING_MODEL_NAME,
+            'vector_dim': V2_IMAGE_EMBEDDING_VECTOR_DIM,
+            'query_phash': query_features.phash,
+            'query_dhash': query_features.dhash,
+            'query_width': query_features.width,
+            'query_height': query_features.height,
+            'items': items,
+            'total': len(items)
+        }
 
 
 def _prepare_ocr_parse_result(parsed_items, raw_text):
@@ -1381,6 +1523,74 @@ def catalog_search_for_quote():
 
 
 # =============== API路由 ===============
+
+@app.route('/api/catalog/search_by_image_for_quote', methods=['POST'])
+def catalog_search_by_image_for_quote():
+    """按图片为当前报价项召回相似商品"""
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'图搜图能力不可用：{V2_IMAGE_SEARCH_IMPORT_ERROR or "依赖未安装"}'
+        })
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '请先选择图片'})
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': '请先选择图片'})
+
+    top_k = max(1, min(int(request.form.get('top_k', 12) or 12), 20))
+    file_bytes = file.read()
+    if not file_bytes:
+        return jsonify({'success': False, 'message': '图片内容为空'})
+
+    try:
+        result = _run_async_task(_search_catalog_by_image_async(file_bytes, top_k=top_k))
+        return jsonify({
+            'success': True,
+            **result
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'图片检索失败：{str(e)}'
+        })
+
+
+@app.route('/api/catalog/image_asset/<int:asset_id>/file', methods=['GET'])
+def get_catalog_image_asset_file(asset_id):
+    """返回 V2 归档后的商品图片文件"""
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'图搜图能力不可用：{V2_IMAGE_SEARCH_IMPORT_ERROR or "依赖未安装"}'
+        }), 503
+
+    try:
+        async def _load_asset():
+            async with V2AsyncSessionLocal() as session:
+                return await session.scalar(sa_select(V2ImageAsset).where(V2ImageAsset.id == asset_id))
+
+        asset = _run_async_task(_load_asset())
+        if asset is None:
+            return jsonify({'success': False, 'message': '图片资产不存在'}), 404
+
+        file_path = v2_resolve_archive_file_path(asset.storage_key)
+        if file_path is None:
+            return jsonify({'success': False, 'message': '归档图片不存在'}), 404
+
+        return send_file(
+            file_path,
+            mimetype=asset.mime_type or 'application/octet-stream',
+            download_name=file_path.name
+        )
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'读取归档图片失败：{str(e)}'
+        }), 500
+
 
 @app.route('/api/upload_products', methods=['POST'])
 def upload_products():

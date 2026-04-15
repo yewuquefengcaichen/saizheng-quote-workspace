@@ -145,7 +145,11 @@
 
   function isManualSearchSelection(result) {
     const selectedProduct = result?.selected_product || null;
-    return !!(selectedProduct?.manual_selected || selectedProduct?.source === 'catalog_search');
+    return !!(
+      selectedProduct?.manual_selected
+      || selectedProduct?.source === 'catalog_search'
+      || selectedProduct?.source === 'catalog_image_search'
+    );
   }
 
   function getSelectedProductCode(result) {
@@ -1477,10 +1481,24 @@
       btn.onclick = function(e) {
         e.stopPropagation();
         const itemIndex = parseInt(this.dataset.itemIndex, 10);
+        const tab = this.dataset.searchTab || 'text';
         activeWorkbenchIndex = itemIndex;
         workbenchUserPinnedFocus = true;
         if (typeof openQuoteCatalogSearchModal === 'function') {
-          openQuoteCatalogSearchModal(itemIndex);
+          openQuoteCatalogSearchModal(itemIndex, { tab });
+        }
+      };
+    });
+
+    document.querySelectorAll('.quote-search-tab-btn').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const itemIndex = parseInt(this.dataset.itemIndex, 10);
+        const tab = this.dataset.searchTab || 'text';
+        activeWorkbenchIndex = itemIndex;
+        workbenchUserPinnedFocus = true;
+        if (typeof setQuoteCatalogSearchTab === 'function') {
+          setQuoteCatalogSearchTab(itemIndex, tab);
         }
       };
     });
@@ -1504,6 +1522,32 @@
         activeWorkbenchIndex = itemIndex;
         workbenchUserPinnedFocus = true;
         searchCatalogForQuoteItem(itemIndex, this.value);
+      };
+    });
+
+    document.querySelectorAll('.quote-catalog-image-trigger-btn').forEach(btn => {
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        const itemIndex = parseInt(this.dataset.itemIndex, 10);
+        activeWorkbenchIndex = itemIndex;
+        workbenchUserPinnedFocus = true;
+        const input = document.querySelector(`#quoteCatalogSearchModal .quote-catalog-image-input[data-item-index="${itemIndex}"]`)
+          || this.closest('.quote-image-search-actions')?.querySelector('.quote-catalog-image-input');
+        input?.click();
+      };
+    });
+
+    document.querySelectorAll('.quote-catalog-image-input').forEach(input => {
+      input.onchange = function(e) {
+        e.stopPropagation();
+        const itemIndex = parseInt(this.dataset.itemIndex, 10);
+        const file = this.files && this.files[0] ? this.files[0] : null;
+        activeWorkbenchIndex = itemIndex;
+        workbenchUserPinnedFocus = true;
+        if (file && typeof searchCatalogByImageForQuoteItem === 'function') {
+          searchCatalogByImageForQuoteItem(itemIndex, file);
+        }
+        this.value = '';
       };
     });
 
