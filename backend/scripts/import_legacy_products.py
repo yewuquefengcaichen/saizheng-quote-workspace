@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import argparse
 import asyncio
@@ -17,11 +17,12 @@ if str(BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(BACKEND_ROOT))
 
 from app.db.session import AsyncSessionLocal  # noqa: E402
-from app.models import Brand, Category, Product, ProductVariant, Supplier  # noqa: E402
+from app.models import Brand, Category, Product, ProductImage, ProductVariant, Supplier  # noqa: E402
 
 
 LEGACY_PRODUCTS_PATH = BACKEND_ROOT.parent / 'data' / 'products.json'
-CATEGORY_SEPARATOR = 'ξ'
+CATEGORY_SEPARATOR = '\u03be'
+IMG_SRC_PATTERN = re.compile(r'''<img[^>]+src=["\']([^"\']+)["\']''', re.IGNORECASE)
 
 
 def normalize_text(value: str | None) -> str | None:
@@ -38,6 +39,21 @@ def clean_intro(value: str | None) -> str | None:
     text = re.sub(r'<[^>]+>', ' ', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text or None
+
+
+def extract_intro_images(value: str | None) -> list[str]:
+    if not value:
+        return []
+    intro = html.unescape(value)
+    matches = [normalize_text(match) for match in IMG_SRC_PATTERN.findall(intro)]
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for match in matches:
+        if not match or match in seen:
+            continue
+        seen.add(match)
+        deduped.append(match)
+    return deduped
 
 
 def to_decimal(value: object) -> Decimal | None:
@@ -80,6 +96,7 @@ class ImportStats:
     updated_products: int = 0
     created_variants: int = 0
     updated_variants: int = 0
+    created_images: int = 0
     warnings: list[str] = field(default_factory=list)
 
 
@@ -126,6 +143,8 @@ class LegacyCatalogImporter:
         supplier = await self.get_or_create_supplier(session, normalize_text(str(item.get('supplier') or '')))
         category = await self.get_or_create_category_path(session, normalize_text(str(item.get('category') or '')))
         status, is_active = map_status(str(item.get('status') or ''))
+        intro_text = clean_intro(str(item.get('intro') or ''))
+        image_urls = extract_intro_images(str(item.get('intro') or ''))
 
         product = await session.scalar(
             select(Product).where(
@@ -154,10 +173,12 @@ class LegacyCatalogImporter:
         product.is_active = is_active
         product.unit = normalize_text(str(item.get('unit') or ''))
         product.reference_price = to_decimal(item.get('market_price'))
+        product.primary_image_url = image_urls[0] if image_urls else None
         product.search_text = build_search_text(item)
         product.source_payload = {
             'legacy_row': item,
-            'legacy_intro_text': clean_intro(str(item.get('intro') or '')),
+            'legacy_intro_text': intro_text,
+            'legacy_image_count': len(image_urls),
             'legacy_note': '当前旧商品库缺少明确 SPU/SKU 拆分，先按一行一个 product + 一个 variant 迁移。',
         }
 
@@ -190,8 +211,44 @@ class LegacyCatalogImporter:
         variant.source_payload = {
             'legacy_row_code': code,
             'import_mode': 'one-row-one-variant',
+            'legacy_image_count': len(image_urls),
             'is_new_product': is_new_product,
         }
+
+        await self.sync_product_images(session, product, variant, image_urls)
+
+    async def sync_product_images(self, session, product: Product, variant: ProductVariant, image_urls: list[str]) -> None:
+        if not image_urls:
+            return
+
+        existing = await session.scalars(
+            select(ProductImage).where(
+                ProductImage.product_id == product.id,
+                ProductImage.variant_id == variant.id,
+            )
+        )
+        existing_by_url = {image.source_url: image for image in existing}
+
+        for index, image_url in enumerate(image_urls):
+            image = existing_by_url.get(image_url)
+            if image is None:
+                image = ProductImage(
+                    product_id=product.id,
+                    variant_id=variant.id,
+                    source_url=image_url,
+                )
+                session.add(image)
+                self.stats.created_images += 1
+
+            image.image_role = 'gallery'
+            image.sort_order = index
+            image.is_primary = index == 0
+            image.sync_status = 'pending'
+            image.source_payload = {
+                'legacy_source': 'products.json:intro',
+                'legacy_product_code': product.product_code,
+                'legacy_variant_code': variant.sku_code,
+            }
 
     async def get_or_create_brand(self, session, name: str | None) -> Brand | None:
         if not name:
