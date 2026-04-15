@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     image_archive_backend: str = 'local_fs'
     image_archive_bucket: str = 'saizheng-v2-image-archive'
     image_request_timeout_seconds: int = 20
+    image_embedding_provider: str = 'local_hash_embedding'
+    image_embedding_model_name: str = 'phash_dhash_128d_v1'
+    image_embedding_vector_dim: int = 128
 
     model_config = SettingsConfigDict(
         env_prefix='SAIZHENG_',

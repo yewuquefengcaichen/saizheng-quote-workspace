@@ -81,3 +81,27 @@
 ### 意义
 
 - 为后续 MinIO / pgvector / 图搜图 / 拍照识别打下图片资产层底座
+
+---
+
+## 2026-04-15（pgvector 与图搜图底座）
+
+### 新增
+
+- PostgreSQL 镜像升级为 `pgvector/pgvector:pg17`
+- 新增 `image_embeddings.embedding_vector vector(128)`
+- 新增 HNSW 向量索引
+- 新增 `backend/scripts/generate_image_embeddings.py`
+- 新增 `POST /api/v1/image-search/query`
+- 新增 `GET /api/v1/image-search/assets/{asset_id}/file`
+
+### 验证
+
+- 已启用 `vector` 扩展
+- 已生成 `3300` 条 ready 向量
+- 已完成一次真实图片检索验证
+
+### 意义
+
+- V2 已具备可运行的以图搜图链路
+- 后续只需要把 embedding provider 从 hash 版升级到 CLIP / 视觉模型即可

@@ -11,10 +11,12 @@ from urllib.parse import urlparse
 import imagehash
 import requests
 from PIL import Image, UnidentifiedImageError
+from requests import RequestsDependencyWarning
 
 from app.core.config import settings
 
 warnings.simplefilter('ignore', Image.DecompressionBombWarning)
+warnings.simplefilter('ignore', RequestsDependencyWarning)
 
 
 IMAGE_REQUEST_HEADERS = {

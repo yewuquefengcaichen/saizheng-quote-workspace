@@ -1,6 +1,6 @@
 services:
   postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     container_name: saizheng-postgres-v2
     environment:
       POSTGRES_DB: saizheng_quote_v2

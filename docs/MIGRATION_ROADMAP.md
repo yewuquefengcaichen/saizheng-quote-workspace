@@ -168,3 +168,15 @@ Phase 4 已经从“只规划”推进到“真实落地验证”：
 3. 接 `pgvector`
 4. 接上传图片检索链路
 - 更新：当前已完成全量 25755 条 `product_images` 归档，累计沉淀 3300 个唯一图片资产。
+
+## 2026-04-15 增量进展：pgvector 与图搜图
+
+图片链路已经从“归档 + hash”推进到“向量 + 检索 API”阶段：
+
+- PostgreSQL 已切换到支持 pgvector 的镜像
+- `vector` 扩展已启用
+- 已生成 3300 条 ready 图片向量
+- 已落第一版以图搜图 API
+
+当前采用的是 `local_hash_embedding / phash_dhash_128d_v1`，属于第一版可运行 embedding；
+后续可以在同一张 `image_embeddings` 表里继续并存更强的 CLIP / 视觉语义 provider。

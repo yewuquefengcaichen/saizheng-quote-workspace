@@ -364,3 +364,20 @@
 - [x] 已完成全量 25755 条图片归档
 - [x] 已沉淀 3300 个唯一 `image_assets`
 - [x] `product_images` 全量补齐 `asset_id` / `sha256` / `phash` / `dhash`
+
+## 2026-04-15 pgvector / 图搜图阶段更新
+
+本轮新增并验证完成：
+
+- [x] PostgreSQL 镜像升级为 `pgvector/pgvector:pg17`
+- [x] 数据库启用 `vector` 扩展
+- [x] `image_embeddings` 增加 `embedding_vector vector(128)`
+- [x] 建立 HNSW 向量索引
+- [x] 新增 `generate_image_embeddings.py`
+- [x] 生成 `3300` 条 ready 图片向量
+- [x] 新增 `POST /api/v1/image-search/query`
+- [x] 新增 `GET /api/v1/image-search/assets/{asset_id}/file`
+- [x] 完成一次真实图片检索验证
+- [ ] 升级第二代视觉语义 embedding（CLIP / 更强 provider）
+- [ ] 报价页接入“上传图片找商品”入口
+- [ ] 图向量召回后叠加文本/品牌/规格 rerank

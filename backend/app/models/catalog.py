@@ -7,6 +7,7 @@ from typing import Any
 from sqlalchemy import BigInteger, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint, false
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+from pgvector.sqlalchemy import Vector
 
 from app.models.base import ActiveFlagMixin, Base, IdentityPrimaryKeyMixin, TimestampMixin
 
@@ -183,6 +184,7 @@ class ImageEmbedding(IdentityPrimaryKeyMixin, TimestampMixin, Base):
         server_default='pending',
         index=True,
     )
+    embedding_vector: Mapped[list[float] | None] = mapped_column(Vector(128), nullable=True)
     embedding_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     source_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 

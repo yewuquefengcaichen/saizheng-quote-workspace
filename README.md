@@ -436,3 +436,27 @@ output/
 
 如果你要继续推进“拍照识别 / 以图识图 / 新商城同步 / React 新前端”，请优先阅读上面这几份文档。
 - 当前已完成全量 `25755` 条商品图片归档，沉淀出 `3300` 个去重图片资产，作为后续图搜图底座。
+
+---
+
+## V2 图搜图进度（2026-04-15）
+
+当前 V2 不只是有图片归档，还已经具备第一版可运行的图搜图能力：
+
+- PostgreSQL 已切到 `pgvector/pgvector:pg17`
+- 数据库已启用 `vector` 扩展
+- `image_embeddings` 已补 `vector(128)` 向量列
+- 已生成 `3300` 条图片向量
+- 已新增图片检索 API：`POST /api/v1/image-search/query`
+- 已新增归档图片访问 API：`GET /api/v1/image-search/assets/{asset_id}/file`
+
+当前向量方案使用：
+
+- `local_hash_embedding`
+- `phash_dhash_128d_v1`
+
+这是一版**先跑通架构和链路**的可运行方案；后续可以无缝升级为更强的 CLIP / 视觉语义 embedding，而不需要推翻现有表结构。
+
+详见：
+
+- `docs/IMAGE_VECTOR_SEARCH_PROGRESS_2026-04-15.md`
