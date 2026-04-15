@@ -342,3 +342,25 @@
 7. ????????
 
 ???????????????????
+
+---
+
+## 2026-04-15 图片资产阶段更新
+
+本轮已新增并验证完成：
+
+- [x] 追出旧商城图片真实文件域名与访问规则
+- [x] 新增 `image_assets`
+- [x] 新增 `image_embeddings` schema 占位
+- [x] `product_images` 增加资产关联与归档状态字段
+- [x] 新增图片归档脚本 `backend/scripts/archive_product_images.py`
+- [x] 新增图片处理服务 `backend/app/services/image_pipeline.py`
+- [x] 真实归档首批 1100 条图片记录
+- [x] 生成 `sha256` / `phash` / `dhash`
+- [ ] 跑完全量 25755 条图片归档
+- [ ] 对 `image_assets` 生成 embedding
+- [ ] 切 `pgvector`
+- [ ] 做“以图识图 / 拍照识别”查询 API
+- [x] 已完成全量 25755 条图片归档
+- [x] 已沉淀 3300 个唯一 `image_assets`
+- [x] `product_images` 全量补齐 `asset_id` / `sha256` / `phash` / `dhash`

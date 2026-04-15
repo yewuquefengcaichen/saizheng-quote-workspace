@@ -415,3 +415,24 @@ output/
 - **核心页面：`/quotes`**
 
 如果你后面要继续扩，我建议优先围绕 **报价确认速度、人工搜索效率、导出闭环** 继续做，不要再把大量说明文案塞回业务页。
+
+---
+
+## V2 升级进度（2026-04-15）
+
+当前仓库已经新增一套 **V2 架构升级底座**，重点不是替换现有稳定版，而是在 `next/v2-architecture-upgrade` 分支上逐步完成：
+
+- FastAPI + PostgreSQL + Redis/Celery 后端底座
+- 旧商品、规则、历史报价数据迁移进 PostgreSQL
+- 图片归档与去重资产层（`image_assets`）
+- 图搜图前置表（`image_embeddings`）
+
+本轮最新进度文档：
+
+- `docs/ARCHITECTURE_V2_PLAN.md`
+- `docs/MIGRATION_ROADMAP.md`
+- `docs/UPGRADE_TASK_CHECKLIST.md`
+- `docs/IMAGE_ARCHIVE_PROGRESS_2026-04-15.md`
+
+如果你要继续推进“拍照识别 / 以图识图 / 新商城同步 / React 新前端”，请优先阅读上面这几份文档。
+- 当前已完成全量 `25755` 条商品图片归档，沉淀出 `3300` 个去重图片资产，作为后续图搜图底座。

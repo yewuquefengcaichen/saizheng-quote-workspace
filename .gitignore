@@ -27,6 +27,7 @@ server_stderr.txt
 # Generated artifacts
 output/
 test-results/
+backend/storage/
 
 # Local databases / cache
 data/backups/

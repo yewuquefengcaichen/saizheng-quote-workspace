@@ -1,5 +1,15 @@
 from app.models.base import ActiveFlagMixin, Base, IdentityPrimaryKeyMixin, PublicIdMixin, TimestampMixin
-from app.models.catalog import Brand, Category, Product, ProductAttribute, ProductImage, ProductVariant, Supplier
+from app.models.catalog import (
+    Brand,
+    Category,
+    ImageAsset,
+    ImageEmbedding,
+    Product,
+    ProductAttribute,
+    ProductImage,
+    ProductVariant,
+    Supplier,
+)
 from app.models.feedback import MatchFeedback
 from app.models.quote import QuoteBatch, QuoteItem, QuoteItemCandidate
 from app.models.rules import NormalizationRule, ParseTemplate, Synonym
@@ -18,6 +28,8 @@ __all__ = [
     'Product',
     'ProductVariant',
     'ProductImage',
+    'ImageAsset',
+    'ImageEmbedding',
     'ProductAttribute',
     'QuoteBatch',
     'QuoteItem',

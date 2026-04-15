@@ -148,3 +148,23 @@
 - ?????????
 - ?????
 - ?????????
+
+---
+
+## 2026-04-15 增量进展：图片资产层
+
+Phase 4 已经从“只规划”推进到“真实落地验证”：
+
+- 确认旧商城图片文件来自 `https://udeanfile.dinghuovip.com`
+- 图片相对路径已可稳定补全为真实可下载 URL
+- `image_assets` / `image_embeddings` 已落 PostgreSQL
+- 已真实归档首批 1100 条 `product_images`
+- 已去重沉淀出 87 个唯一图片资产
+
+后续路线不变：
+
+1. 全量补完归档
+2. 对 `image_assets` 生成 embedding
+3. 接 `pgvector`
+4. 接上传图片检索链路
+- 更新：当前已完成全量 25755 条 `product_images` 归档，累计沉淀 3300 个唯一图片资产。

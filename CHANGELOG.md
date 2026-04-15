@@ -59,3 +59,25 @@
 - `docs/ARCHITECTURE_V2_PLAN.md`
 - `docs/MIGRATION_ROADMAP.md`
 - `docs/UPGRADE_TASK_CHECKLIST.md`
+
+---
+
+## 2026-04-15（V2 图片资产底座）
+
+### 新增
+
+- 新增 `image_assets` / `image_embeddings` 表
+- `product_images` 增加 `asset_id` / `resolved_url` / `download_attempts` / `last_downloaded_at` / `sync_message`
+- 新增 `backend/app/services/image_pipeline.py`
+- 新增 `backend/scripts/archive_product_images.py`
+
+### 验证
+
+- 已确认旧商城图片真实文件域名为 `https://udeanfile.dinghuovip.com`
+- 已全量归档 `25755` 条 `product_images`
+- 已沉淀 `3300` 个去重后的 `image_assets`
+- 已生成 `sha256` / `phash` / `dhash`
+
+### 意义
+
+- 为后续 MinIO / pgvector / 图搜图 / 拍照识别打下图片资产层底座
