@@ -13,10 +13,13 @@ if str(BACKEND_ROOT) not in sys.path:
 from app.core.config import settings  # noqa: E402
 from app.db.session import AsyncSessionLocal  # noqa: E402
 from app.services.image_embedding import (  # noqa: E402
+    CLIP_PLACEHOLDER_MODEL_NAME,
+    CLIP_PLACEHOLDER_PROVIDER,
     DEFAULT_EMBEDDING_MODEL_NAME,
     DEFAULT_EMBEDDING_PROVIDER,
     get_image_embedding_status,
     select_assets_for_embedding,
+    upsert_clip_embedding,
     upsert_hash_embedding,
 )
 
@@ -50,7 +53,11 @@ class ImageEmbeddingGenerator:
 
     async def run(self) -> None:
         async with AsyncSessionLocal() as session:
-            if self.provider != DEFAULT_EMBEDDING_PROVIDER:
+            if self.provider != DEFAULT_EMBEDDING_PROVIDER and self.provider != CLIP_PLACEHOLDER_PROVIDER:
+                print(f'[image-embedding] 暂不支持生成 provider={self.provider} model={self.model_name}')
+                return
+
+            if self.provider == CLIP_PLACEHOLDER_PROVIDER:
                 statuses = await get_image_embedding_status(session)
                 matched = [item for item in statuses if item.provider == self.provider and item.model_name == self.model_name]
                 if matched:
@@ -60,8 +67,12 @@ class ImageEmbeddingGenerator:
                         f'available={item.available} schema_supported={item.schema_supported} '
                         f'missing_dependency={item.missing_dependency or ""}'
                     )
-                print('[image-embedding] 当前脚本第一版只生成 local_hash_embedding；CLIP/provider 已有512维存储预留，安装依赖并接入生成器后再启用。')
-                return
+                    if not item.schema_supported:
+                        print('[image-embedding] 数据库结构暂不支持该 provider，请先执行 Alembic 迁移。')
+                        return
+                    if not item.available:
+                        print('[image-embedding] 依赖暂不可用，请先安装 torch 与 open_clip_torch。')
+                        return
 
             assets = await select_assets_for_embedding(
                 session,
@@ -79,12 +90,20 @@ class ImageEmbeddingGenerator:
             for index, asset in enumerate(assets, start=1):
                 self.stats.processed_assets += 1
                 try:
-                    await upsert_hash_embedding(
-                        session,
-                        asset=asset,
-                        provider=self.provider,
-                        model_name=self.model_name,
-                    )
+                    if self.provider == CLIP_PLACEHOLDER_PROVIDER:
+                        await upsert_clip_embedding(
+                            session,
+                            asset=asset,
+                            provider=self.provider,
+                            model_name=self.model_name,
+                        )
+                    else:
+                        await upsert_hash_embedding(
+                            session,
+                            asset=asset,
+                            provider=self.provider,
+                            model_name=self.model_name,
+                        )
                     self.stats.ready_embeddings += 1
                 except Exception as exc:
                     self.stats.failed_assets += 1
@@ -109,13 +128,13 @@ class ImageEmbeddingGenerator:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description='根据 image_assets 里的 phash/dhash 生成 128 维图片向量。')
+    parser = argparse.ArgumentParser(description='根据 image_assets 生成图片向量；默认生成 128 维 hash，也可生成 512 维 CLIP。')
     parser.add_argument('--limit', type=int, default=None, help='最多处理多少个 image_assets')
     parser.add_argument('--all', action='store_true', help='忽略 only-missing，全部重建')
     parser.add_argument('--dry-run', action='store_true', help='只验证，不提交事务')
     parser.add_argument('--commit-every', type=int, default=500, help='每处理多少条提交一次')
-    parser.add_argument('--provider', default=settings.image_embedding_provider, help='embedding provider，当前可生成 local_hash_embedding')
-    parser.add_argument('--model-name', default=settings.image_embedding_model_name, help='embedding model name')
+    parser.add_argument('--provider', default=settings.image_embedding_provider, help=f'embedding provider，可选 {DEFAULT_EMBEDDING_PROVIDER} / {CLIP_PLACEHOLDER_PROVIDER}')
+    parser.add_argument('--model-name', default=None, help='embedding model name；不填时根据 provider 自动选择')
     return parser.parse_args()
 
 
@@ -127,7 +146,7 @@ async def main() -> None:
         dry_run=args.dry_run,
         commit_every=max(1, args.commit_every),
         provider=args.provider or DEFAULT_EMBEDDING_PROVIDER,
-        model_name=args.model_name or DEFAULT_EMBEDDING_MODEL_NAME,
+        model_name=args.model_name or (CLIP_PLACEHOLDER_MODEL_NAME if (args.provider or DEFAULT_EMBEDDING_PROVIDER) == CLIP_PLACEHOLDER_PROVIDER else DEFAULT_EMBEDDING_MODEL_NAME),
     )
     await generator.run()
 

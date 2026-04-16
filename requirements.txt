@@ -37,3 +37,13 @@ weasyprint>=60.0       # HTML转PDF（更美观）
 
 # 商城抓取同步（可选，首次使用需执行 playwright install chromium）
 playwright>=1.50.0
+
+# 图片归档 / 图搜图
+Pillow>=11.0.0
+ImageHash>=4.3.0
+
+# 图搜图第二阶段：CLIP 512 维视觉 embedding（CPU 稳定版，首次生成会下载模型权重）
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+torchvision==0.20.1+cpu
+open_clip_torch>=3.3.0

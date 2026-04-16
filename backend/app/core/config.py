@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     mall_scrape_dom_table_selector: str | None = None
     mall_scrape_network_include_patterns: str | None = None
     mall_scrape_network_exclude_patterns: str | None = None
+    mall_scrape_fetch_detail_images: bool = False
+    mall_scrape_detail_fetch_limit: int = 0
+    mall_scrape_detail_image_limit_per_item: int = 20
     image_archive_root: str = str((BASE_DIR / 'storage' / 'image_archive').resolve())
     image_archive_backend: str = 'local_fs'
     image_archive_bucket: str = 'saizheng-v2-image-archive'

@@ -14,10 +14,12 @@ from app.services.image_embedding import (
     QueryImageFeatures,
     build_hash_embedding_vector,
     compute_query_image_features,
+    compute_query_image_features_for_provider,
     get_image_embedding_status,
     resolve_archive_file_path,
     search_similar_products,
     select_assets_for_embedding,
+    upsert_clip_embedding,
     upsert_hash_embedding,
 )
 
@@ -32,6 +34,7 @@ __all__ = [
     'build_storage_key',
     'build_hash_embedding_vector',
     'compute_query_image_features',
+    'compute_query_image_features_for_provider',
     'download_and_archive_image',
     'get_image_embedding_status',
     'get_archive_root',
@@ -39,5 +42,6 @@ __all__ = [
     'resolve_archive_file_path',
     'search_similar_products',
     'select_assets_for_embedding',
+    'upsert_clip_embedding',
     'upsert_hash_embedding',
 ]

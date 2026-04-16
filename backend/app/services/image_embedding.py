@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from functools import lru_cache
 import importlib.util
+import importlib
 from io import BytesIO
 from pathlib import Path
 import re
@@ -24,6 +26,9 @@ SUPPORTED_VECTOR_DIMS = {128, 512}
 CLIP_PLACEHOLDER_PROVIDER = 'clip_local'
 CLIP_PLACEHOLDER_MODEL_NAME = 'openclip_vit_b_32_512d'
 CLIP_PLACEHOLDER_VECTOR_DIM = 512
+CLIP_MODEL_ALIASES = {
+    CLIP_PLACEHOLDER_MODEL_NAME: ('ViT-B-32', 'openai'),
+}
 
 
 @dataclass(slots=True)
@@ -76,6 +81,15 @@ class ImageEmbeddingProviderStatus:
     note: str | None = None
 
 
+@dataclass(slots=True)
+class ClipRuntime:
+    model: object
+    preprocess: object
+    device: str
+    model_arch: str
+    pretrained: str
+
+
 def hex_hash_to_bit_vector(hash_hex: str) -> list[float]:
     normalized = str(hash_hex or '').strip().lower()
     if not normalized:
@@ -88,6 +102,13 @@ def build_hash_embedding_vector(phash: str, dhash: str) -> list[float]:
     if len(vector) != HASH_EMBEDDING_VECTOR_DIM:
         raise ValueError(f'unexpected vector dim: {len(vector)}')
     return vector
+
+
+def normalize_vector(values: list[float]) -> list[float]:
+    norm = sum(float(value) * float(value) for value in values) ** 0.5
+    if norm <= 0:
+        return values
+    return [float(value) / norm for value in values]
 
 
 def get_embedding_vector_column(vector_dim: int):
@@ -106,11 +127,84 @@ def is_embedding_schema_supported(vector_dim: int) -> bool:
         return False
 
 
-def _module_available(module_name: str) -> bool:
-    return importlib.util.find_spec(module_name) is not None
+def _module_importable(module_name: str) -> bool:
+    if importlib.util.find_spec(module_name) is None:
+        return False
+    try:
+        importlib.import_module(module_name)
+        return True
+    except Exception:
+        return False
+
+
+def resolve_clip_model(model_name: str) -> tuple[str, str]:
+    normalized = str(model_name or CLIP_PLACEHOLDER_MODEL_NAME)
+    if normalized in CLIP_MODEL_ALIASES:
+        return CLIP_MODEL_ALIASES[normalized]
+    if '::' in normalized:
+        model_arch, pretrained = normalized.split('::', 1)
+        return model_arch.strip(), pretrained.strip()
+    return 'ViT-B-32', 'openai'
+
+
+@lru_cache(maxsize=2)
+def load_clip_runtime(model_name: str = CLIP_PLACEHOLDER_MODEL_NAME) -> ClipRuntime:
+    try:
+        import torch
+        import open_clip
+    except Exception as exc:  # pragma: no cover - optional heavyweight deps
+        raise RuntimeError('CLIP 依赖未安装，请安装 torch 与 open_clip_torch') from exc
+
+    model_arch, pretrained = resolve_clip_model(model_name)
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    model, _, preprocess = open_clip.create_model_and_transforms(model_arch, pretrained=pretrained)
+    model.eval()
+    model.to(device)
+    return ClipRuntime(
+        model=model,
+        preprocess=preprocess,
+        device=device,
+        model_arch=model_arch,
+        pretrained=pretrained,
+    )
+
+
+def compute_clip_image_embedding_from_pil(image: Image.Image, *, model_name: str = CLIP_PLACEHOLDER_MODEL_NAME) -> list[float]:
+    try:
+        import torch
+    except Exception as exc:  # pragma: no cover - optional heavyweight deps
+        raise RuntimeError('CLIP 依赖未安装，请安装 torch') from exc
+
+    runtime = load_clip_runtime(model_name)
+    image_rgb = image.convert('RGB')
+    image_tensor = runtime.preprocess(image_rgb).unsqueeze(0).to(runtime.device)
+    with torch.no_grad():
+        features = runtime.model.encode_image(image_tensor)
+        features = features / features.norm(dim=-1, keepdim=True)
+    vector = [float(value) for value in features.squeeze(0).detach().cpu().tolist()]
+    if len(vector) != CLIP_PLACEHOLDER_VECTOR_DIM:
+        raise ValueError(f'unexpected CLIP vector dim: {len(vector)}')
+    return normalize_vector(vector)
+
+
+def compute_clip_image_embedding_from_bytes(file_bytes: bytes, *, model_name: str = CLIP_PLACEHOLDER_MODEL_NAME) -> list[float]:
+    try:
+        with Image.open(BytesIO(file_bytes)) as image:
+            return compute_clip_image_embedding_from_pil(image, model_name=model_name)
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ValueError(f'无法识别上传图片: {exc}') from exc
+
+
+def compute_clip_image_embedding_from_file(file_path: Path, *, model_name: str = CLIP_PLACEHOLDER_MODEL_NAME) -> list[float]:
+    try:
+        with Image.open(file_path) as image:
+            return compute_clip_image_embedding_from_pil(image, model_name=model_name)
+    except (UnidentifiedImageError, OSError) as exc:
+        raise ValueError(f'无法识别归档图片 {file_path}: {exc}') from exc
 
 
 def get_embedding_provider_registry() -> list[dict[str, object]]:
+    clip_deps_available = _module_importable('torch') and _module_importable('open_clip')
     return [
         {
             'provider': DEFAULT_EMBEDDING_PROVIDER,
@@ -124,8 +218,8 @@ def get_embedding_provider_registry() -> list[dict[str, object]]:
             'provider': CLIP_PLACEHOLDER_PROVIDER,
             'model_name': CLIP_PLACEHOLDER_MODEL_NAME,
             'vector_dim': CLIP_PLACEHOLDER_VECTOR_DIM,
-            'available': _module_available('torch') and _module_available('open_clip'),
-            'missing_dependency': None if (_module_available('torch') and _module_available('open_clip')) else '需要安装 torch 与 open_clip_torch。',
+            'available': clip_deps_available,
+            'missing_dependency': None if clip_deps_available else '需要安装可正常导入的 torch 与 open_clip_torch。',
             'note': 'CLIP 语义视觉检索预留位；数据库已预留 embedding_vector_512，依赖和生成器就绪后可写入 512 维向量。',
         },
     ]
@@ -323,6 +417,24 @@ def compute_query_image_features(file_bytes: bytes) -> QueryImageFeatures:
     )
 
 
+def compute_query_image_features_for_provider(
+    file_bytes: bytes,
+    *,
+    provider: str = DEFAULT_EMBEDDING_PROVIDER,
+    model_name: str = DEFAULT_EMBEDDING_MODEL_NAME,
+) -> QueryImageFeatures:
+    features = compute_query_image_features(file_bytes)
+    if provider == CLIP_PLACEHOLDER_PROVIDER:
+        return QueryImageFeatures(
+            phash=features.phash,
+            dhash=features.dhash,
+            vector=compute_clip_image_embedding_from_bytes(file_bytes, model_name=model_name),
+            width=features.width,
+            height=features.height,
+        )
+    return features
+
+
 def resolve_archive_file_path(storage_key: str | None) -> Path | None:
     if not storage_key:
         return None
@@ -382,6 +494,54 @@ async def upsert_hash_embedding(
     return embedding
 
 
+async def upsert_clip_embedding(
+    session: AsyncSession,
+    *,
+    asset: ImageAsset,
+    provider: str = CLIP_PLACEHOLDER_PROVIDER,
+    model_name: str = CLIP_PLACEHOLDER_MODEL_NAME,
+) -> ImageEmbedding:
+    archive_path = resolve_archive_file_path(asset.storage_key)
+    if archive_path is None:
+        raise ValueError(f'asset {asset.id} 归档文件不存在')
+
+    vector = compute_clip_image_embedding_from_file(archive_path, model_name=model_name)
+    embedding = await session.scalar(
+        select(ImageEmbedding).where(
+            ImageEmbedding.asset_id == asset.id,
+            ImageEmbedding.provider == provider,
+            ImageEmbedding.model_name == model_name,
+        )
+    )
+    if embedding is None:
+        embedding = ImageEmbedding(
+            asset_id=asset.id,
+            provider=provider,
+            model_name=model_name,
+        )
+        session.add(embedding)
+
+    model_arch, pretrained = resolve_clip_model(model_name)
+    embedding.vector_dim = len(vector)
+    embedding.vector_status = 'ready'
+    embedding.embedding_vector = None
+    embedding.embedding_vector_512 = vector
+    embedding.embedding_json = {
+        'strategy': 'open_clip_image_embedding',
+        'model_arch': model_arch,
+        'pretrained': pretrained,
+        'normalized': True,
+    }
+    embedding.source_payload = {
+        'asset_id': asset.id,
+        'storage_key': asset.storage_key,
+        'provider': provider,
+        'model_name': model_name,
+        'vector_dim': len(vector),
+    }
+    return embedding
+
+
 async def select_assets_for_embedding(
     session: AsyncSession,
     *,
@@ -390,11 +550,14 @@ async def select_assets_for_embedding(
     only_missing: bool = True,
     limit: int | None = None,
 ) -> list[ImageAsset]:
-    stmt: Select = select(ImageAsset).where(
-        ImageAsset.archive_status == 'ready',
-        ImageAsset.phash.is_not(None),
-        ImageAsset.dhash.is_not(None),
-    ).order_by(ImageAsset.id)
+    stmt: Select = select(ImageAsset).where(ImageAsset.archive_status == 'ready').order_by(ImageAsset.id)
+    if provider == CLIP_PLACEHOLDER_PROVIDER:
+        stmt = stmt.where(ImageAsset.storage_key.is_not(None))
+    else:
+        stmt = stmt.where(
+            ImageAsset.phash.is_not(None),
+            ImageAsset.dhash.is_not(None),
+        )
 
     if only_missing:
         stmt = stmt.where(
@@ -402,6 +565,7 @@ async def select_assets_for_embedding(
                 and_(
                     ImageEmbedding.provider == provider,
                     ImageEmbedding.model_name == model_name,
+                    ImageEmbedding.vector_dim == (CLIP_PLACEHOLDER_VECTOR_DIM if provider == CLIP_PLACEHOLDER_PROVIDER else HASH_EMBEDDING_VECTOR_DIM),
                     ImageEmbedding.vector_status == 'ready',
                 )
             )

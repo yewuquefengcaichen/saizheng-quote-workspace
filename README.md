@@ -16,7 +16,7 @@
 - 通过 Playwright 从商城页面抓取商品并同步到 V2
 - 商城抓取支持预检模式，先看提取数量和预计差异，再决定是否写库
 - 已接入赛正 dinghuovip 商品列表 DOM 专用适配器，可用登录态抓取真实商品列表
-- 图搜图已预留 `embedding_vector_512`，为 CLIP / 更强视觉模型第二阶段落库打底
+- 图搜图已接入 CLIP 512 维基础生成链路，并已生成首批真实 CLIP 向量
 
 ---
 
@@ -87,7 +87,7 @@
   - 图片归档与图搜图
   - 图搜图 provider 状态接口
   - `image_embeddings.embedding_vector` 128 维本地 hash 向量
-  - `image_embeddings.embedding_vector_512` 512 维 CLIP / 更强模型预留向量
+  - `image_embeddings.embedding_vector_512` 512 维 CLIP / 更强模型向量
   - 商品手动同步任务
   - 商品库上传后可选“立即同步 V2”
   - 同步差异报告（新增 / 更新 / 无变化 / 旧图待处理）
@@ -133,7 +133,7 @@
 - `product_variants`
 - `product_images`
 - `image_assets`
-- `image_embeddings`：当前 128 维本地 hash 已可用，512 维 CLIP 字段已预留
+- `image_embeddings`：当前 128 维本地 hash 已可用，512 维 CLIP 也已可生成
 - `brands`
 - `categories`
 - `suppliers`
@@ -178,7 +178,8 @@
 - 商品库页新增“预检商城”按钮；不写库也能检查登录态、字段和预计同步差异
 - 真实商城 `Product/ProductList` 已校准：`site_adapter=dinghuovip_product_list` 会解析 `#productList` 表格，避开通知 JSON 误判
 - 商城列表页只提供封面图时，图片同步采用 `append_only`，不会把详情页历史图片误判成待删除旧图
-- 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构已支持，依赖未安装 / 生成器待接入”
+- 商城分页已能跟随“下一页”链接继续抓取；详情补图开关已接入，可从商品详情页补齐主图和详情图
+- 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构支持、依赖可用”，并已生成首批 10 条真实 CLIP 向量
 - 首页 / 报价台 / 商品库会显示当前商品源状态
 - Bootstrap Icons 改为本地静态资源，避免外网抖动导致图标问号 / 空框
 
@@ -196,7 +197,9 @@
 - URL：`https://sz.dinghuovip.com/Product/ProductList`
 - 登录态：本地 `backend/storage/mall-auth/saizheng-state.json`（已被 `.gitignore` 忽略，不提交）
 - 适配器：`dinghuovip_product_list`
-- 首屏结果：访问 1 页，DOM 提取 10 个真实商品，未误抓通知 JSON
+- 分页结果：访问 2 页，DOM 提取 20 行，去重后 15 个真实商品，未误抓通知 JSON
+- 详情补图：测试抓取 1 个商品详情页，补到 4 张详情图
+- 图搜图 CLIP：`clip_local / openclip_vit_b_32_512d` 已生成 10 条 512 维向量
 
 ---
 
@@ -283,8 +286,8 @@ git checkout next/v2-architecture-upgrade
 ## 9. 后续升级方向
 
 1. 继续把 legacy JSON 读路径往 PostgreSQL 收口
-2. 继续增强商城抓取分页、详情页补图、下架 / 删除策略和任务状态
-3. 为“以图识图”接入真正的 CLIP 生成器、历史反馈精排和结果缓存
+2. 继续增强商城全量抓取策略、详情补图限速、下架 / 删除策略和任务状态
+3. 扩大 CLIP 向量生成范围，接入 provider 切换、历史反馈精排和结果缓存
 4. 引入 Redis 做缓存、任务状态、热点检索优化
 5. 继续拆分前后端，为 React / TypeScript 版本做准备
 

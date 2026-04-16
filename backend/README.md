@@ -10,7 +10,7 @@
 - 商品同步任务
 - Playwright 商城抓取同步第一版
 - 赛正 dinghuovip 商品列表 DOM 适配器
-- 512 维图片向量存储预留
+- CLIP 512 维图片向量生成链路
 - 规则 / 历史 / 反馈迁移底座
 - 未来 React 前端 API
 
@@ -73,7 +73,7 @@ http://127.0.0.1:8001/health
 当前状态：
 
 - `local_hash_embedding / phash_dhash_128d_v1`：生产可用，写入 `embedding_vector vector(128)`
-- `clip_local / openclip_vit_b_32_512d`：数据库结构已支持，写入列为 `embedding_vector_512 vector(512)`；依赖和真正生成器待接入
+- `clip_local / openclip_vit_b_32_512d`：依赖已接入，写入 `embedding_vector_512 vector(512)`；当前已生成首批 10 条，可继续批量生成
 
 ### 商品同步
 
@@ -114,11 +114,23 @@ backend\.venv\Scripts\python.exe backend\scripts\archive_product_images.py --onl
 backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py
 ```
 
-检查 CLIP 预留状态：
+检查 CLIP 状态：
 
 ```powershell
 python backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --dry-run --limit 1
 ```
+
+生成 CLIP 向量：
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --limit 100 --commit-every 20
+```
+
+说明：
+
+- 当前 Windows 环境使用 CPU 稳定版 `torch==2.5.1+cpu`
+- 首次运行会从 Hugging Face / OpenCLIP 下载模型权重
+- 全量 3300 张 ready 资产在 CPU 上需要分批执行，不建议阻塞前台页面
 
 ---
 
@@ -133,6 +145,7 @@ python backend\scripts\generate_image_embeddings.py --provider clip_local --mode
 - 商品库页支持手动触发同步
 - 商品库页支持手动触发 Playwright 商城抓取同步
 - 商城抓取支持 `site_adapter=dinghuovip_product_list`，可解析真实 `#productList` 表格
+- 商城抓取支持“下一页”分页和可选详情页补图
 
 ---
 

@@ -53,7 +53,7 @@ try:
         DEFAULT_EMBEDDING_MODEL_NAME as V2_IMAGE_EMBEDDING_MODEL_NAME,
         DEFAULT_EMBEDDING_PROVIDER as V2_IMAGE_EMBEDDING_PROVIDER,
         DEFAULT_EMBEDDING_VECTOR_DIM as V2_IMAGE_EMBEDDING_VECTOR_DIM,
-        compute_query_image_features as v2_compute_query_image_features,
+        compute_query_image_features_for_provider as v2_compute_query_image_features_for_provider,
         get_image_embedding_status as v2_get_image_embedding_status,
         resolve_archive_file_path as v2_resolve_archive_file_path,
         search_similar_products as v2_search_similar_products,
@@ -1339,6 +1339,9 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
         network_exclude_patterns=options.get('network_exclude_patterns'),
         dom_table_selector=options.get('dom_table_selector'),
         site_adapter=options.get('site_adapter'),
+        fetch_detail_images=options.get('fetch_detail_images'),
+        detail_fetch_limit=options.get('detail_fetch_limit'),
+        detail_image_limit_per_item=options.get('detail_image_limit_per_item'),
         field_map=options.get('field_map'),
         screenshot_path=options.get('screenshot_path'),
     )
@@ -1362,7 +1365,10 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
             'stats': scrape_result.stats.to_dict(),
             'visited_urls': scrape_result.visited_urls,
             'sample_items': [
-                {key: item.get(key) for key in ('code', 'name', 'model', 'category', 'unit', 'market_price', 'cost_price', 'brand', 'supplier', 'status', 'primary_image_url', 'detail_url')}
+                {
+                    **{key: item.get(key) for key in ('code', 'name', 'model', 'category', 'unit', 'market_price', 'cost_price', 'brand', 'supplier', 'status', 'primary_image_url', 'detail_url', 'detail_image_count')},
+                    'image_count': len(item.get('image_urls') or []),
+                }
                 for item in scrape_result.items[:10]
             ],
             'raw_payload_examples': scrape_result.raw_payload_examples,
@@ -1376,6 +1382,9 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
                 'next_selector': scrape_config.next_selector,
                 'dom_table_selector': scrape_config.dom_table_selector,
                 'site_adapter': scrape_config.site_adapter,
+                'fetch_detail_images': scrape_config.fetch_detail_images,
+                'detail_fetch_limit': scrape_config.detail_fetch_limit,
+                'detail_image_limit_per_item': scrape_config.detail_image_limit_per_item,
                 'network_include_patterns': scrape_config.network_include_patterns,
                 'network_exclude_patterns': scrape_config.network_exclude_patterns,
                 'storage_state_configured': bool(scrape_config.storage_state_path),
@@ -1389,7 +1398,11 @@ async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', sp
         raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
 
     async with V2AsyncSessionLocal() as session:
-        query_features = v2_compute_query_image_features(file_bytes)
+        query_features = v2_compute_query_image_features_for_provider(
+            file_bytes,
+            provider=V2_IMAGE_EMBEDDING_PROVIDER,
+            model_name=V2_IMAGE_EMBEDDING_MODEL_NAME,
+        )
         candidates = await v2_search_similar_products(
             session,
             query_vector=query_features.vector,

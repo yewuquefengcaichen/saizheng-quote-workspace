@@ -16,7 +16,7 @@ from app.services import (
     DEFAULT_EMBEDDING_MODEL_NAME,
     DEFAULT_EMBEDDING_PROVIDER,
     DEFAULT_EMBEDDING_VECTOR_DIM,
-    compute_query_image_features,
+    compute_query_image_features_for_provider,
     get_image_embedding_status,
     resolve_archive_file_path,
     search_similar_products,
@@ -58,6 +58,8 @@ async def query_image_search(
     query_text: str | None = Form(default=None),
     spec_hint: str | None = Form(default=None),
     brand_hint: str | None = Form(default=None),
+    provider: str | None = Form(default=None),
+    model_name: str | None = Form(default=None),
     session: AsyncSession = Depends(get_db_session),
 ) -> ImageSearchResponse:
     if top_k < 1 or top_k > 50:
@@ -67,17 +69,26 @@ async def query_image_search(
     if not file_bytes:
         raise HTTPException(status_code=400, detail='上传文件为空')
 
+    selected_provider = provider or DEFAULT_EMBEDDING_PROVIDER
+    selected_model_name = model_name or DEFAULT_EMBEDDING_MODEL_NAME
+
     try:
-        query_features = compute_query_image_features(file_bytes)
+        query_features = compute_query_image_features_for_provider(
+            file_bytes,
+            provider=selected_provider,
+            model_name=selected_model_name,
+        )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     candidates = await search_similar_products(
         session,
         query_vector=query_features.vector,
         top_k=top_k,
-        provider=DEFAULT_EMBEDDING_PROVIDER,
-        model_name=DEFAULT_EMBEDDING_MODEL_NAME,
+        provider=selected_provider,
+        model_name=selected_model_name,
         query_text=query_text,
         spec_hint=spec_hint,
         brand_hint=brand_hint,
@@ -113,9 +124,9 @@ async def query_image_search(
     ]
 
     return ImageSearchResponse(
-        provider=DEFAULT_EMBEDDING_PROVIDER,
-        model_name=DEFAULT_EMBEDDING_MODEL_NAME,
-        vector_dim=DEFAULT_EMBEDDING_VECTOR_DIM,
+        provider=selected_provider,
+        model_name=selected_model_name,
+        vector_dim=len(query_features.vector) or DEFAULT_EMBEDDING_VECTOR_DIM,
         query_phash=query_features.phash,
         query_dhash=query_features.dhash,
         query_width=query_features.width,

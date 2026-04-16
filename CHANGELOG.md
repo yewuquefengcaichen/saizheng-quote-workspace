@@ -59,13 +59,18 @@
 - 商城抓取完成真实赛正 dinghuovip 商品列表适配：`site_adapter=dinghuovip_product_list` 可解析 `#productList` 表格
 - 商城抓取新增网络 include / exclude 过滤，避免通知公告 JSON 被误判成商品
 - 商品同步开始直接兼容 `image_urls / primary_image_url`，列表页封面图采用 `append_only` 模式避免误伤历史详情图
-- 图搜图新增 `embedding_vector_512` 数据库列和 HNSW 索引，`clip_local` 状态从“结构不支持”升级为“结构已支持，依赖 / 生成器待接入”
+- 图搜图新增 `embedding_vector_512` 数据库列和 HNSW 索引，随后补齐依赖并接入 CLIP 生成器
 - 修复 `run_server.py` 导入方式：避免根目录 `app.py` 与 `backend/app` 包同名导致 V2 模块被禁用
+- 补齐 `backend\.venv` 关键依赖：`pgvector / ImageHash / Playwright / torch CPU / open_clip_torch`，并安装 Chromium
+- 商城抓取新增真实分页跟随能力，可从 `下一页` 链接继续抓取
+- 商城抓取新增可选详情页补图：`fetch_detail_images / detail_fetch_limit / detail_image_limit_per_item`
+- 图搜图 CLIP 生成器基础链路落地：可生成 `clip_local / openclip_vit_b_32_512d` 的 512 维向量
+- 已实际生成首批 10 条 CLIP 512 维向量，并验证 CLIP 查询可返回结果
 
 ### 当前重点
 
-1. 增强商城分页、详情页补图、下架 / 删除策略和任务状态展示
-2. 给 CLIP 增加真正的 provider 实现与批量生成链路
+1. 增强商城全量抓取策略、详情页补图限速、下架 / 删除策略和任务状态展示
+2. 分批生成更多 CLIP 向量，并在前端提供 provider 切换
 3. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 4. 建立更细的商城增量抓取指纹与删除 / 下架策略
 5. 为后续 React / TypeScript 重构打基础

@@ -86,6 +86,9 @@ class MallScrapeConfig:
     network_exclude_patterns: list[str] = field(default_factory=list)
     dom_table_selector: str | None = None
     site_adapter: str | None = None
+    fetch_detail_images: bool = False
+    detail_fetch_limit: int = 0
+    detail_image_limit_per_item: int = 20
 
 
 @dataclass
@@ -93,6 +96,8 @@ class MallScrapeStats:
     pages_visited: int = 0
     network_json_candidates: int = 0
     dom_candidates: int = 0
+    detail_pages_visited: int = 0
+    detail_images_found: int = 0
     extracted_items: int = 0
     deduped_items: int = 0
     current_url: str | None = None
@@ -149,6 +154,8 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
 
     if site_adapter == DINGHUOVIP_PRODUCT_LIST_ADAPTER:
         dom_table_selector = dom_table_selector or '#productList'
+        if not normalize_text(str(overrides.get('next_selector') or '')):
+            overrides['next_selector'] = '.page_search_tool_area a.p:has-text("下一页"), a:has-text("下一页"), button:has-text("下一页")'
         if not network_include_patterns:
             network_include_patterns = ['/Product/']
         network_exclude_patterns = _dedupe_strings(
@@ -175,7 +182,28 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
         network_exclude_patterns=network_exclude_patterns,
         dom_table_selector=dom_table_selector or None,
         site_adapter=site_adapter or None,
+        fetch_detail_images=_coerce_bool(
+            overrides.get('fetch_detail_images')
+            if overrides.get('fetch_detail_images') is not None
+            else getattr(settings, 'mall_scrape_fetch_detail_images', False),
+            default=False,
+        ),
+        detail_fetch_limit=max(0, int(overrides.get('detail_fetch_limit') or getattr(settings, 'mall_scrape_detail_fetch_limit', 0) or 0)),
+        detail_image_limit_per_item=max(1, min(int(overrides.get('detail_image_limit_per_item') or getattr(settings, 'mall_scrape_detail_image_limit_per_item', 20) or 20), 80)),
     )
+
+
+def _coerce_bool(value: Any, *, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    text = str(value).strip().lower()
+    if text in ('1', 'true', 'yes', 'y', 'on', '是'):
+        return True
+    if text in ('0', 'false', 'no', 'n', 'off', '否'):
+        return False
+    return default
 
 
 def _normalize_pattern_list(value: Any) -> list[str]:
@@ -395,6 +423,10 @@ def map_payload_to_legacy_item(payload: dict[str, Any], *, base_url: str, field_
     if images:
         item['image_urls'] = images
         item['primary_image_url'] = images[0]
+    detail_images = payload.get('detail_image_urls')
+    if isinstance(detail_images, list) and detail_images:
+        item['detail_image_urls'] = detail_images
+        item['detail_image_count'] = len(detail_images)
     detail_url = _stringify_value(payload.get('detail_url') or payload.get('detailUrl') or payload.get('href'))
     if detail_url:
         item['detail_url'] = urljoin(base_url, detail_url)
@@ -520,6 +552,8 @@ class MallPlaywrightScraper:
                 pass
             await page.wait_for_timeout(800)
             dom_payloads = await self._extract_dom_payloads(page)
+            if self.config.fetch_detail_images and dom_payloads:
+                dom_payloads = await self._enrich_payloads_with_detail_images(page, dom_payloads)
             self._raw_payloads.extend(dom_payloads)
 
             if self.config.page_url_template:
@@ -538,16 +572,56 @@ class MallPlaywrightScraper:
 
     async def _click_next(self, page: Any) -> bool:
         try:
+            next_href = await self._find_next_page_href(page)
+            if next_href:
+                await page.goto(next_href, wait_until='domcontentloaded', timeout=self.config.page_timeout_ms)
+                try:
+                    await page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
+                except Exception:
+                    pass
+                await page.wait_for_timeout(500)
+                return True
+
             next_locator = page.locator(self.config.next_selector).first
             if await next_locator.count() < 1:
                 return False
             if not await next_locator.is_enabled():
                 return False
+            old_url = page.url
             await next_locator.click()
+            try:
+                await page.wait_for_url(lambda url: str(url) != old_url, timeout=min(self.config.page_timeout_ms, 10000))
+            except Exception:
+                pass
+            try:
+                await page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
+            except Exception:
+                pass
+            await page.wait_for_timeout(500)
             return True
         except Exception as exc:
             self.stats.warnings.append(f'下一页点击失败: {str(exc)[:200]}')
             return False
+
+    async def _find_next_page_href(self, page: Any) -> str | None:
+        try:
+            href = await page.evaluate(
+                """() => {
+                    const clean = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+                    const links = Array.from(document.querySelectorAll('a[href]'));
+                    const candidate = links.find((link) => {
+                        const text = clean(link.innerText || link.textContent || '');
+                        const cls = String(link.className || '');
+                        if (!text.includes('下一页')) return false;
+                        if (/disable|disabled/i.test(cls)) return false;
+                        return !!link.href;
+                    });
+                    return candidate ? candidate.href : '';
+                }"""
+            )
+            return _stringify_value(href)
+        except Exception:
+            return None
 
     async def _extract_dom_payloads(self, page: Any) -> list[dict[str, Any]]:
         if self.config.site_adapter == DINGHUOVIP_PRODUCT_LIST_ADAPTER:
@@ -660,6 +734,72 @@ class MallPlaywrightScraper:
         except Exception as exc:
             self.stats.warnings.append(f'dinghuovip 商品表格提取失败: {str(exc)[:200]}')
             return []
+
+    async def _enrich_payloads_with_detail_images(self, page: Any, payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        limit = self.config.detail_fetch_limit or len(payloads)
+        enriched: list[dict[str, Any]] = []
+        detail_page = await page.context.new_page()
+        detail_page.set_default_timeout(self.config.page_timeout_ms)
+        try:
+            for payload in payloads:
+                item = dict(payload)
+                detail_url = _stringify_value(item.get('detail_url') or item.get('href'))
+                if detail_url and self.stats.detail_pages_visited < limit:
+                    try:
+                        detail_images = await self._extract_detail_image_urls(detail_page, detail_url)
+                        if detail_images:
+                            existing_images = list(item.get('image_urls') or [])
+                            item['detail_image_urls'] = detail_images
+                            item['image_urls'] = _dedupe_strings(existing_images + detail_images)
+                            if item.get('image_urls'):
+                                item['primary_image_url'] = item['image_urls'][0]
+                            item['image_sync_mode'] = 'replace'
+                            self.stats.detail_images_found += len(detail_images)
+                    except Exception as exc:
+                        self.stats.warnings.append(f'详情图提取失败: {str(exc)[:200]}')
+                enriched.append(item)
+        finally:
+            await detail_page.close()
+        return enriched
+
+    async def _extract_detail_image_urls(self, detail_page: Any, detail_url: str) -> list[str]:
+        await detail_page.goto(detail_url, wait_until='domcontentloaded', timeout=self.config.page_timeout_ms)
+        self.stats.detail_pages_visited += 1
+        try:
+            await detail_page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
+        except Exception:
+            pass
+        await detail_page.wait_for_timeout(500)
+        urls = await detail_page.evaluate(
+            """(limit) => {
+                const urls = [];
+                const seen = new Set();
+                const add = (raw, width, height) => {
+                    const url = String(raw || '').trim();
+                    if (!url || seen.has(url)) return;
+                    if (!/ProductImg|ProductDescription/i.test(url)) return;
+                    if (/\\/S[A-Za-z0-9_-]+\\.(?:jpg|jpeg|png|webp)(?:\\?|$)/i.test(url)) return;
+                    if (width && height && width < 100 && height < 100) return;
+                    seen.add(url);
+                    urls.push(url);
+                };
+                for (const img of Array.from(document.images)) {
+                    add(
+                        img.currentSrc
+                            || img.getAttribute('data-original')
+                            || img.getAttribute('data-src')
+                            || img.getAttribute('src')
+                            || '',
+                        img.naturalWidth,
+                        img.naturalHeight
+                    );
+                    if (urls.length >= limit) break;
+                }
+                return urls.slice(0, limit);
+            }""",
+            self.config.detail_image_limit_per_item,
+        )
+        return _dedupe_strings([urljoin(detail_url, str(url)) for url in (urls or [])])
 
     def _dedupe_items(self, items: Any) -> list[dict[str, Any]]:
         deduped: list[dict[str, Any]] = []

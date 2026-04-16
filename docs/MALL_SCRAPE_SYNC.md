@@ -64,6 +64,9 @@ SAIZHENG_MALL_SCRAPE_NETWORK_EXCLUDE_PATTERNS
   "storage_state_path": "backend/storage/mall-auth/state.json",
   "site_adapter": "dinghuovip_product_list",
   "dom_table_selector": "#productList",
+  "fetch_detail_images": false,
+  "detail_fetch_limit": 0,
+  "detail_image_limit_per_item": 20,
   "network_include_patterns": ["/Product/"],
   "network_exclude_patterns": ["/Notice/", "/ManuSysNotice"],
   "field_map": {
@@ -111,7 +114,10 @@ https://sz.dinghuovip.com/Product/ProductList
   "page_timeout_ms": 30000,
   "storage_state_path": "backend/storage/mall-auth/saizheng-state.json",
   "site_adapter": "dinghuovip_product_list",
-  "dom_table_selector": "#productList"
+  "dom_table_selector": "#productList",
+  "fetch_detail_images": true,
+  "detail_fetch_limit": 1,
+  "detail_image_limit_per_item": 10
 }
 ```
 
@@ -119,10 +125,13 @@ https://sz.dinghuovip.com/Product/ProductList
 
 - 页面标题：`商品列表`
 - 表格选择器：`#productList`
-- 首屏 DOM 商品数：10
+- 分页：已能从“下一页”链接进入第 2 页
+- DOM 商品数：2 页共 20 行，去重后 15 个商品
+- 详情补图：测试 1 个详情页，补到 4 张主图 / 详情图
 - 已避开 `/Notice/` 等通知 JSON 误识别
 - 字段已提取：编码、名称、型号、市场价、采购价、供应商、状态、封面图、详情链接
 - 列表页图片按 `append_only` 同步，避免只抓到封面时把详情历史图误判为删除
+- 开启详情补图后，该商品改用 `replace` 图片同步模式，因为详情页图片更完整
 
 ## 当前已经做了什么
 
@@ -130,6 +139,8 @@ https://sz.dinghuovip.com/Product/ProductList
 - DOM 商品卡片兜底识别
 - `dinghuovip_product_list` 站点适配器：专门解析 `#productList` 商品表
 - 网络 include / exclude 过滤，避免通知 JSON 被当成商品
+- 下一页链接跟随
+- 可选详情页补图
 - 预检接口，不写库也能看提取数量和差异
 - 疑似登录页检测
 - 抓不到商品时保存调试截图：`output/playwright/mall-scrape-latest.png`
@@ -140,7 +151,7 @@ https://sz.dinghuovip.com/Product/ProductList
 
 ## 还需要实战校准的点
 
-- 分页 URL 模板或下一页按钮选择器
-- 是否需要进入商品详情页补齐多张详情图
+- 全量抓取时的页数上限、限速、失败重试
+- 是否需要长期默认进入商品详情页补齐多张详情图
 - 下架 / 删除商品如何表达：只标记 inactive，还是进入人工复核
 - 长任务化：抓取、同步、图片归档、embedding 生成应该进入 Redis / Celery 任务队列
