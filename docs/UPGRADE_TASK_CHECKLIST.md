@@ -136,8 +136,8 @@
 | P2 | 报价台 | 左右栏滚动体验继续精修 | [ ] | 鼠标停留区域即独立滚动 |
 | P2 | 报价台 | 候选视图继续优化标准 / 紧凑模式 | [ ] | 提升大量候选时效率 |
 | P3 | 图搜图 | 512 维向量存储预留 | [x] | 已新增 `embedding_vector_512 vector(512)` 与 HNSW 索引 |
-| P3 | 图搜图 | 第二代视觉 embedding（CLIP / 更强 provider） | [x] | 已接入 torch CPU / open_clip_torch，支持生成和查询 512 维向量 |
-| P3 | 图搜图 | 全量 CLIP 向量生成 | [ ] | 当前已生成 10 / 3300；后续分批生成 |
+| P3 | 图搜图 | 第二代视觉 embedding（CLIP / 更强 provider） | [x] | 已接入 `torch 2.5.1+cu121` / open_clip_torch，RTX 4060 GPU 验证可用 |
+| P3 | 图搜图 | 全量 CLIP 向量生成 | [ ] | 当前已生成 20 / 3300；后续分批生成 |
 | P3 | 图搜图 | 前端 provider 切换 | [ ] | 当前默认仍走 128 维 hash，需要提供“快速 / 智能 CLIP”切换 |
 | P3 | 图搜图 | embedding provider 状态化 | [x] | 已可查看 local_hash / clip_local 可用性、维度和待生成数量 |
 | P3 | 图搜图 | 生成脚本 provider 参数化 | [x] | 已支持 `--provider / --model-name`，CLIP 未就绪时清晰提示 |

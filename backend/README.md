@@ -73,7 +73,7 @@ http://127.0.0.1:8001/health
 当前状态：
 
 - `local_hash_embedding / phash_dhash_128d_v1`：生产可用，写入 `embedding_vector vector(128)`
-- `clip_local / openclip_vit_b_32_512d`：依赖已接入，写入 `embedding_vector_512 vector(512)`；当前已生成首批 10 条，可继续批量生成
+- `clip_local / openclip_vit_b_32_512d`：依赖已接入，写入 `embedding_vector_512 vector(512)`；当前已生成首批 20 条，可继续批量生成
 
 ### 商品同步
 
@@ -123,14 +123,16 @@ python backend\scripts\generate_image_embeddings.py --provider clip_local --mode
 生成 CLIP 向量：
 
 ```powershell
-backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --limit 100 --commit-every 20
+backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --limit 20 --commit-every 5
 ```
 
 说明：
 
-- 当前 Windows 环境使用 CPU 稳定版 `torch==2.5.1+cpu`
+- 当前 Windows 环境使用 RTX 4060 验证通过的 CUDA 版：`torch==2.5.1+cu121`
+- 这个 CUDA 来自 PyTorch wheel，只安装在 `backend\.venv`，不会改系统 CUDA Toolkit 或其他 Conda 环境
 - 首次运行会从 Hugging Face / OpenCLIP 下载模型权重
-- 全量 3300 张 ready 资产在 CPU 上需要分批执行，不建议阻塞前台页面
+- 全量 3300 张 ready 资产即使用 GPU 也建议分批执行，不建议阻塞前台页面
+- 当前实测安全批量建议先用 `--limit 10~20`；后续接入后台任务后再扩大批量
 
 ---
 

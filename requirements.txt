@@ -42,8 +42,9 @@ playwright>=1.50.0
 Pillow>=11.0.0
 ImageHash>=4.3.0
 
-# 图搜图第二阶段：CLIP 512 维视觉 embedding（CPU 稳定版，首次生成会下载模型权重）
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.5.1+cpu
-torchvision==0.20.1+cpu
+# 图搜图第二阶段：CLIP 512 维视觉 embedding（RTX 4060 验证通过的 CUDA 版）
+--extra-index-url https://download.pytorch.org/whl/cu121
+torch==2.5.1+cu121
+torchvision==0.20.1+cu121
+torchaudio==2.5.1+cu121
 open_clip_torch>=3.3.0

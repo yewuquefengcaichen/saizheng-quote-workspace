@@ -61,11 +61,12 @@
 - 商品同步开始直接兼容 `image_urls / primary_image_url`，列表页封面图采用 `append_only` 模式避免误伤历史详情图
 - 图搜图新增 `embedding_vector_512` 数据库列和 HNSW 索引，随后补齐依赖并接入 CLIP 生成器
 - 修复 `run_server.py` 导入方式：避免根目录 `app.py` 与 `backend/app` 包同名导致 V2 模块被禁用
-- 补齐 `backend\.venv` 关键依赖：`pgvector / ImageHash / Playwright / torch CPU / open_clip_torch`，并安装 Chromium
+- 补齐 `backend\.venv` 关键依赖：`pgvector / ImageHash / Playwright / torch CUDA / open_clip_torch`，并安装 Chromium
+- 已验证 RTX 4060 Laptop GPU：`torch 2.5.1+cu121`、`cuda_available=True`、GPU 矩阵运算通过；其他 Python 环境未被修改
 - 商城抓取新增真实分页跟随能力，可从 `下一页` 链接继续抓取
 - 商城抓取新增可选详情页补图：`fetch_detail_images / detail_fetch_limit / detail_image_limit_per_item`
 - 图搜图 CLIP 生成器基础链路落地：可生成 `clip_local / openclip_vit_b_32_512d` 的 512 维向量
-- 已实际生成首批 10 条 CLIP 512 维向量，并验证 CLIP 查询可返回结果
+- 已实际生成首批 20 条 CLIP 512 维向量，并验证 CLIP 查询可返回结果
 
 ### 当前重点
 

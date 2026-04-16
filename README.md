@@ -179,7 +179,8 @@
 - 真实商城 `Product/ProductList` 已校准：`site_adapter=dinghuovip_product_list` 会解析 `#productList` 表格，避开通知 JSON 误判
 - 商城列表页只提供封面图时，图片同步采用 `append_only`，不会把详情页历史图片误判成待删除旧图
 - 商城分页已能跟随“下一页”链接继续抓取；详情补图开关已接入，可从商品详情页补齐主图和详情图
-- 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构支持、依赖可用”，并已生成首批 10 条真实 CLIP 向量
+- 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构支持、依赖可用”，并已生成首批 20 条真实 CLIP 向量
+- 本项目 `backend\.venv` 已切到 RTX 4060 可用的 `torch 2.5.1+cu121`；这只影响项目虚拟环境，不改系统 CUDA 或其他深度学习环境
 - 首页 / 报价台 / 商品库会显示当前商品源状态
 - Bootstrap Icons 改为本地静态资源，避免外网抖动导致图标问号 / 空框
 
@@ -199,7 +200,7 @@
 - 适配器：`dinghuovip_product_list`
 - 分页结果：访问 2 页，DOM 提取 20 行，去重后 15 个真实商品，未误抓通知 JSON
 - 详情补图：测试抓取 1 个商品详情页，补到 4 张详情图
-- 图搜图 CLIP：`clip_local / openclip_vit_b_32_512d` 已生成 10 条 512 维向量
+- 图搜图 CLIP：`clip_local / openclip_vit_b_32_512d` 已生成 20 条 512 维向量
 
 ---
 

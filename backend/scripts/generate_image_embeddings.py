@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import gc
 import sys
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -58,6 +59,7 @@ class ImageEmbeddingGenerator:
                 return
 
             if self.provider == CLIP_PLACEHOLDER_PROVIDER:
+                self._print_clip_runtime_info()
                 statuses = await get_image_embedding_status(session)
                 matched = [item for item in statuses if item.provider == self.provider and item.model_name == self.model_name]
                 if matched:
@@ -116,6 +118,7 @@ class ImageEmbeddingGenerator:
                     else:
                         await session.commit()
                         print(f'[image-embedding] committed processed={index}')
+                    self._release_runtime_cache()
 
             if self.dry_run:
                 await session.rollback()
@@ -125,6 +128,30 @@ class ImageEmbeddingGenerator:
                 print('[image-embedding] generation committed')
 
         print(asdict(self.stats))
+
+    def _print_clip_runtime_info(self) -> None:
+        try:
+            import torch
+            print(
+                '[image-embedding] torch='
+                f'{torch.__version__} cuda_available={torch.cuda.is_available()} '
+                f'cuda={torch.version.cuda} '
+                f'device={torch.cuda.get_device_name(0) if torch.cuda.is_available() else "cpu"}',
+                flush=True,
+            )
+        except Exception as exc:
+            print(f'[image-embedding] torch runtime check failed: {exc}', flush=True)
+
+    def _release_runtime_cache(self) -> None:
+        gc.collect()
+        if self.provider != CLIP_PLACEHOLDER_PROVIDER:
+            return
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+        except Exception:
+            pass
 
 
 def parse_args() -> argparse.Namespace:
