@@ -5760,6 +5760,77 @@ body[data-route="synonyms"] .workspace-empty-orbit-pills {
   display: none !important;
 }
 
+.upload-inline-options {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 0 4px;
+}
+
+.workspace-toggle-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--ws-text);
+}
+
+.workspace-toggle-inline input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--ws-primary, #c88a22);
+}
+
+.workspace-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--ws-line, rgba(148, 163, 184, 0.24));
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--ws-text-muted, #64748b);
+  font-size: 0.78rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.workspace-source-chip i {
+  font-size: 0.9rem;
+}
+
+.workspace-source-chip--compact {
+  padding: 7px 11px;
+}
+
+.workspace-source-chip.is-v2 {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.24);
+  color: #047857;
+}
+
+.workspace-source-chip.is-uploaded {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.24);
+  color: #1d4ed8;
+}
+
+.workspace-source-chip.is-legacy {
+  background: rgba(245, 158, 11, 0.14);
+  border-color: rgba(245, 158, 11, 0.24);
+  color: #b45309;
+}
+
+.workspace-source-chip.is-empty {
+  background: rgba(148, 163, 184, 0.12);
+  border-color: rgba(148, 163, 184, 0.24);
+  color: #64748b;
+}
+
 /* ===== Quotes image search modal trim 20260415 ===== */
 body[data-route="quotes"] .quote-search-modal-tabs {
   display: flex;

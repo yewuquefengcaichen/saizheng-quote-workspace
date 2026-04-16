@@ -7,7 +7,7 @@
     <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
     <!-- 使用国内CDN，避免代理影响 -->
     <link href="https://unpkg.com/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://unpkg.com/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='vendor/bootstrap-icons/font/bootstrap-icons.css') }}" rel="stylesheet">
     <style>
         :root {
             --primary-color: #2563eb;
@@ -3560,7 +3560,7 @@
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
-<body data-page="workspace-{{ current_page|default('dashboard') }}" data-scene-tab="{{ initial_tab|default('upload') }}" data-route="{{ current_page|default('dashboard') }}">
+<body data-page="workspace-{{ current_page|default('dashboard') }}" data-scene-tab="{{ initial_tab|default('upload') }}" data-route="{{ current_page|default('dashboard') }}" data-products-source="{{ products_source|default('none') }}" data-products-count="{{ products_count|default(0) }}">
     {% include 'partials/workspace_topbar.html' %}
 
     <!-- 主内容 -->
@@ -4295,6 +4295,8 @@
         let quoteCatalogSearchModalInstance = null;
         const QUOTE_SEARCH_TAB_TEXT = 'text';
         const QUOTE_SEARCH_TAB_IMAGE = 'image';
+        let workspaceProductsSource = document.body.dataset.productsSource || 'none';
+        let workspaceProductsCount = Number(document.body.dataset.productsCount || 0) || 0;
         const exportTemplates = {{ export_templates|tojson|safe }};
         const exportTemplateDefaults = {{ export_template_defaults|tojson|safe }};
         let currentExportTemplateKey = '';
@@ -4307,6 +4309,38 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;')
                 .replace(/'/g, '&#39;');
+        }
+
+        function getProductsSourceMeta(source = 'none') {
+            const normalized = String(source || 'none').trim().toLowerCase();
+            if (normalized === 'postgres_v2') {
+                return { icon: 'bi-database-check', text: 'V2 PostgreSQL', className: 'is-v2' };
+            }
+            if (normalized === 'uploaded_excel') {
+                return { icon: 'bi-file-earmark-arrow-up', text: '上传快照', className: 'is-uploaded' };
+            }
+            if (normalized === 'legacy_json') {
+                return { icon: 'bi-filetype-json', text: 'Legacy JSON', className: 'is-legacy' };
+            }
+            return { icon: 'bi-database-x', text: '未载入', className: 'is-empty' };
+        }
+
+        function renderProductsSourceChip(target, source = workspaceProductsSource) {
+            const el = typeof target === 'string' ? document.getElementById(target) : target;
+            if (!el) return;
+            const meta = getProductsSourceMeta(source);
+            el.className = `workspace-source-chip ${meta.className}${el.classList.contains('workspace-source-chip--compact') ? ' workspace-source-chip--compact' : ''}`;
+            el.innerHTML = `<i class="bi ${meta.icon}"></i><span>${escapeHtml(meta.text)}</span>`;
+        }
+
+        function updateProductsSourceState(source = workspaceProductsSource, count = workspaceProductsCount) {
+            workspaceProductsSource = String(source || 'none').trim() || 'none';
+            workspaceProductsCount = Number(count || 0) || 0;
+            document.body.dataset.productsSource = workspaceProductsSource;
+            document.body.dataset.productsCount = String(workspaceProductsCount);
+            renderProductsSourceChip('productsSourceBadge', workspaceProductsSource);
+            renderProductsSourceChip('quoteProductsSourceChip', workspaceProductsSource);
+            renderProductsSourceChip('catalogProductsSourceChip', workspaceProductsSource);
         }
 
         function escapeHtmlAttr(value) {
@@ -4493,6 +4527,7 @@
             initFilters();
             initCatalog();
             initBatchAdjust();
+            updateProductsSourceState(workspaceProductsSource, workspaceProductsCount);
             bootstrapWorkspaceScene();
         });
 
@@ -4631,6 +4666,9 @@
             if (buttonEl) {
                 buttonEl.disabled = status === 'running';
             }
+            if (payload.products_source) {
+                updateProductsSourceState(payload.products_source, workspaceProductsCount);
+            }
         }
 
         function loadCatalogV2SyncStatus() {
@@ -4672,6 +4710,9 @@
                 .then(result => {
                     if (!result.success) {
                         throw new Error(result.message || 'V2 同步失败');
+                    }
+                    if (result.products_source) {
+                        updateProductsSourceState(result.products_source, workspaceProductsCount);
                     }
                     showToast('success', result.message || 'V2 商品同步完成');
                     loadCatalogV2SyncStatus();
@@ -4738,12 +4779,14 @@
                         items: result.items || [],
                         total: result.total || 0,
                         imageTotal: result.image_total || 0,
+                        catalogSource: result.catalog_source || workspaceProductsSource,
                         loaded: !!result.loaded,
                         page: Number(result.page || page || 1) || 1,
                         pageSize: Number(result.page_size || filters.page_size || 24) || 24,
                         totalPages: Number(result.total_pages || 1) || 1,
                         filters: result.filters || { categories: [], suppliers: [], brands: [] }
                     };
+                    updateProductsSourceState(catalogState.catalogSource, catalogState.total || workspaceProductsCount);
                     catalogLoadedOnce = true;
                     updateCatalogFilterOptions(catalogState.filters);
                     renderCatalogProducts();
@@ -5176,6 +5219,7 @@
                     <i class="bi bi-check-circle me-1"></i>已加载 ${result.count} 个商品
                 </span>
             `;
+            updateProductsSourceState(result.products_source || 'uploaded_excel', result.count || 0);
             checkCanStartMatch();
 
             const catalogTabLink = document.querySelector('#mainTabs .nav-link[data-tab="catalog"]');
@@ -5643,6 +5687,7 @@
                             <i class="bi bi-check-circle me-1"></i>已解析 ${result.quote_items.length} 个报价项
                         </span>
                     `;
+                    updateProductsSourceState(result.products_source || workspaceProductsSource, workspaceProductsCount);
                     matchResults = result.match_results;
                     document.getElementById('startMatchBtn').disabled = false;
                     showToast('success', result.message);
@@ -5779,6 +5824,11 @@
             const formData = new FormData();
             const fileName = input.files[0].name;
             formData.append('file', input.files[0]);
+            if (url === '/api/upload_products') {
+                const syncToggle = document.getElementById('productsSyncToV2Toggle');
+                formData.append('sync_to_v2', syncToggle?.checked ? 'true' : 'false');
+                formData.append('requested_by', 'workspace-upload-zone');
+            }
 
             showLoading('正在上传 ' + fileName + '...');
 
@@ -5820,6 +5870,7 @@
                 .then(result => {
                     if (result.success && result.match_results && result.match_results.length > 0) {
                         matchResults = result.match_results;
+                        updateProductsSourceState(result.products_source || workspaceProductsSource, workspaceProductsCount);
                         document.getElementById('startMatchBtn').disabled = false;
                     }
                 })

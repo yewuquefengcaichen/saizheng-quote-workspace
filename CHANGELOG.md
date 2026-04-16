@@ -45,6 +45,10 @@
 - 报价主匹配器改为优先使用 PostgreSQL V2 商品快照
 - 商品库列表页改为优先查 PostgreSQL V2
 - 商品详情改为优先查 PostgreSQL V2
+- 上传商品库新增“立即同步 V2”可选链路
+- 首页 / 报价台 / 商品库增加当前商品源状态标识
+- 旧图片代理路由兼容 PostgreSQL 归档图
+- Bootstrap Icons 改为本地静态资源，降低图标乱码 / 问号风险
 - 核心 README / Runbook / 版本文档已清理乱码并重写
 
 ### 当前重点

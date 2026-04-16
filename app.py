@@ -4,7 +4,7 @@
 功能：上传报价单、匹配商城商品、人工确认、导出报价单
 """
 
-from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, Response, stream_with_context
+from flask import Flask, render_template, request, jsonify, send_file, send_from_directory, Response, stream_with_context, redirect
 from werkzeug.utils import secure_filename
 import asyncio
 import os
@@ -143,6 +143,10 @@ def _run_async_task(coro):
 def allowed_file(filename):
     """检查文件扩展名是否允许"""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def _is_truthy_form_value(value) -> bool:
+    return str(value or '').strip().lower() in {'1', 'true', 'yes', 'on'}
 
 
 def _set_runtime_products_snapshot(products, source='legacy_json'):
@@ -1296,6 +1300,22 @@ async def _run_v2_catalog_manual_sync_async(requested_by='flask-workbench'):
         return result
 
 
+async def _run_v2_catalog_items_sync_async(items, requested_by='flask-upload-products', source_name='products_upload_inline'):
+    if not V2_CATALOG_AVAILABLE:
+        raise RuntimeError(f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
+
+    normalized_items = [dict(item or {}) for item in (items or [])]
+    async with V2AsyncSessionLocal() as session:
+        service = V2LegacyCatalogSyncService(
+            session,
+            dry_run=False,
+            source_type='legacy_json_upload',
+            source_name=source_name,
+            requested_by=requested_by,
+        )
+        return await service.run_items(normalized_items)
+
+
 async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', spec_hint='', brand_hint=''):
     if not V2_IMAGE_SEARCH_AVAILABLE:
         raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
@@ -2221,6 +2241,9 @@ def upload_products():
 
     if file and allowed_file(file.filename):
         try:
+            sync_to_v2 = _is_truthy_form_value(request.form.get('sync_to_v2'))
+            requested_by = _normalize_text_value(request.form.get('requested_by')) or 'flask-upload-products'
+
             if file.filename.lower().endswith('.csv'):
                 df = pd.read_csv(file, encoding='utf-8-sig')
             else:
@@ -2264,11 +2287,37 @@ def upload_products():
             prepared_products = _prepare_products_for_runtime(products, source='uploaded')
             _set_runtime_products_snapshot(prepared_products, source='uploaded_excel')
 
+            sync_result = None
+            sync_warning = ''
+            if sync_to_v2:
+                if V2_CATALOG_AVAILABLE:
+                    try:
+                        sync_result = _run_async_task(_run_v2_catalog_items_sync_async(
+                            products,
+                            requested_by=requested_by,
+                            source_name='products_upload_inline',
+                        ))
+                        load_products()
+                    except Exception as exc:
+                        sync_warning = str(exc)
+                else:
+                    sync_warning = V2_CATALOG_IMPORT_ERROR or 'V2 商品同步当前不可用'
+
+            message = f'成功导入 {len(products)} 个商品'
+            if sync_to_v2 and sync_result:
+                message = f'成功导入 {len(products)} 个商品，并已同步到 V2'
+            elif sync_to_v2 and sync_warning:
+                message = f'已导入 {len(products)} 个商品，但同步到 V2 失败：{sync_warning}'
+
             return jsonify({
                 'success': True,
-                'message': f'成功导入 {len(products)} 个商品',
+                'message': message,
                 'count': len(products),
-                'products_source': products_data_source
+                'products_source': products_data_source,
+                'sync_v2_requested': sync_to_v2,
+                'sync_v2_success': bool(sync_result),
+                'sync_v2_warning': sync_warning,
+                'sync_job': (sync_result or {}).get('job') if sync_result else None,
             })
 
         except Exception as e:
@@ -3397,6 +3446,71 @@ def _placeholder_image_response():
     return response
 
 
+def _get_runtime_product_images(product):
+    images = []
+    for image in (product.get('images') or []):
+        if not isinstance(image, dict):
+            continue
+        proxy_url = _normalize_text_value(image.get('proxy_url'))
+        source_url = _normalize_text_value(image.get('source_url') or image.get('url'))
+        image_url = proxy_url or _normalize_text_value(image.get('url')) or source_url
+        if not image_url:
+            continue
+        images.append({
+            **image,
+            'url': image_url,
+            'proxy_url': proxy_url or image_url,
+            'source_url': source_url or image_url,
+        })
+
+    if images:
+        return images
+
+    fallback_url = _normalize_text_value(product.get('image_url')) or _normalize_text_value(product.get('source_image_url'))
+    if fallback_url:
+        return [{
+            'title': _normalize_text_value(product.get('name')) or '商品图片',
+            'url': fallback_url,
+            'proxy_url': fallback_url,
+            'source_url': _normalize_text_value(product.get('source_image_url')) or fallback_url,
+            'product_id': _normalize_text_value(product.get('product_id')),
+        }]
+
+    return []
+
+
+def _build_runtime_product_image_payload(product):
+    images = _get_runtime_product_images(product)
+    primary = images[0] if images else {}
+    return {
+        'success': True,
+        'image_url': primary.get('proxy_url') or primary.get('url') or '',
+        'source_image_url': primary.get('source_url') or primary.get('url') or '',
+        'images': images,
+        'product_id': str(product.get('product_id', '') or '')
+    }
+
+
+def _build_runtime_product_image_redirect(product, index=0):
+    images = _get_runtime_product_images(product)
+    if not images:
+        return None
+
+    target_index = min(max(int(index or 0), 0), len(images) - 1)
+    target_url = _normalize_text_value(
+        images[target_index].get('proxy_url')
+        or images[target_index].get('url')
+        or images[target_index].get('source_url')
+    )
+    if not target_url:
+        return None
+
+    proxied = redirect(target_url, code=302)
+    proxied.headers['X-Image-Source'] = target_url
+    proxied.headers['Cache-Control'] = 'public, max-age=3600'
+    return proxied
+
+
 @app.route('/api/product/image/<product_code>', methods=['GET'])
 def get_product_image(product_code):
     """获取商品图片URL"""
@@ -3408,6 +3522,9 @@ def get_product_image(product_code):
     product = ProductImageHandler.find_product_by_code(products_data, product_code)
     if not product:
         return jsonify({'success': False, 'message': '商品不存在'})
+
+    if product.get('source') == 'postgres_v2' or products_data_source == 'postgres_v2':
+        return jsonify(_build_runtime_product_image_payload(product))
 
     return jsonify(ProductImageHandler.get_image_api_payload(product))
 
@@ -3425,6 +3542,11 @@ def proxy_product_image(product_code):
         return _placeholder_image_response()
 
     index = request.args.get('index', default=0, type=int)
+    if product.get('source') == 'postgres_v2' or products_data_source == 'postgres_v2':
+        pg_response = _build_runtime_product_image_redirect(product, index=index)
+        if pg_response is not None:
+            return pg_response
+
     response, target_url = ProductImageHandler.resolve_image_response(product, index=index)
     if response is None:
         return _placeholder_image_response()
@@ -3453,6 +3575,11 @@ def proxy_product_image_by_id(product_id):
         return _placeholder_image_response()
 
     index = request.args.get('index', default=0, type=int)
+    if product.get('source') == 'postgres_v2' or products_data_source == 'postgres_v2':
+        pg_response = _build_runtime_product_image_redirect(product, index=index)
+        if pg_response is not None:
+            return pg_response
+
     response, target_url = ProductImageHandler.resolve_image_response(product, index=index)
     if response is None:
         return _placeholder_image_response()
@@ -3479,6 +3606,19 @@ def debug_product_image(product_code):
     product = ProductImageHandler.find_product_by_code(products_data, product_code)
     if not product:
         return jsonify({'success': False, 'message': '商品不存在'})
+
+    if product.get('source') == 'postgres_v2' or products_data_source == 'postgres_v2':
+        payload = _build_runtime_product_image_payload(product)
+        return jsonify({
+            'success': True,
+            'product_code': product_code,
+            'product_id': product.get('product_id', ''),
+            'resolved_image_url': payload.get('image_url', ''),
+            'raw_images': payload.get('images', []),
+            'proxy_images': payload.get('images', []),
+            'image_url': payload.get('image_url', ''),
+            'source_image_url': payload.get('source_image_url', '')
+        })
 
     ProductImageHandler.ensure_product_metadata(product)
     images = ProductImageHandler.get_product_images(product, max_images=3)
