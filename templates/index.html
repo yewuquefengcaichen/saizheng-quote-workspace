@@ -4641,6 +4641,9 @@
             const job = payload.job || {};
             const success = !!payload.success;
             const status = String(job.status || (success ? 'idle' : 'error')).trim();
+            const stats = payload.stats || job.stats || {};
+            const diffSummary = stats.diff_summary || {};
+            const hasDiffSummary = ['created_rows', 'updated_rows', 'unchanged_rows'].every(key => diffSummary[key] !== undefined && diffSummary[key] !== null);
             let text = 'V2 还没有同步记录。';
             let icon = 'bi-database';
 
@@ -4652,7 +4655,13 @@
                 const finishedText = job.finished_at ? ` · ${new Date(job.finished_at).toLocaleString('zh-CN', { hour12: false })}` : '';
                 if (status === 'success') {
                     icon = 'bi-database-check';
-                    text = `V2 已同步 ${count} 条商品${finishedText}`;
+                    const diffText = hasDiffSummary
+                        ? ` · 新增 ${Number(diffSummary.created_rows || 0)} · 更新 ${Number(diffSummary.updated_rows || 0)} · 无变化 ${Number(diffSummary.unchanged_rows || 0)}`
+                        : '';
+                    const staleText = Number(diffSummary.stale_images_detected || 0) > 0
+                        ? ` · 旧图待处理 ${Number(diffSummary.stale_images_detected || 0)}`
+                        : '';
+                    text = `V2 已同步 ${count} 条${diffText}${staleText}${finishedText}`;
                 } else if (status === 'running') {
                     icon = 'bi-arrow-repeat';
                     text = `V2 同步进行中：${job.completed_steps || 0} / ${job.total_steps || 0}`;

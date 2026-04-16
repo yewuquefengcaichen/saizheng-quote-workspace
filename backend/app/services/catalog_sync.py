@@ -60,6 +60,17 @@ def to_decimal(value: object) -> Decimal | None:
         return None
 
 
+def decimal_to_compare_text(value: Decimal | None) -> str | None:
+    if value is None:
+        return None
+    return format(value.normalize(), 'f') if value == value.normalize() else str(value)
+
+
+def append_limited(items: list[Any], value: Any, limit: int = 20) -> None:
+    if len(items) < limit:
+        items.append(value)
+
+
 def map_status(raw_status: str | None) -> tuple[str, bool]:
     normalized = normalize_text(raw_status)
     if normalized == '上架':
@@ -89,13 +100,31 @@ class CatalogSyncStats:
     created_suppliers: int = 0
     created_products: int = 0
     updated_products: int = 0
+    unchanged_products: int = 0
     created_variants: int = 0
     updated_variants: int = 0
+    unchanged_variants: int = 0
     created_images: int = 0
+    updated_image_sets: int = 0
+    unchanged_image_sets: int = 0
+    stale_images_detected: int = 0
+    created_rows: int = 0
+    updated_rows: int = 0
+    unchanged_rows: int = 0
+    created_row_examples: list[dict[str, Any]] = field(default_factory=list)
+    updated_row_examples: list[dict[str, Any]] = field(default_factory=list)
+    unchanged_row_examples: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return asdict(self)
+        payload = asdict(self)
+        payload['diff_summary'] = {
+            'created_rows': self.created_rows,
+            'updated_rows': self.updated_rows,
+            'unchanged_rows': self.unchanged_rows,
+            'stale_images_detected': self.stale_images_detected,
+        }
+        return payload
 
 
 def build_sync_job_summary(job: SyncJob | None) -> dict[str, Any]:
@@ -293,6 +322,13 @@ class LegacyCatalogSyncService:
         status, is_active = map_status(str(item.get('status') or ''))
         intro_text = clean_intro(str(item.get('intro') or ''))
         image_urls = extract_intro_images(str(item.get('intro') or ''))
+        model = normalize_text(str(item.get('model') or ''))
+        unit = normalize_text(str(item.get('unit') or ''))
+        reference_price = to_decimal(item.get('market_price'))
+        sale_price = to_decimal(item.get('market_price'))
+        cost_price = to_decimal(item.get('cost_price'))
+        primary_image_url = image_urls[0] if image_urls else None
+        search_text = build_search_text(item)
 
         product = await self.session.scalar(
             select(Product).where(
@@ -302,6 +338,7 @@ class LegacyCatalogSyncService:
         )
 
         is_new_product = product is None
+        product_changes: list[str] = []
         if product is None:
             product = Product(
                 source_type=self.source_type,
@@ -310,7 +347,43 @@ class LegacyCatalogSyncService:
             self.session.add(product)
             self.stats.created_products += 1
         else:
-            self.stats.updated_products += 1
+            product_expected = {
+                'product_code': code,
+                'name': name,
+                'normalized_name': name,
+                'brand_id': brand.id if brand else None,
+                'category_id': category.id if category else None,
+                'supplier_id': supplier.id if supplier else None,
+                'status': status,
+                'is_active': is_active,
+                'unit': unit,
+                'reference_price': decimal_to_compare_text(reference_price),
+                'primary_image_url': primary_image_url,
+                'search_text': search_text,
+            }
+            product_current = {
+                'product_code': product.product_code,
+                'name': product.name,
+                'normalized_name': product.normalized_name,
+                'brand_id': product.brand_id,
+                'category_id': product.category_id,
+                'supplier_id': product.supplier_id,
+                'status': product.status,
+                'is_active': product.is_active,
+                'unit': product.unit,
+                'reference_price': decimal_to_compare_text(product.reference_price),
+                'primary_image_url': product.primary_image_url,
+                'search_text': product.search_text,
+            }
+            product_changes = [
+                field_name
+                for field_name, expected_value in product_expected.items()
+                if product_current.get(field_name) != expected_value
+            ]
+            if product_changes:
+                self.stats.updated_products += 1
+            else:
+                self.stats.unchanged_products += 1
 
         product.product_code = code
         product.name = name
@@ -320,10 +393,10 @@ class LegacyCatalogSyncService:
         product.supplier = supplier
         product.status = status
         product.is_active = is_active
-        product.unit = normalize_text(str(item.get('unit') or ''))
-        product.reference_price = to_decimal(item.get('market_price'))
-        product.primary_image_url = image_urls[0] if image_urls else None
-        product.search_text = build_search_text(item)
+        product.unit = unit
+        product.reference_price = reference_price
+        product.primary_image_url = primary_image_url
+        product.search_text = search_text
         product.last_synced_at = datetime.now(timezone.utc)
         product.source_payload = {
             'legacy_row': item,
@@ -340,6 +413,8 @@ class LegacyCatalogSyncService:
                 ProductVariant.external_variant_id == code,
             )
         )
+        is_new_variant = variant is None
+        variant_changes: list[str] = []
         if variant is None:
             variant = ProductVariant(
                 product_id=product.id,
@@ -348,14 +423,42 @@ class LegacyCatalogSyncService:
             self.session.add(variant)
             self.stats.created_variants += 1
         else:
-            self.stats.updated_variants += 1
+            variant_expected = {
+                'sku_code': code,
+                'variant_name': model or name,
+                'spec_text': model,
+                'normalized_spec': model,
+                'sale_price': decimal_to_compare_text(sale_price),
+                'cost_price': decimal_to_compare_text(cost_price),
+                'status': status,
+                'is_active': is_active,
+            }
+            variant_current = {
+                'sku_code': variant.sku_code,
+                'variant_name': variant.variant_name,
+                'spec_text': variant.spec_text,
+                'normalized_spec': variant.normalized_spec,
+                'sale_price': decimal_to_compare_text(variant.sale_price),
+                'cost_price': decimal_to_compare_text(variant.cost_price),
+                'status': variant.status,
+                'is_active': variant.is_active,
+            }
+            variant_changes = [
+                field_name
+                for field_name, expected_value in variant_expected.items()
+                if variant_current.get(field_name) != expected_value
+            ]
+            if variant_changes:
+                self.stats.updated_variants += 1
+            else:
+                self.stats.unchanged_variants += 1
 
         variant.sku_code = code
-        variant.variant_name = normalize_text(str(item.get('model') or '')) or name
-        variant.spec_text = normalize_text(str(item.get('model') or ''))
-        variant.normalized_spec = normalize_text(str(item.get('model') or ''))
-        variant.sale_price = to_decimal(item.get('market_price'))
-        variant.cost_price = to_decimal(item.get('cost_price'))
+        variant.variant_name = model or name
+        variant.spec_text = model
+        variant.normalized_spec = model
+        variant.sale_price = sale_price
+        variant.cost_price = cost_price
         variant.status = status
         variant.is_active = is_active
         variant.last_synced_at = datetime.now(timezone.utc)
@@ -364,23 +467,60 @@ class LegacyCatalogSyncService:
             'import_mode': 'one-row-one-variant',
             'legacy_image_count': len(image_urls),
             'is_new_product': is_new_product,
+            'is_new_variant': is_new_variant,
         }
 
-        await self.sync_product_images(product, variant, image_urls)
+        await self.session.flush()
+        image_diff = await self.sync_product_images(product, variant, image_urls)
 
-    async def sync_product_images(self, product: Product, variant: ProductVariant, image_urls: list[str]) -> None:
-        if not image_urls:
-            return
+        row_example = {'code': code, 'name': name}
+        if is_new_product:
+            self.stats.created_rows += 1
+            append_limited(self.stats.created_row_examples, row_example)
+        elif is_new_variant or product_changes or variant_changes or image_diff.get('changed'):
+            self.stats.updated_rows += 1
+            append_limited(
+                self.stats.updated_row_examples,
+                {
+                    **row_example,
+                    'variant_created': is_new_variant,
+                    'product_fields': product_changes,
+                    'variant_fields': variant_changes,
+                    'image_created': image_diff.get('created', 0),
+                    'image_stale': image_diff.get('stale', 0),
+                },
+            )
+        else:
+            self.stats.unchanged_rows += 1
+            append_limited(self.stats.unchanged_row_examples, row_example)
 
+    async def sync_product_images(self, product: Product, variant: ProductVariant, image_urls: list[str]) -> dict[str, Any]:
         existing = await self.session.scalars(
-            select(ProductImage).where(
+            select(ProductImage)
+            .where(
                 ProductImage.product_id == product.id,
                 ProductImage.variant_id == variant.id,
             )
+            .order_by(ProductImage.sort_order.asc(), ProductImage.id.asc())
         )
-        existing_by_url = {image.source_url: image for image in existing}
+        existing_items = list(existing)
+        existing_urls = [image.source_url for image in existing_items]
+        incoming_urls = list(image_urls)
+        incoming_url_set = set(incoming_urls)
+        stale_count = sum(1 for image_url in existing_urls if image_url not in incoming_url_set)
+        changed = existing_urls != incoming_urls
 
-        for index, image_url in enumerate(image_urls):
+        if existing_urls or incoming_urls:
+            if changed:
+                self.stats.updated_image_sets += 1
+            else:
+                self.stats.unchanged_image_sets += 1
+        self.stats.stale_images_detected += stale_count
+
+        existing_by_url = {image.source_url: image for image in existing_items}
+        created_count = 0
+
+        for index, image_url in enumerate(incoming_urls):
             image = existing_by_url.get(image_url)
             if image is None:
                 image = ProductImage(
@@ -390,16 +530,23 @@ class LegacyCatalogSyncService:
                 )
                 self.session.add(image)
                 self.stats.created_images += 1
+                created_count += 1
+                image.sync_status = 'pending'
 
             image.image_role = 'gallery'
             image.sort_order = index
             image.is_primary = index == 0
-            image.sync_status = 'pending'
             image.source_payload = {
                 'legacy_source': 'products.json:intro',
                 'legacy_product_code': product.product_code,
                 'legacy_variant_code': variant.sku_code,
             }
+
+        return {
+            'changed': changed,
+            'created': created_count,
+            'stale': stale_count,
+        }
 
     async def get_or_create_brand(self, name: str | None) -> Brand | None:
         if not name:

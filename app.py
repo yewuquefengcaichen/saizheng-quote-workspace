@@ -2214,9 +2214,22 @@ def run_catalog_sync_v2_manual():
     try:
         result = _run_async_task(_run_v2_catalog_manual_sync_async(requested_by=requested_by))
         load_products()
+        stats = result.get('stats', {}) or {}
+        diff_summary = stats.get('diff_summary', {}) or {}
+        created_rows = diff_summary.get('created_rows')
+        updated_rows = diff_summary.get('updated_rows')
+        unchanged_rows = diff_summary.get('unchanged_rows')
+        stale_images = diff_summary.get('stale_images_detected') or 0
+        if created_rows is not None and updated_rows is not None and unchanged_rows is not None:
+            message = f'V2 商品同步完成：新增 {created_rows}，更新 {updated_rows}，无变化 {unchanged_rows}'
+            if stale_images:
+                message += f'，旧图待处理 {stale_images}'
+            message += '。'
+        else:
+            message = f"V2 商品同步完成，处理 {stats.get('processed', 0)} 条。"
         return jsonify({
             'success': True,
-            'message': f"V2 商品同步完成，处理 {result.get('stats', {}).get('processed', 0)} 条。",
+            'message': message,
             'products_source': products_data_source,
             **result,
         })
