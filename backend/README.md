@@ -8,6 +8,7 @@
 - 图片归档与去重
 - 图搜图与精排
 - 商品同步任务
+- Playwright 商城抓取同步第一版
 - 规则 / 历史 / 反馈迁移底座
 - 未来 React 前端 API
 
@@ -21,6 +22,7 @@
 - Alembic
 - pgvector
 - Pillow
+- Playwright
 - Redis / Celery（预留升级位）
 
 ---
@@ -114,6 +116,7 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py
 - 报价项人工搜索优先查 PostgreSQL
 - 图搜图直接查 PostgreSQL / 图片归档 / 精排结果
 - 商品库页支持手动触发同步
+- 商品库页支持手动触发 Playwright 商城抓取同步
 
 ---
 

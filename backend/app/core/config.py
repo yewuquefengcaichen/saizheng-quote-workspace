@@ -20,6 +20,14 @@ class Settings(BaseSettings):
     celery_result_backend: str | None = None
     legacy_mall_base_url: str = 'https://sz.dinghuovip.com'
     legacy_file_base_url: str = 'https://udeanfile.dinghuovip.com'
+    mall_scrape_start_url: str | None = None
+    mall_scrape_page_url_template: str | None = None
+    mall_scrape_storage_state_path: str | None = None
+    mall_scrape_headless: bool = True
+    mall_scrape_max_pages: int = 3
+    mall_scrape_page_timeout_ms: int = 30000
+    mall_scrape_product_card_selector: str = '[data-product-id], [data-goods-id], .goods-item, .product-item, .product-card, .goods-list-item, .product-list-item'
+    mall_scrape_next_selector: str = 'a:has-text("下一页"), button:has-text("下一页"), .next, .pagination-next'
     image_archive_root: str = str((BASE_DIR / 'storage' / 'image_archive').resolve())
     image_archive_backend: str = 'local_fs'
     image_archive_bucket: str = 'saizheng-v2-image-archive'

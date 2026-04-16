@@ -57,6 +57,10 @@ try:
         resolve_archive_file_path as v2_resolve_archive_file_path,
         search_similar_products as v2_search_similar_products,
     )
+    from app.services.mall_scraper import (
+        MallPlaywrightScraper as V2MallPlaywrightScraper,
+        build_default_mall_scrape_config as v2_build_default_mall_scrape_config,
+    )
     V2_IMAGE_SEARCH_AVAILABLE = True
     V2_IMAGE_SEARCH_IMPORT_ERROR = ''
     V2_CATALOG_AVAILABLE = True
@@ -1316,6 +1320,47 @@ async def _run_v2_catalog_items_sync_async(items, requested_by='flask-upload-pro
         return await service.run_items(normalized_items)
 
 
+async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape', options=None):
+    if not V2_CATALOG_AVAILABLE:
+        raise RuntimeError(f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
+
+    options = options or {}
+    scrape_config = v2_build_default_mall_scrape_config(
+        start_url=options.get('start_url'),
+        page_url_template=options.get('page_url_template'),
+        max_pages=options.get('max_pages'),
+        headless=options.get('headless'),
+        storage_state_path=options.get('storage_state_path'),
+    )
+    scraper = V2MallPlaywrightScraper(scrape_config)
+    scrape_result = await scraper.scrape()
+
+    async with V2AsyncSessionLocal() as session:
+        service = V2LegacyCatalogSyncService(
+            session,
+            dry_run=False,
+            source_type='legacy_json_upload',
+            source_name='mall_playwright_scrape',
+            requested_by=requested_by,
+            source_path=Path('mall_playwright_scrape'),
+        )
+        sync_result = await service.run_items(scrape_result.items)
+
+    return {
+        **sync_result,
+        'scrape': {
+            'stats': scrape_result.stats.to_dict(),
+            'visited_urls': scrape_result.visited_urls,
+            'config': {
+                'start_url': scrape_config.start_url,
+                'page_url_template': scrape_config.page_url_template,
+                'max_pages': scrape_config.max_pages,
+                'headless': scrape_config.headless,
+            },
+        },
+    }
+
+
 async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', spec_hint='', brand_hint=''):
     if not V2_IMAGE_SEARCH_AVAILABLE:
         raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
@@ -2243,6 +2288,43 @@ def run_catalog_sync_v2_manual():
         return jsonify({
             'success': False,
             'message': f'同步失败：{str(e)}'
+        }), 500
+
+
+@app.route('/api/catalog/sync_from_mall', methods=['POST'])
+def run_catalog_sync_from_mall():
+    """使用 Playwright 从商城页面抓取商品并同步到 V2 PostgreSQL"""
+    payload = request.get_json(silent=True) or {}
+    requested_by = _normalize_text_value(payload.get('requested_by')) or 'flask-mall-scrape'
+    try:
+        result = _run_async_task(_run_v2_catalog_mall_scrape_sync_async(requested_by=requested_by, options=payload))
+        load_products()
+        stats = result.get('stats', {}) or {}
+        diff_summary = stats.get('diff_summary', {}) or {}
+        scrape_stats = (result.get('scrape') or {}).get('stats') or {}
+        extracted = scrape_stats.get('extracted_items', 0)
+        pages = scrape_stats.get('pages_visited', 0)
+        created_rows = diff_summary.get('created_rows', 0)
+        updated_rows = diff_summary.get('updated_rows', 0)
+        unchanged_rows = diff_summary.get('unchanged_rows', 0)
+        failed_rows = diff_summary.get('failed_rows', 0)
+        message = (
+            f'商城抓取完成：页面 {pages}，提取 {extracted}，'
+            f'新增 {created_rows}，更新 {updated_rows}，无变化 {unchanged_rows}'
+        )
+        if failed_rows:
+            message += f'，失败 {failed_rows}'
+        message += '。'
+        return jsonify({
+            'success': True,
+            'message': message,
+            'products_source': products_data_source,
+            **result,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'商城抓取同步失败：{str(e)}'
         }), 500
 
 

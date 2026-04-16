@@ -12,6 +12,7 @@
 - 手动把 legacy 商品库同步到 V2 PostgreSQL
 - 查看 V2 同步新增 / 更新 / 无变化 / 旧图待处理统计
 - 同步时自动重试异常行，并跳过未变化行的无意义写入
+- 通过 Playwright 从商城页面抓取商品并同步到 V2
 
 ---
 
@@ -64,6 +65,7 @@
 - xlrd
 - jieba
 - Pillow
+- Playwright
 
 ### 当前桥接状态
 
@@ -83,6 +85,7 @@
   - 商品库上传后可选“立即同步 V2”
   - 同步差异报告（新增 / 更新 / 无变化 / 旧图待处理）
   - 单行失败重试、失败样例记录、未变化行跳过写入
+  - Playwright 商城抓取同步入口
   - 报价主匹配优先使用 PostgreSQL 商品快照
   - 报价项人工搜索优先查 PostgreSQL
   - 商品库列表页优先查 PostgreSQL
@@ -163,6 +166,7 @@
 - 上传商品库可选立即同步到 V2，并自动刷新运行时商品源
 - V2 同步完成后会显示新增、更新、无变化、旧图待处理统计，并写入 `sync_jobs.stats_json`
 - V2 同步已支持单行失败重试；未变化商品会跳过 product / variant / image 的无意义写入
+- 商品库页新增“抓商城”按钮；后端会通过 Playwright 捕获页面网络 JSON，并用 DOM 商品卡片提取做兜底
 - 首页 / 报价台 / 商品库会显示当前商品源状态
 - Bootstrap Icons 改为本地静态资源，避免外网抖动导致图标问号 / 空框
 
@@ -260,13 +264,22 @@ git checkout next/v2-architecture-upgrade
 ## 9. 后续升级方向
 
 1. 继续把 legacy JSON 读路径往 PostgreSQL 收口
-2. 增加商城手动抓取 / 同步入口
+2. 继续校准商城抓取登录态、起始 URL、分页和选择器
 3. 为“以图识图”继续增强图像特征与召回链路
 4. 引入 Redis 做缓存、任务状态、热点检索优化
 5. 继续拆分前后端，为 React / TypeScript 版本做准备
 
 ---
 
-## 10. 一句话总结
+## 10. 关键文档
+
+- `docs/UPGRADE_TASK_CHECKLIST.md`：V2 后续任务清单
+- `docs/MALL_SCRAPE_SYNC.md`：商城抓取同步说明
+- `docs/VERSION_POLICY.md`：版本命名、分支和标签规则
+- `docs/BACKUP_RUNBOOK.md`：备份和回退操作
+
+---
+
+## 11. 一句话总结
 
 当前这个版本已经不是纯 demo，而是一个 **能工作、可回退、并且正在向现代化 PostgreSQL / 向量检索架构升级** 的报价工作台。

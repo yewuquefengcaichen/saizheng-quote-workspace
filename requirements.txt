@@ -34,3 +34,6 @@ weasyprint>=60.0       # HTML转PDF（更美观）
 
 # OCR（可选）
 # easyocr>=1.7.0
+
+# 商城抓取同步（可选，首次使用需执行 playwright install chromium）
+playwright>=1.50.0

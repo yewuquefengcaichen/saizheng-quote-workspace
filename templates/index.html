@@ -4593,6 +4593,7 @@
             const pageSizeSelect = document.getElementById('catalogPageSize');
             const resetBtn = document.getElementById('catalogResetBtn');
             const syncV2Btn = document.getElementById('catalogSyncV2Btn');
+            const mallScrapeBtn = document.getElementById('catalogMallScrapeBtn');
 
             if (keywordInput) {
                 keywordInput.addEventListener('input', function() {
@@ -4629,6 +4630,9 @@
             if (syncV2Btn) {
                 syncV2Btn.addEventListener('click', triggerCatalogV2ManualSync);
             }
+            if (mallScrapeBtn) {
+                mallScrapeBtn.addEventListener('click', triggerCatalogMallScrapeSync);
+            }
 
             loadCatalogV2SyncStatus();
         }
@@ -4636,6 +4640,7 @@
         function renderCatalogV2SyncStatus(payload = {}) {
             const statusEl = document.getElementById('catalogSyncV2Status');
             const buttonEl = document.getElementById('catalogSyncV2Btn');
+            const mallButtonEl = document.getElementById('catalogMallScrapeBtn');
             if (!statusEl) return;
 
             const job = payload.job || {};
@@ -4677,6 +4682,9 @@
             statusEl.innerHTML = `<i class="bi ${icon}"></i><span>${escapeHtml(text)}</span>`;
             if (buttonEl) {
                 buttonEl.disabled = status === 'running';
+            }
+            if (mallButtonEl) {
+                mallButtonEl.disabled = status === 'running';
             }
             if (payload.products_source) {
                 updateProductsSourceState(payload.products_source, workspaceProductsCount);
@@ -4743,6 +4751,56 @@
                     if (buttonEl) {
                         buttonEl.disabled = false;
                         buttonEl.innerHTML = '<i class="bi bi-database-up me-1"></i>同步 V2';
+                    }
+                });
+        }
+
+        function triggerCatalogMallScrapeSync() {
+            const buttonEl = document.getElementById('catalogMallScrapeBtn');
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>抓取中';
+            }
+            renderCatalogV2SyncStatus({
+                success: true,
+                job: {
+                    exists: true,
+                    status: 'running',
+                    completed_steps: 0,
+                    total_steps: 0
+                }
+            });
+
+            fetch('/api/catalog/sync_from_mall', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requested_by: 'catalog-page-mall-scrape' })
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || '商城抓取同步失败');
+                    }
+                    if (result.products_source) {
+                        updateProductsSourceState(result.products_source, workspaceProductsCount);
+                    }
+                    showToast('success', result.message || '商城抓取同步完成');
+                    loadCatalogV2SyncStatus();
+                    if (document.body.dataset.sceneTab === 'catalog') {
+                        loadCatalogProducts(catalogState.page || 1);
+                    }
+                })
+                .catch(error => {
+                    showToast('error', error.message || '商城抓取同步失败');
+                    renderCatalogV2SyncStatus({
+                        success: false,
+                        message: error.message || '商城抓取同步失败'
+                    });
+                })
+                .finally(() => {
+                    if (buttonEl) {
+                        buttonEl.disabled = false;
+                        buttonEl.innerHTML = '<i class="bi bi-cloud-download me-1"></i>抓商城';
                     }
                 });
         }
