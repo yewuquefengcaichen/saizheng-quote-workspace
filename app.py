@@ -50,6 +50,8 @@ try:
         get_latest_catalog_sync_job as v2_get_latest_catalog_sync_job,
     )
     from app.services.image_embedding import (
+        CLIP_PLACEHOLDER_MODEL_NAME as V2_CLIP_EMBEDDING_MODEL_NAME,
+        CLIP_PLACEHOLDER_PROVIDER as V2_CLIP_EMBEDDING_PROVIDER,
         DEFAULT_EMBEDDING_MODEL_NAME as V2_IMAGE_EMBEDDING_MODEL_NAME,
         DEFAULT_EMBEDDING_PROVIDER as V2_IMAGE_EMBEDDING_PROVIDER,
         DEFAULT_EMBEDDING_VECTOR_DIM as V2_IMAGE_EMBEDDING_VECTOR_DIM,
@@ -1393,31 +1395,42 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
     }
 
 
-async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', spec_hint='', brand_hint=''):
+def _normalize_image_search_provider(provider='', model_name=''):
+    provider = _normalize_text_value(provider) or V2_IMAGE_EMBEDDING_PROVIDER
+    model_name = _normalize_text_value(model_name) or ''
+
+    if provider == V2_CLIP_EMBEDDING_PROVIDER:
+        return V2_CLIP_EMBEDDING_PROVIDER, model_name or V2_CLIP_EMBEDDING_MODEL_NAME
+
+    return V2_IMAGE_EMBEDDING_PROVIDER, model_name or V2_IMAGE_EMBEDDING_MODEL_NAME
+
+
+async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', spec_hint='', brand_hint='', provider='', model_name=''):
     if not V2_IMAGE_SEARCH_AVAILABLE:
         raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
 
+    provider, model_name = _normalize_image_search_provider(provider, model_name)
     async with V2AsyncSessionLocal() as session:
         query_features = v2_compute_query_image_features_for_provider(
             file_bytes,
-            provider=V2_IMAGE_EMBEDDING_PROVIDER,
-            model_name=V2_IMAGE_EMBEDDING_MODEL_NAME,
+            provider=provider,
+            model_name=model_name,
         )
         candidates = await v2_search_similar_products(
             session,
             query_vector=query_features.vector,
             top_k=top_k,
-            provider=V2_IMAGE_EMBEDDING_PROVIDER,
-            model_name=V2_IMAGE_EMBEDDING_MODEL_NAME,
+            provider=provider,
+            model_name=model_name,
             query_text=query_text,
             spec_hint=spec_hint,
             brand_hint=brand_hint,
         )
         items = [_normalize_image_search_product_item(candidate) for candidate in candidates]
         return {
-            'provider': V2_IMAGE_EMBEDDING_PROVIDER,
-            'model_name': V2_IMAGE_EMBEDDING_MODEL_NAME,
-            'vector_dim': V2_IMAGE_EMBEDDING_VECTOR_DIM,
+            'provider': provider,
+            'model_name': model_name,
+            'vector_dim': len(query_features.vector) or V2_IMAGE_EMBEDDING_VECTOR_DIM,
             'query_phash': query_features.phash,
             'query_dhash': query_features.dhash,
             'query_width': query_features.width,
@@ -2247,6 +2260,8 @@ def catalog_search_by_image_for_quote():
     query_text = _normalize_text_value(request.form.get('query_text')) or ''
     spec_hint = _normalize_text_value(request.form.get('spec_hint')) or ''
     brand_hint = _normalize_text_value(request.form.get('brand_hint')) or ''
+    provider = _normalize_text_value(request.form.get('provider')) or ''
+    model_name = _normalize_text_value(request.form.get('model_name')) or ''
     file_bytes = file.read()
     if not file_bytes:
         return jsonify({'success': False, 'message': '图片内容为空'})
@@ -2258,6 +2273,8 @@ def catalog_search_by_image_for_quote():
             query_text=query_text,
             spec_hint=spec_hint,
             brand_hint=brand_hint,
+            provider=provider,
+            model_name=model_name,
         ))
         return jsonify({
             'success': True,

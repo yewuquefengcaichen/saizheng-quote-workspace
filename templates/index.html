@@ -4295,6 +4295,24 @@
         let quoteCatalogSearchModalInstance = null;
         const QUOTE_SEARCH_TAB_TEXT = 'text';
         const QUOTE_SEARCH_TAB_IMAGE = 'image';
+        const QUOTE_IMAGE_SEARCH_MODE_FAST = 'fast';
+        const QUOTE_IMAGE_SEARCH_MODE_CLIP = 'clip';
+        const QUOTE_IMAGE_SEARCH_PROVIDERS = {
+            fast: {
+                label: '快速图搜',
+                shortLabel: '快速',
+                provider: 'local_hash_embedding',
+                modelName: 'phash_dhash_128d_v1',
+                hint: '速度快，适合先粗筛'
+            },
+            clip: {
+                label: '智能图搜',
+                shortLabel: '智能 CLIP',
+                provider: 'clip_local',
+                modelName: 'openclip_vit_b_32_512d',
+                hint: '更懂图片语义，已用 RTX 4060 生成部分向量'
+            }
+        };
         let workspaceProductsSource = document.body.dataset.productsSource || 'none';
         let workspaceProductsCount = Number(document.body.dataset.productsCount || 0) || 0;
         const exportTemplates = {{ export_templates|tojson|safe }};
@@ -6727,8 +6745,28 @@
                 imageMimeType: rawState.imageMimeType || '',
                 provider: rawState.provider || '',
                 modelName: rawState.modelName || '',
+                imageSearchMode: rawState.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_CLIP ? QUOTE_IMAGE_SEARCH_MODE_CLIP : QUOTE_IMAGE_SEARCH_MODE_FAST,
                 activeTab: rawState.activeTab || QUOTE_SEARCH_TAB_TEXT
             };
+        }
+
+        function getQuoteImageSearchProviderConfig(mode) {
+            return mode === QUOTE_IMAGE_SEARCH_MODE_CLIP
+                ? QUOTE_IMAGE_SEARCH_PROVIDERS.clip
+                : QUOTE_IMAGE_SEARCH_PROVIDERS.fast;
+        }
+
+        function setQuoteImageSearchMode(itemIndex, mode) {
+            const selectedMode = mode === QUOTE_IMAGE_SEARCH_MODE_CLIP ? QUOTE_IMAGE_SEARCH_MODE_CLIP : QUOTE_IMAGE_SEARCH_MODE_FAST;
+            const providerConfig = getQuoteImageSearchProviderConfig(selectedMode);
+            quoteCatalogSearchState[itemIndex] = {
+                ...getQuoteCatalogSearchState(itemIndex),
+                imageSearchMode: selectedMode,
+                provider: providerConfig.provider,
+                modelName: providerConfig.modelName,
+                activeTab: QUOTE_SEARCH_TAB_IMAGE
+            };
+            updateQuoteCatalogSearchPanel(itemIndex);
         }
 
         function getQuoteCatalogDefaultKeyword(queryItem, itemIndex) {
@@ -7013,7 +7051,14 @@
             const imagePreview = state.imagePreviewUrl
                 ? `<img src="${escapeHtmlAttr(state.imagePreviewUrl)}" class="quote-image-search-preview" alt="图搜预览">`
                 : `<div class="quote-image-search-placeholder"><i class="bi bi-image"></i></div>`;
-            const imageProviderMeta = [state.provider, state.modelName].filter(Boolean).join(' · ');
+            const imageProviderConfig = getQuoteImageSearchProviderConfig(state.imageSearchMode);
+            const imageProviderMeta = [
+                imageProviderConfig.label,
+                state.provider || imageProviderConfig.provider,
+                state.modelName || imageProviderConfig.modelName
+            ].filter(Boolean).join(' · ');
+            const fastModeActive = state.imageSearchMode !== QUOTE_IMAGE_SEARCH_MODE_CLIP;
+            const clipModeActive = state.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_CLIP;
             const activeResultsHtml = activeTab === QUOTE_SEARCH_TAB_IMAGE
                 ? renderQuoteCatalogSearchResults(itemIndex, {
                     results: state.imageResults,
@@ -7066,6 +7111,15 @@
                             <div class="quote-image-search-copy">
                                 <strong>${escapeHtml(state.imageQueryName || '上传图片后直接找 SKU')}</strong>
                                 <div class="quote-search-modal-search-hint">${imageProviderMeta ? escapeHtml(imageProviderMeta) : '拍照 / 截图 / 主图'}</div>
+                                <div class="btn-group btn-group-sm quote-image-provider-toggle mt-2" role="group" aria-label="图搜模式">
+                                    <button class="btn ${fastModeActive ? 'btn-info' : 'btn-outline-info'} quote-image-provider-option" data-item-index="${itemIndex}" data-image-search-mode="${QUOTE_IMAGE_SEARCH_MODE_FAST}" type="button">
+                                        快速图搜
+                                    </button>
+                                    <button class="btn ${clipModeActive ? 'btn-info' : 'btn-outline-info'} quote-image-provider-option" data-item-index="${itemIndex}" data-image-search-mode="${QUOTE_IMAGE_SEARCH_MODE_CLIP}" type="button">
+                                        智能 CLIP
+                                    </button>
+                                </div>
+                                <div class="quote-search-modal-search-hint">${escapeHtml(imageProviderConfig.hint)}</div>
                             </div>
                             <div class="quote-image-search-actions">
                                 <input type="file" class="d-none quote-catalog-image-input" data-item-index="${itemIndex}" accept="image/*">
@@ -7271,6 +7325,7 @@
                 URL.revokeObjectURL(currentState.imagePreviewUrl);
             }
 
+            const providerConfig = getQuoteImageSearchProviderConfig(currentState.imageSearchMode);
             const previewUrl = URL.createObjectURL(file);
             quoteCatalogSearchState[itemIndex] = {
                 ...currentState,
@@ -7282,6 +7337,9 @@
                 imagePreviewUrl: previewUrl,
                 imageQueryName: file.name || '未命名图片',
                 imageMimeType: file.type || '',
+                imageSearchMode: currentState.imageSearchMode,
+                provider: providerConfig.provider,
+                modelName: providerConfig.modelName,
                 activeTab: QUOTE_SEARCH_TAB_IMAGE
             };
             updateQuoteCatalogSearchPanel(itemIndex);
@@ -7292,6 +7350,8 @@
             formData.append('query_text', String(queryItem.name || queryItem.remark || '').trim());
             formData.append('spec_hint', String(queryItem.spec || '').trim());
             formData.append('brand_hint', String(queryItem.brand || '').trim());
+            formData.append('provider', providerConfig.provider);
+            formData.append('model_name', providerConfig.modelName);
 
             fetch('/api/catalog/search_by_image_for_quote', {
                 method: 'POST',
@@ -7313,6 +7373,7 @@
                     imagePreviewUrl: previewUrl,
                     imageQueryName: file.name || '未命名图片',
                     imageMimeType: file.type || '',
+                    imageSearchMode: currentState.imageSearchMode,
                     provider: data.provider || '',
                     modelName: data.model_name || '',
                     activeTab: QUOTE_SEARCH_TAB_IMAGE
@@ -7330,6 +7391,9 @@
                     imagePreviewUrl: previewUrl,
                     imageQueryName: file.name || '未命名图片',
                     imageMimeType: file.type || '',
+                    imageSearchMode: currentState.imageSearchMode,
+                    provider: providerConfig.provider,
+                    modelName: providerConfig.modelName,
                     activeTab: QUOTE_SEARCH_TAB_IMAGE
                 };
                 updateQuoteCatalogSearchPanel(itemIndex);
@@ -7663,6 +7727,14 @@
                     const input = document.querySelector(`#quoteCatalogSearchModal .quote-catalog-image-input[data-item-index="${itemIndex}"]`)
                         || this.closest('.quote-image-search-actions')?.querySelector('.quote-catalog-image-input');
                     input?.click();
+                };
+            });
+
+            document.querySelectorAll('.quote-image-provider-option').forEach(btn => {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.itemIndex);
+                    setQuoteImageSearchMode(itemIndex, this.dataset.imageSearchMode || QUOTE_IMAGE_SEARCH_MODE_FAST);
                 };
             });
 

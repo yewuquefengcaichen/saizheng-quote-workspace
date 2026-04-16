@@ -138,9 +138,11 @@
 | P3 | 图搜图 | 512 维向量存储预留 | [x] | 已新增 `embedding_vector_512 vector(512)` 与 HNSW 索引 |
 | P3 | 图搜图 | 第二代视觉 embedding（CLIP / 更强 provider） | [x] | 已接入 `torch 2.5.1+cu121` / open_clip_torch，RTX 4060 GPU 验证可用 |
 | P3 | 图搜图 | 全量 CLIP 向量生成 | [ ] | 当前已生成 20 / 3300；后续分批生成 |
-| P3 | 图搜图 | 前端 provider 切换 | [ ] | 当前默认仍走 128 维 hash，需要提供“快速 / 智能 CLIP”切换 |
+| P3 | 图搜图 | 前端 provider 切换 | [x] | 报价台以图识图已支持“快速图搜 / 智能 CLIP”切换 |
 | P3 | 图搜图 | embedding provider 状态化 | [x] | 已可查看 local_hash / clip_local 可用性、维度和待生成数量 |
 | P3 | 图搜图 | 生成脚本 provider 参数化 | [x] | 已支持 `--provider / --model-name`，CLIP 未就绪时清晰提示 |
+| P3 | 图搜图 | Celery embedding 任务入口 | [x] | 已新增 `app.tasks.embedding.generate_image_embeddings` 与 FastAPI 任务 API |
+| P3 | 图搜图 | 前端 embedding 任务面板 | [ ] | 还需把任务提交 / 进度 / 结果接到业务页或管理页 |
 | P3 | 图搜图 | 历史反馈精排 | [ ] | 把已确认行为用于 rerank |
 | P3 | 图搜图 | 拍照 / 粘贴图片入口增强 | [ ] | 更接近真实业务用法 |
 | P3 | 图搜图 | 图搜图结果缓存 | [ ] | 为性能优化做准备 |

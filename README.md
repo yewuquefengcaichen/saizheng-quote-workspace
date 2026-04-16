@@ -181,6 +181,8 @@
 - 商城分页已能跟随“下一页”链接继续抓取；详情补图开关已接入，可从商品详情页补齐主图和详情图
 - 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构支持、依赖可用”，并已生成首批 20 条真实 CLIP 向量
 - 本项目 `backend\.venv` 已切到 RTX 4060 可用的 `torch 2.5.1+cu121`；这只影响项目虚拟环境，不改系统 CUDA 或其他深度学习环境
+- 报价台以图识图已支持“快速图搜 / 智能 CLIP”切换
+- CLIP 批量生成已有 Celery 任务入口，后续可接前端任务面板
 - 首页 / 报价台 / 商品库会显示当前商品源状态
 - Bootstrap Icons 改为本地静态资源，避免外网抖动导致图标问号 / 空框
 
@@ -232,7 +234,7 @@
 
 ```powershell
 cd "D:\A赛正\完整导出的商品信息\claudecode-报价系统"
-python app.py
+backend\.venv\Scripts\python.exe app.py
 ```
 
 访问：
@@ -245,15 +247,17 @@ http://127.0.0.1:5000
 
 ```powershell
 cd "D:\A赛正\完整导出的商品信息\claudecode-报价系统"
-python run_server.py
+backend\.venv\Scripts\python.exe run_server.py
 ```
 
 ### V2 FastAPI（8001，可单独调试）
 
 ```powershell
 cd backend
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
+.\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
+
+> 说明：为了让报价台也能用 RTX 4060 跑 CLIP，推荐用 `backend\.venv` 启动 Flask；这样不会污染系统 Python 或其他深度学习环境。
 
 ---
 

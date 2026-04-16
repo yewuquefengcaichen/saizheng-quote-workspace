@@ -2,9 +2,11 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
+from app.core.celery_app import celery_app
 from app.db.session import get_db_session
 from app.schemas.image_search import (
     ImageEmbeddingProviderStatus as ImageEmbeddingProviderStatusSchema,
@@ -21,8 +23,18 @@ from app.services import (
     resolve_archive_file_path,
     search_similar_products,
 )
+from app.tasks.embedding import generate_image_embeddings_task
 
 router = APIRouter(prefix='/image-search', tags=['image-search'])
+
+
+class ImageEmbeddingJobPayload(BaseModel):
+    provider: str = Field(default=DEFAULT_EMBEDDING_PROVIDER)
+    model_name: str | None = Field(default=None)
+    limit: int = Field(default=20, ge=1, le=1000)
+    only_missing: bool = True
+    commit_every: int = Field(default=5, ge=1, le=1000)
+    dry_run: bool = False
 
 
 @router.get('/embedding-status', response_model=ImageEmbeddingStatusResponse)
@@ -49,6 +61,44 @@ async def image_embedding_status(session: AsyncSession = Depends(get_db_session)
             for item in providers
         ],
     )
+
+
+@router.post('/embedding-jobs')
+async def enqueue_image_embedding_job(payload: ImageEmbeddingJobPayload) -> dict:
+    task = generate_image_embeddings_task.delay(
+        provider=payload.provider,
+        model_name=payload.model_name,
+        limit=payload.limit,
+        only_missing=payload.only_missing,
+        commit_every=payload.commit_every,
+        dry_run=payload.dry_run,
+    )
+    return {
+        'success': True,
+        'task_id': task.id,
+        'status': 'queued',
+        'provider': payload.provider,
+        'model_name': payload.model_name,
+        'limit': payload.limit,
+        'dry_run': payload.dry_run,
+    }
+
+
+@router.get('/embedding-jobs/{task_id}')
+async def get_image_embedding_job(task_id: str) -> dict:
+    result = celery_app.AsyncResult(task_id)
+    response = {
+        'success': True,
+        'task_id': task_id,
+        'status': result.status,
+        'ready': result.ready(),
+    }
+    if result.ready():
+        if result.successful():
+            response['result'] = result.result
+        else:
+            response['error'] = str(result.result)
+    return response
 
 
 @router.post('/query', response_model=ImageSearchResponse)

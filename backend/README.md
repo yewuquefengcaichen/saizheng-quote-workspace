@@ -117,7 +117,7 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py
 检查 CLIP 状态：
 
 ```powershell
-python backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --dry-run --limit 1
+backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --dry-run --limit 1
 ```
 
 生成 CLIP 向量：
@@ -148,10 +148,47 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --
 - 商品库页支持手动触发 Playwright 商城抓取同步
 - 商城抓取支持 `site_adapter=dinghuovip_product_list`，可解析真实 `#productList` 表格
 - 商城抓取支持“下一页”分页和可选详情页补图
+- 报价台以图识图支持“快速图搜 / 智能 CLIP”模式切换
+- CLIP 批量生成已具备 Celery 任务入口
 
 ---
 
-## 7. 数据库存储说明
+## 7. Celery 后台任务
+
+当前已提供图片 embedding 生成任务：
+
+```text
+app.tasks.embedding.generate_image_embeddings
+```
+
+启动 worker 示例：
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m celery -A app.core.celery_app.celery_app worker -Q embedding --pool=solo --loglevel=info
+```
+
+提交任务 API：
+
+```text
+POST /api/v1/image-search/embedding-jobs
+GET  /api/v1/image-search/embedding-jobs/{task_id}
+```
+
+示例请求体：
+
+```json
+{
+  "provider": "clip_local",
+  "model_name": "openclip_vit_b_32_512d",
+  "limit": 20,
+  "commit_every": 5,
+  "only_missing": true,
+  "dry_run": false
+}
+```
+
+## 8. 数据库存储说明
 
 - PostgreSQL 保存：商品、分类、品牌、供应商、图片元数据、向量、规则、历史、反馈、同步任务
 - 本地文件系统保存：图片归档文件
@@ -159,7 +196,7 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --
 
 ---
 
-## 8. 维护提醒
+## 9. 维护提醒
 
 如果手动同步前后遇到 PostgreSQL 索引异常，可参考 `docs/BACKUP_RUNBOOK.md`：
 
