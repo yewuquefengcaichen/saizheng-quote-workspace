@@ -6,17 +6,49 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.db.session import get_db_session
-from app.schemas.image_search import ImageSearchCandidate, ImageSearchResponse
+from app.schemas.image_search import (
+    ImageEmbeddingProviderStatus as ImageEmbeddingProviderStatusSchema,
+    ImageEmbeddingStatusResponse,
+    ImageSearchCandidate,
+    ImageSearchResponse,
+)
 from app.services import (
     DEFAULT_EMBEDDING_MODEL_NAME,
     DEFAULT_EMBEDDING_PROVIDER,
     DEFAULT_EMBEDDING_VECTOR_DIM,
     compute_query_image_features,
+    get_image_embedding_status,
     resolve_archive_file_path,
     search_similar_products,
 )
 
 router = APIRouter(prefix='/image-search', tags=['image-search'])
+
+
+@router.get('/embedding-status', response_model=ImageEmbeddingStatusResponse)
+async def image_embedding_status(session: AsyncSession = Depends(get_db_session)) -> ImageEmbeddingStatusResponse:
+    providers = await get_image_embedding_status(session)
+    return ImageEmbeddingStatusResponse(
+        active_provider=DEFAULT_EMBEDDING_PROVIDER,
+        active_model_name=DEFAULT_EMBEDDING_MODEL_NAME,
+        active_vector_dim=DEFAULT_EMBEDDING_VECTOR_DIM,
+        providers=[
+            ImageEmbeddingProviderStatusSchema(
+                provider=item.provider,
+                model_name=item.model_name,
+                vector_dim=item.vector_dim,
+                active=item.active,
+                available=item.available,
+                schema_supported=item.schema_supported,
+                ready_embeddings=item.ready_embeddings,
+                total_ready_assets=item.total_ready_assets,
+                pending_assets=item.pending_assets,
+                missing_dependency=item.missing_dependency,
+                note=item.note,
+            )
+            for item in providers
+        ],
+    )
 
 
 @router.post('/query', response_model=ImageSearchResponse)

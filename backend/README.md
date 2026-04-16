@@ -65,6 +65,7 @@ http://127.0.0.1:8001/health
 
 - `POST /api/v1/image-search/query`
 - `GET /api/v1/image-search/assets/{asset_id}/file`
+- `GET /api/v1/image-search/embedding-status`
 
 ### 商品同步
 

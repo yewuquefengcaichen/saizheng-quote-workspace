@@ -152,6 +152,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 - `POST /api/v1/image-search/query`
 - `GET /api/v1/image-search/assets/{asset_id}/file`
+- `GET /api/v1/image-search/embedding-status`
 
 ---
 
@@ -229,6 +230,26 @@ GET /api/v1/image-search/assets/{asset_id}/file
 - 前端可直接显示已归档图片
 - 避免继续依赖旧商城远程图片链接
 
+### 3）embedding provider 状态
+
+接口：
+
+```text
+GET /api/v1/image-search/embedding-status
+```
+
+用途：
+
+- 查看当前 `local_hash_embedding` 是否就绪
+- 查看 `clip_local` 是否缺依赖
+- 查看当前数据库向量列是否支持目标维度
+- 为后续 CLIP / 更强视觉模型升级做预检
+
+当前结论：
+
+- `local_hash_embedding / phash_dhash_128d_v1`：可用，维度 128，当前数据库支持
+- `clip_local / openclip_vit_b_32_512d`：预留，维度 512；需要安装 `torch / open_clip_torch`，并增加 512 维向量存储
+
 ---
 
 ## 当前局限（明确说清）
@@ -261,8 +282,8 @@ GET /api/v1/image-search/assets/{asset_id}/file
 目标：
 
 - provider 升级为 CLIP / OpenAI 视觉 embedding / 本地视觉模型
-- 保留当前 `image_embeddings` 表不变
-- 新增第二套 provider/model 记录
+- 先新增 512 维向量存储或独立表
+- 再启用第二套 provider/model 记录
 
 ### P2：前端接入拍照识别入口
 

@@ -54,6 +54,7 @@ try:
         DEFAULT_EMBEDDING_PROVIDER as V2_IMAGE_EMBEDDING_PROVIDER,
         DEFAULT_EMBEDDING_VECTOR_DIM as V2_IMAGE_EMBEDDING_VECTOR_DIM,
         compute_query_image_features as v2_compute_query_image_features,
+        get_image_embedding_status as v2_get_image_embedding_status,
         resolve_archive_file_path as v2_resolve_archive_file_path,
         search_similar_products as v2_search_similar_products,
     )
@@ -1398,6 +1399,34 @@ async def _search_catalog_by_image_async(file_bytes, top_k=12, query_text='', sp
         }
 
 
+async def _get_v2_image_embedding_status_async():
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        raise RuntimeError(f'V2图搜图模块不可用: {V2_IMAGE_SEARCH_IMPORT_ERROR or "未安装依赖"}')
+    async with V2AsyncSessionLocal() as session:
+        providers = await v2_get_image_embedding_status(session)
+        return {
+            'provider': V2_IMAGE_EMBEDDING_PROVIDER,
+            'model_name': V2_IMAGE_EMBEDDING_MODEL_NAME,
+            'vector_dim': V2_IMAGE_EMBEDDING_VECTOR_DIM,
+            'providers': [
+                {
+                    'provider': item.provider,
+                    'model_name': item.model_name,
+                    'vector_dim': item.vector_dim,
+                    'active': item.active,
+                    'available': item.available,
+                    'schema_supported': item.schema_supported,
+                    'ready_embeddings': item.ready_embeddings,
+                    'total_ready_assets': item.total_ready_assets,
+                    'pending_assets': item.pending_assets,
+                    'missing_dependency': item.missing_dependency,
+                    'note': item.note,
+                }
+                for item in providers
+            ],
+        }
+
+
 def _prepare_ocr_parse_result(parsed_items, raw_text):
     parse_result = build_ocr_parse_result(parsed_items, raw_text)
     return _update_parse_result_template_match(parse_result)
@@ -2211,6 +2240,26 @@ def catalog_search_by_image_for_quote():
             'success': False,
             'message': f'图片检索失败：{str(e)}'
         })
+
+
+@app.route('/api/catalog/image_embedding_status', methods=['GET'])
+def get_catalog_image_embedding_status():
+    """查询当前图搜图 embedding provider 状态"""
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'图搜图能力不可用：{V2_IMAGE_SEARCH_IMPORT_ERROR or "依赖未安装"}'
+        }), 503
+    try:
+        return jsonify({
+            'success': True,
+            **_run_async_task(_get_v2_image_embedding_status_async()),
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'读取图搜图状态失败：{str(e)}'
+        }), 500
 
 
 @app.route('/api/catalog/image_asset/<int:asset_id>/file', methods=['GET'])

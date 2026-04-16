@@ -39,3 +39,24 @@ class ImageSearchResponse(BaseModel):
     query_height: int | None = None
     total: int
     candidates: list[ImageSearchCandidate]
+
+
+class ImageEmbeddingProviderStatus(BaseModel):
+    provider: str
+    model_name: str
+    vector_dim: int
+    active: bool
+    available: bool
+    schema_supported: bool
+    ready_embeddings: int
+    total_ready_assets: int
+    pending_assets: int
+    missing_dependency: str | None = None
+    note: str | None = None
+
+
+class ImageEmbeddingStatusResponse(BaseModel):
+    active_provider: str
+    active_model_name: str
+    active_vector_dim: int
+    providers: list[ImageEmbeddingProviderStatus]

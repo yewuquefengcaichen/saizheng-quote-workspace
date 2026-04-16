@@ -55,11 +55,12 @@
 - V2 商品同步增加第一版增量写入策略：无变化行跳过 product / variant / image 无意义写入
 - 新增 Playwright 商城抓取同步第一版：支持网络 JSON 捕获、DOM 商品卡片兜底、商品库页“抓商城”按钮
 - 新增商城抓取预检：不写库即可检查页面、候选数量、登录态风险、字段样例和预计差异
+- 图搜图新增 embedding provider 状态接口，并让生成脚本支持 `--provider / --model-name` 参数，为 CLIP 升级打底
 
 ### 当前重点
 
 1. 根据真实商城页面校准起始 URL、登录态、分页和选择器
-2. 继续增强图搜图的召回 + 精排链路
+2. 给 CLIP 增加 512 维向量存储和真正的 provider 实现
 3. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 4. 建立更细的商城增量抓取指纹与删除 / 下架策略
 5. 为后续 React / TypeScript 重构打基础
