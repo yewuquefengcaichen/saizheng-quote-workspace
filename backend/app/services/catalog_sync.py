@@ -3,6 +3,7 @@ from __future__ import annotations
 import html
 import json
 import re
+from copy import deepcopy
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from decimal import Decimal
@@ -111,9 +112,13 @@ class CatalogSyncStats:
     created_rows: int = 0
     updated_rows: int = 0
     unchanged_rows: int = 0
+    retried_rows: int = 0
+    failed_rows: int = 0
+    skipped_unchanged_writes: int = 0
     created_row_examples: list[dict[str, Any]] = field(default_factory=list)
     updated_row_examples: list[dict[str, Any]] = field(default_factory=list)
     unchanged_row_examples: list[dict[str, Any]] = field(default_factory=list)
+    failed_row_examples: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -122,6 +127,9 @@ class CatalogSyncStats:
             'created_rows': self.created_rows,
             'updated_rows': self.updated_rows,
             'unchanged_rows': self.unchanged_rows,
+            'failed_rows': self.failed_rows,
+            'retried_rows': self.retried_rows,
+            'skipped_unchanged_writes': self.skipped_unchanged_writes,
             'stale_images_detected': self.stale_images_detected,
         }
         return payload
@@ -174,6 +182,8 @@ class LegacyCatalogSyncService:
         source_name: str = 'products_json_manual',
         requested_by: str | None = None,
         source_path: Path | None = None,
+        row_retry_attempts: int = 2,
+        skip_unchanged_writes: bool = True,
     ) -> None:
         self.session = session
         self.dry_run = dry_run
@@ -182,6 +192,8 @@ class LegacyCatalogSyncService:
         self.source_name = source_name
         self.requested_by = requested_by
         self.source_path = (source_path or LEGACY_PRODUCTS_PATH).resolve()
+        self.row_retry_attempts = max(1, int(row_retry_attempts or 1))
+        self.skip_unchanged_writes = skip_unchanged_writes
         self.brand_cache: dict[str, Brand] = {}
         self.supplier_cache: dict[str, Supplier] = {}
         self.category_cache: dict[tuple[str, ...], Category] = {}
@@ -208,7 +220,33 @@ class LegacyCatalogSyncService:
 
         try:
             for index, item in enumerate(items, start=1):
-                await self.import_one(item)
+                row_done = False
+                last_error: Exception | None = None
+                for attempt in range(1, self.row_retry_attempts + 1):
+                    stats_snapshot = deepcopy(self.stats)
+                    try:
+                        async with self.session.begin_nested():
+                            await self.import_one(item)
+                        row_done = True
+                        break
+                    except Exception as exc:
+                        self.stats = stats_snapshot
+                        last_error = exc
+                        self._reset_lookup_caches()
+                        if attempt < self.row_retry_attempts:
+                            self.stats.retried_rows += 1
+                            append_limited(
+                                self.stats.warnings,
+                                f'row retry {attempt}/{self.row_retry_attempts}: {self._row_example_from_item(item, error=str(exc))}',
+                                limit=50,
+                            )
+
+                if not row_done:
+                    self.stats.failed_rows += 1
+                    append_limited(
+                        self.stats.failed_row_examples,
+                        self._row_example_from_item(item, error=str(last_error or 'unknown error')),
+                    )
                 self.stats.processed += 1
 
                 if index % 300 == 0:
@@ -295,7 +333,12 @@ class LegacyCatalogSyncService:
                 job_id=self.job_id,
                 level='error' if error_message else 'info',
                 event_type='job_finished',
-                message=error_message or f'商品库同步完成，处理 {self.stats.processed} 条。',
+                message=error_message
+                or (
+                    f'商品库同步完成，处理 {self.stats.processed} 条'
+                    f'，新增 {self.stats.created_rows}，更新 {self.stats.updated_rows}'
+                    f'，无变化 {self.stats.unchanged_rows}，失败 {self.stats.failed_rows}。'
+                ),
                 context_json=stats_payload,
             )
         )
@@ -307,13 +350,37 @@ class LegacyCatalogSyncService:
             **self.stats.to_dict(),
             'source_path': str(self.source_path),
             'source_type': self.source_type,
+            'row_retry_attempts': self.row_retry_attempts,
+            'skip_unchanged_writes': self.skip_unchanged_writes,
         }
+
+    def _reset_lookup_caches(self) -> None:
+        self.brand_cache.clear()
+        self.supplier_cache.clear()
+        self.category_cache.clear()
+
+    @staticmethod
+    def _row_example_from_item(item: dict[str, Any], *, error: str | None = None) -> dict[str, Any]:
+        code = normalize_text(str((item or {}).get('code') or ''))
+        name = normalize_text(str((item or {}).get('name') or ''))
+        example = {
+            'code': code[:160] if code else None,
+            'name': name[:160] if name else None,
+        }
+        if error:
+            example['error'] = error[:500]
+        return example
 
     async def import_one(self, item: dict[str, Any]) -> None:
         code = normalize_text(str(item.get('code') or ''))
         name = normalize_text(str(item.get('name') or ''))
         if not code or not name:
             self.stats.warnings.append(f'missing code/name: {item}')
+            self.stats.failed_rows += 1
+            append_limited(
+                self.stats.failed_row_examples,
+                self._row_example_from_item(item, error='missing code/name'),
+            )
             return
 
         brand = await self.get_or_create_brand(normalize_text(str(item.get('brand') or '')))
@@ -385,27 +452,30 @@ class LegacyCatalogSyncService:
             else:
                 self.stats.unchanged_products += 1
 
-        product.product_code = code
-        product.name = name
-        product.normalized_name = name
-        product.brand = brand
-        product.category = category
-        product.supplier = supplier
-        product.status = status
-        product.is_active = is_active
-        product.unit = unit
-        product.reference_price = reference_price
-        product.primary_image_url = primary_image_url
-        product.search_text = search_text
-        product.last_synced_at = datetime.now(timezone.utc)
-        product.source_payload = {
-            'legacy_row': item,
-            'legacy_intro_text': intro_text,
-            'legacy_image_count': len(image_urls),
-            'legacy_note': '当前旧商品库缺少明确 SPU/SKU 拆分，先按一行一个 product + 一个 variant 迁移。',
-        }
+        product_should_write = is_new_product or bool(product_changes) or not self.skip_unchanged_writes
+        if product_should_write:
+            product.product_code = code
+            product.name = name
+            product.normalized_name = name
+            product.brand = brand
+            product.category = category
+            product.supplier = supplier
+            product.status = status
+            product.is_active = is_active
+            product.unit = unit
+            product.reference_price = reference_price
+            product.primary_image_url = primary_image_url
+            product.search_text = search_text
+            product.last_synced_at = datetime.now(timezone.utc)
+            product.source_payload = {
+                'legacy_row': item,
+                'legacy_intro_text': intro_text,
+                'legacy_image_count': len(image_urls),
+                'legacy_note': '当前旧商品库缺少明确 SPU/SKU 拆分，先按一行一个 product + 一个 variant 迁移。',
+            }
 
-        await self.session.flush()
+        if is_new_product:
+            await self.session.flush()
 
         variant = await self.session.scalar(
             select(ProductVariant).where(
@@ -453,24 +523,27 @@ class LegacyCatalogSyncService:
             else:
                 self.stats.unchanged_variants += 1
 
-        variant.sku_code = code
-        variant.variant_name = model or name
-        variant.spec_text = model
-        variant.normalized_spec = model
-        variant.sale_price = sale_price
-        variant.cost_price = cost_price
-        variant.status = status
-        variant.is_active = is_active
-        variant.last_synced_at = datetime.now(timezone.utc)
-        variant.source_payload = {
-            'legacy_row_code': code,
-            'import_mode': 'one-row-one-variant',
-            'legacy_image_count': len(image_urls),
-            'is_new_product': is_new_product,
-            'is_new_variant': is_new_variant,
-        }
+        variant_should_write = is_new_variant or bool(variant_changes) or not self.skip_unchanged_writes
+        if variant_should_write:
+            variant.sku_code = code
+            variant.variant_name = model or name
+            variant.spec_text = model
+            variant.normalized_spec = model
+            variant.sale_price = sale_price
+            variant.cost_price = cost_price
+            variant.status = status
+            variant.is_active = is_active
+            variant.last_synced_at = datetime.now(timezone.utc)
+            variant.source_payload = {
+                'legacy_row_code': code,
+                'import_mode': 'one-row-one-variant',
+                'legacy_image_count': len(image_urls),
+                'is_new_product': is_new_product,
+                'is_new_variant': is_new_variant,
+            }
 
-        await self.session.flush()
+        if is_new_variant:
+            await self.session.flush()
         image_diff = await self.sync_product_images(product, variant, image_urls)
 
         row_example = {'code': code, 'name': name}
@@ -492,6 +565,8 @@ class LegacyCatalogSyncService:
             )
         else:
             self.stats.unchanged_rows += 1
+            if self.skip_unchanged_writes:
+                self.stats.skipped_unchanged_writes += 1
             append_limited(self.stats.unchanged_row_examples, row_example)
 
     async def sync_product_images(self, product: Product, variant: ProductVariant, image_urls: list[str]) -> dict[str, Any]:
@@ -516,6 +591,13 @@ class LegacyCatalogSyncService:
             else:
                 self.stats.unchanged_image_sets += 1
         self.stats.stale_images_detected += stale_count
+
+        if not changed and self.skip_unchanged_writes:
+            return {
+                'changed': False,
+                'created': 0,
+                'stale': stale_count,
+            }
 
         existing_by_url = {image.source_url: image for image in existing_items}
         created_count = 0

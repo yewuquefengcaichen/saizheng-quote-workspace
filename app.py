@@ -2220,8 +2220,14 @@ def run_catalog_sync_v2_manual():
         updated_rows = diff_summary.get('updated_rows')
         unchanged_rows = diff_summary.get('unchanged_rows')
         stale_images = diff_summary.get('stale_images_detected') or 0
+        failed_rows = diff_summary.get('failed_rows') or 0
+        retried_rows = diff_summary.get('retried_rows') or 0
         if created_rows is not None and updated_rows is not None and unchanged_rows is not None:
             message = f'V2 商品同步完成：新增 {created_rows}，更新 {updated_rows}，无变化 {unchanged_rows}'
+            if failed_rows:
+                message += f'，失败 {failed_rows}'
+            if retried_rows:
+                message += f'，重试 {retried_rows}'
             if stale_images:
                 message += f'，旧图待处理 {stale_images}'
             message += '。'

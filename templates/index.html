@@ -4661,7 +4661,10 @@
                     const staleText = Number(diffSummary.stale_images_detected || 0) > 0
                         ? ` · 旧图待处理 ${Number(diffSummary.stale_images_detected || 0)}`
                         : '';
-                    text = `V2 已同步 ${count} 条${diffText}${staleText}${finishedText}`;
+                    const failedText = Number(diffSummary.failed_rows || 0) > 0
+                        ? ` · 失败 ${Number(diffSummary.failed_rows || 0)}`
+                        : '';
+                    text = `V2 已同步 ${count} 条${diffText}${failedText}${staleText}${finishedText}`;
                 } else if (status === 'running') {
                     icon = 'bi-arrow-repeat';
                     text = `V2 同步进行中：${job.completed_steps || 0} / ${job.total_steps || 0}`;
