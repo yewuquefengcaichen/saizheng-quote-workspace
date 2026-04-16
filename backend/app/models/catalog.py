@@ -185,6 +185,7 @@ class ImageEmbedding(IdentityPrimaryKeyMixin, TimestampMixin, Base):
         index=True,
     )
     embedding_vector: Mapped[list[float] | None] = mapped_column(Vector(128), nullable=True)
+    embedding_vector_512: Mapped[list[float] | None] = mapped_column(Vector(512), nullable=True)
     embedding_json: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     source_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
 

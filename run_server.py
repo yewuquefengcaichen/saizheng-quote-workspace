@@ -4,6 +4,7 @@ import subprocess
 import sys
 import os
 import traceback
+import importlib.util
 
 # 写日志文件
 log_file = open('server_debug.log', 'w', encoding='utf-8')
@@ -23,8 +24,19 @@ try:
     log(f"Python version: {sys.version}")
     log(f"Working directory: {os.getcwd()}")
 
-    # 导入并运行
-    from app import app, load_products, quote_db, QuoteHistoryDB, init_ai_service
+    # 用别名加载 app.py，避免根目录 app.py 与 backend/app 包同名时互相遮蔽。
+    # 如果直接 `from app import ...`，V2 后端里的 `from app.db...` 会被根模块 app.py 抢占。
+    app_file = os.path.join(app_dir, 'app.py')
+    spec = importlib.util.spec_from_file_location('saizheng_flask_app', app_file)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f'无法加载 Flask 入口: {app_file}')
+    flask_module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = flask_module
+    spec.loader.exec_module(flask_module)
+
+    app = flask_module.app
+    load_products = flask_module.load_products
+    QuoteHistoryDB = flask_module.QuoteHistoryDB
 
     log("Imports successful")
 
@@ -32,7 +44,7 @@ try:
     os.makedirs('data', exist_ok=True)
     os.makedirs('output', exist_ok=True)
     db_path = os.path.join('data', 'quote_history.db')
-    quote_db = QuoteHistoryDB(db_path)
+    flask_module.quote_db = QuoteHistoryDB(db_path)
     load_products()
 
     log("Initialization complete")

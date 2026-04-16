@@ -9,6 +9,8 @@
 - 图搜图与精排
 - 商品同步任务
 - Playwright 商城抓取同步第一版
+- 赛正 dinghuovip 商品列表 DOM 适配器
+- 512 维图片向量存储预留
 - 规则 / 历史 / 反馈迁移底座
 - 未来 React 前端 API
 
@@ -21,6 +23,7 @@
 - PostgreSQL
 - Alembic
 - pgvector
+- pgvector 128/512 双向量列
 - Pillow
 - Playwright
 - Redis / Celery（预留升级位）
@@ -67,6 +70,11 @@ http://127.0.0.1:8001/health
 - `GET /api/v1/image-search/assets/{asset_id}/file`
 - `GET /api/v1/image-search/embedding-status`
 
+当前状态：
+
+- `local_hash_embedding / phash_dhash_128d_v1`：生产可用，写入 `embedding_vector vector(128)`
+- `clip_local / openclip_vit_b_32_512d`：数据库结构已支持，写入列为 `embedding_vector_512 vector(512)`；依赖和真正生成器待接入
+
 ### 商品同步
 
 - `GET /api/v1/catalog-sync/latest`
@@ -106,6 +114,12 @@ backend\.venv\Scripts\python.exe backend\scripts\archive_product_images.py --onl
 backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py
 ```
 
+检查 CLIP 预留状态：
+
+```powershell
+python backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --dry-run --limit 1
+```
+
 ---
 
 ## 6. 当前桥接状态
@@ -118,6 +132,7 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py
 - 图搜图直接查 PostgreSQL / 图片归档 / 精排结果
 - 商品库页支持手动触发同步
 - 商品库页支持手动触发 Playwright 商城抓取同步
+- 商城抓取支持 `site_adapter=dinghuovip_product_list`，可解析真实 `#productList` 表格
 
 ---
 

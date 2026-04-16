@@ -15,6 +15,8 @@
 - 同步时自动重试异常行，并跳过未变化行的无意义写入
 - 通过 Playwright 从商城页面抓取商品并同步到 V2
 - 商城抓取支持预检模式，先看提取数量和预计差异，再决定是否写库
+- 已接入赛正 dinghuovip 商品列表 DOM 专用适配器，可用登录态抓取真实商品列表
+- 图搜图已预留 `embedding_vector_512`，为 CLIP / 更强视觉模型第二阶段落库打底
 
 ---
 
@@ -83,7 +85,9 @@
 - V2 已接入：
   - PostgreSQL 商品库
   - 图片归档与图搜图
-  - 图搜图 provider 状态接口，为 CLIP / 更强视觉模型预留升级位
+  - 图搜图 provider 状态接口
+  - `image_embeddings.embedding_vector` 128 维本地 hash 向量
+  - `image_embeddings.embedding_vector_512` 512 维 CLIP / 更强模型预留向量
   - 商品手动同步任务
   - 商品库上传后可选“立即同步 V2”
   - 同步差异报告（新增 / 更新 / 无变化 / 旧图待处理）
@@ -129,7 +133,7 @@
 - `product_variants`
 - `product_images`
 - `image_assets`
-- `image_embeddings`
+- `image_embeddings`：当前 128 维本地 hash 已可用，512 维 CLIP 字段已预留
 - `brands`
 - `categories`
 - `suppliers`
@@ -172,6 +176,9 @@
 - V2 同步已支持单行失败重试；未变化商品会跳过 product / variant / image 的无意义写入
 - 商品库页新增“抓商城”按钮；后端会通过 Playwright 捕获页面网络 JSON，并用 DOM 商品卡片提取做兜底
 - 商品库页新增“预检商城”按钮；不写库也能检查登录态、字段和预计同步差异
+- 真实商城 `Product/ProductList` 已校准：`site_adapter=dinghuovip_product_list` 会解析 `#productList` 表格，避开通知 JSON 误判
+- 商城列表页只提供封面图时，图片同步采用 `append_only`，不会把详情页历史图片误判成待删除旧图
+- 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构已支持，依赖未安装 / 生成器待接入”
 - 首页 / 报价台 / 商品库会显示当前商品源状态
 - Bootstrap Icons 改为本地静态资源，避免外网抖动导致图标问号 / 空框
 
@@ -183,6 +190,13 @@
 - 商品：5886
 - SKU / 变体：5886
 - 商品图片：25755
+
+最近一次真实商城预检结果：
+
+- URL：`https://sz.dinghuovip.com/Product/ProductList`
+- 登录态：本地 `backend/storage/mall-auth/saizheng-state.json`（已被 `.gitignore` 忽略，不提交）
+- 适配器：`dinghuovip_product_list`
+- 首屏结果：访问 1 页，DOM 提取 10 个真实商品，未误抓通知 JSON
 
 ---
 
@@ -269,8 +283,8 @@ git checkout next/v2-architecture-upgrade
 ## 9. 后续升级方向
 
 1. 继续把 legacy JSON 读路径往 PostgreSQL 收口
-2. 继续校准商城抓取登录态、起始 URL、分页和选择器
-3. 为“以图识图”继续增强图像特征与召回链路
+2. 继续增强商城抓取分页、详情页补图、下架 / 删除策略和任务状态
+3. 为“以图识图”接入真正的 CLIP 生成器、历史反馈精排和结果缓存
 4. 引入 Redis 做缓存、任务状态、热点检索优化
 5. 继续拆分前后端，为 React / TypeScript 版本做准备
 

@@ -52,6 +52,40 @@ def extract_intro_images(value: str | None) -> list[str]:
     return deduped
 
 
+def extract_item_image_urls(item: dict[str, Any]) -> list[str]:
+    """兼容旧 intro HTML 与新商城抓取的结构化 image_urls。"""
+    urls: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: Any) -> None:
+        if isinstance(value, dict):
+            for key in ('url', 'source_url', 'image_url', 'imageUrl', 'src'):
+                if key in value:
+                    add(value.get(key))
+            return
+        text = normalize_text(str(value or ''))
+        if not text or text in seen:
+            return
+        seen.add(text)
+        urls.append(text)
+
+    for key in ('primary_image_url', 'image_url', 'imageUrl', 'main_image_url'):
+        if item.get(key):
+            add(item.get(key))
+
+    raw_urls = item.get('image_urls') or item.get('images') or item.get('imageUrls') or []
+    if isinstance(raw_urls, (str, bytes)):
+        raw_urls = [raw_urls]
+    if isinstance(raw_urls, list):
+        for raw_url in raw_urls:
+            add(raw_url)
+
+    for url in extract_intro_images(str(item.get('intro') or '')):
+        add(url)
+
+    return urls
+
+
 def to_decimal(value: object) -> Decimal | None:
     if value in (None, ''):
         return None
@@ -388,7 +422,7 @@ class LegacyCatalogSyncService:
         category = await self.get_or_create_category_path(normalize_text(str(item.get('category') or '')))
         status, is_active = map_status(str(item.get('status') or ''))
         intro_text = clean_intro(str(item.get('intro') or ''))
-        image_urls = extract_intro_images(str(item.get('intro') or ''))
+        image_urls = extract_item_image_urls(item)
         model = normalize_text(str(item.get('model') or ''))
         unit = normalize_text(str(item.get('unit') or ''))
         reference_price = to_decimal(item.get('market_price'))
@@ -396,6 +430,7 @@ class LegacyCatalogSyncService:
         cost_price = to_decimal(item.get('cost_price'))
         primary_image_url = image_urls[0] if image_urls else None
         search_text = build_search_text(item)
+        image_sync_mode = normalize_text(str(item.get('image_sync_mode') or 'replace')) or 'replace'
 
         product = await self.session.scalar(
             select(Product).where(
@@ -468,10 +503,12 @@ class LegacyCatalogSyncService:
             product.search_text = search_text
             product.last_synced_at = datetime.now(timezone.utc)
             product.source_payload = {
-                'legacy_row': item,
-                'legacy_intro_text': intro_text,
-                'legacy_image_count': len(image_urls),
-                'legacy_note': '当前旧商品库缺少明确 SPU/SKU 拆分，先按一行一个 product + 一个 variant 迁移。',
+                'source_row': item,
+                'source_intro_text': intro_text,
+                'source_image_count': len(image_urls),
+                'source_type': self.source_type,
+                'image_sync_mode': image_sync_mode,
+                'sync_note': '当前商品源缺少统一 SPU/SKU 拆分，先按一行一个 product + 一个 variant 迁移。',
             }
 
         if is_new_product:
@@ -535,16 +572,18 @@ class LegacyCatalogSyncService:
             variant.is_active = is_active
             variant.last_synced_at = datetime.now(timezone.utc)
             variant.source_payload = {
-                'legacy_row_code': code,
+                'source_row_code': code,
                 'import_mode': 'one-row-one-variant',
-                'legacy_image_count': len(image_urls),
+                'source_image_count': len(image_urls),
+                'source_type': self.source_type,
+                'image_sync_mode': image_sync_mode,
                 'is_new_product': is_new_product,
                 'is_new_variant': is_new_variant,
             }
 
         if is_new_variant:
             await self.session.flush()
-        image_diff = await self.sync_product_images(product, variant, image_urls)
+        image_diff = await self.sync_product_images(product, variant, image_urls, image_sync_mode=image_sync_mode)
 
         row_example = {'code': code, 'name': name}
         if is_new_product:
@@ -569,7 +608,14 @@ class LegacyCatalogSyncService:
                 self.stats.skipped_unchanged_writes += 1
             append_limited(self.stats.unchanged_row_examples, row_example)
 
-    async def sync_product_images(self, product: Product, variant: ProductVariant, image_urls: list[str]) -> dict[str, Any]:
+    async def sync_product_images(
+        self,
+        product: Product,
+        variant: ProductVariant,
+        image_urls: list[str],
+        *,
+        image_sync_mode: str = 'replace',
+    ) -> dict[str, Any]:
         existing = await self.session.scalars(
             select(ProductImage)
             .where(
@@ -580,9 +626,13 @@ class LegacyCatalogSyncService:
         )
         existing_items = list(existing)
         existing_urls = [image.source_url for image in existing_items]
+        image_sync_mode = normalize_text(str(image_sync_mode or 'replace')) or 'replace'
         incoming_urls = list(image_urls)
+        if image_sync_mode == 'append_only':
+            existing_url_set = set(existing_urls)
+            incoming_urls = existing_urls + [image_url for image_url in image_urls if image_url not in existing_url_set]
         incoming_url_set = set(incoming_urls)
-        stale_count = sum(1 for image_url in existing_urls if image_url not in incoming_url_set)
+        stale_count = 0 if image_sync_mode == 'append_only' else sum(1 for image_url in existing_urls if image_url not in incoming_url_set)
         changed = existing_urls != incoming_urls
 
         if existing_urls or incoming_urls:
@@ -619,9 +669,11 @@ class LegacyCatalogSyncService:
             image.sort_order = index
             image.is_primary = index == 0
             image.source_payload = {
-                'legacy_source': 'products.json:intro',
-                'legacy_product_code': product.product_code,
-                'legacy_variant_code': variant.sku_code,
+                'source_type': self.source_type,
+                'source_name': self.source_name,
+                'image_sync_mode': image_sync_mode,
+                'product_code': product.product_code,
+                'variant_code': variant.sku_code,
             }
 
         return {

@@ -19,7 +19,8 @@ from app.services.image_pipeline import get_archive_root
 DEFAULT_EMBEDDING_PROVIDER = settings.image_embedding_provider
 DEFAULT_EMBEDDING_MODEL_NAME = settings.image_embedding_model_name
 DEFAULT_EMBEDDING_VECTOR_DIM = settings.image_embedding_vector_dim
-CURRENT_VECTOR_COLUMN_DIM = 128
+HASH_EMBEDDING_VECTOR_DIM = 128
+SUPPORTED_VECTOR_DIMS = {128, 512}
 CLIP_PLACEHOLDER_PROVIDER = 'clip_local'
 CLIP_PLACEHOLDER_MODEL_NAME = 'openclip_vit_b_32_512d'
 CLIP_PLACEHOLDER_VECTOR_DIM = 512
@@ -84,9 +85,25 @@ def hex_hash_to_bit_vector(hash_hex: str) -> list[float]:
 
 def build_hash_embedding_vector(phash: str, dhash: str) -> list[float]:
     vector = hex_hash_to_bit_vector(phash) + hex_hash_to_bit_vector(dhash)
-    if len(vector) != DEFAULT_EMBEDDING_VECTOR_DIM:
+    if len(vector) != HASH_EMBEDDING_VECTOR_DIM:
         raise ValueError(f'unexpected vector dim: {len(vector)}')
     return vector
+
+
+def get_embedding_vector_column(vector_dim: int):
+    if int(vector_dim) == 128:
+        return ImageEmbedding.embedding_vector
+    if int(vector_dim) == 512:
+        return ImageEmbedding.embedding_vector_512
+    raise ValueError(f'unsupported embedding vector dim: {vector_dim}')
+
+
+def is_embedding_schema_supported(vector_dim: int) -> bool:
+    try:
+        get_embedding_vector_column(vector_dim)
+        return True
+    except Exception:
+        return False
 
 
 def _module_available(module_name: str) -> bool:
@@ -108,8 +125,8 @@ def get_embedding_provider_registry() -> list[dict[str, object]]:
             'model_name': CLIP_PLACEHOLDER_MODEL_NAME,
             'vector_dim': CLIP_PLACEHOLDER_VECTOR_DIM,
             'available': _module_available('torch') and _module_available('open_clip'),
-            'missing_dependency': None if (_module_available('torch') and _module_available('open_clip')) else '需要安装 torch 与 open_clip_torch，并新增 512 维向量存储。',
-            'note': 'CLIP 语义视觉检索预留位；当前数据库 embedding_vector 是 vector(128)，不能直接写入 512 维。',
+            'missing_dependency': None if (_module_available('torch') and _module_available('open_clip')) else '需要安装 torch 与 open_clip_torch。',
+            'note': 'CLIP 语义视觉检索预留位；数据库已预留 embedding_vector_512，依赖和生成器就绪后可写入 512 维向量。',
         },
     ]
 
@@ -132,6 +149,8 @@ async def get_image_embedding_status(session: AsyncSession) -> list[ImageEmbeddi
         provider = str(provider_config['provider'])
         model_name = str(provider_config['model_name'])
         vector_dim = int(provider_config['vector_dim'])
+        schema_supported = is_embedding_schema_supported(vector_dim)
+        vector_column = get_embedding_vector_column(vector_dim) if schema_supported else None
         ready_embeddings = int(
             await session.scalar(
                 select(func.count())
@@ -139,10 +158,13 @@ async def get_image_embedding_status(session: AsyncSession) -> list[ImageEmbeddi
                 .where(
                     ImageEmbedding.provider == provider,
                     ImageEmbedding.model_name == model_name,
+                    ImageEmbedding.vector_dim == vector_dim,
                     ImageEmbedding.vector_status == 'ready',
+                    vector_column.is_not(None),
                 )
             )
-            or 0
+            if vector_column is not None
+            else 0
         )
         statuses.append(
             ImageEmbeddingProviderStatus(
@@ -151,7 +173,7 @@ async def get_image_embedding_status(session: AsyncSession) -> list[ImageEmbeddi
                 vector_dim=vector_dim,
                 active=provider == DEFAULT_EMBEDDING_PROVIDER and model_name == DEFAULT_EMBEDDING_MODEL_NAME,
                 available=bool(provider_config.get('available')),
-                schema_supported=vector_dim == CURRENT_VECTOR_COLUMN_DIM,
+                schema_supported=schema_supported,
                 ready_embeddings=ready_embeddings,
                 total_ready_assets=total_ready_assets,
                 pending_assets=max(0, total_ready_assets - ready_embeddings),
@@ -344,6 +366,7 @@ async def upsert_hash_embedding(
     embedding.vector_dim = len(vector)
     embedding.vector_status = 'ready'
     embedding.embedding_vector = vector
+    embedding.embedding_vector_512 = None
     embedding.embedding_json = {
         'strategy': 'phash_plus_dhash_bits',
         'phash': asset.phash,
@@ -402,17 +425,19 @@ async def search_similar_products(
     brand_hint: str | None = None,
 ) -> list[ImageSearchCandidateResult]:
     has_rerank_hint = any(str(value or '').strip() for value in [query_text, spec_hint, brand_hint])
+    vector_column = get_embedding_vector_column(len(query_vector))
     embedding_rows = (
         await session.execute(
             select(
                 ImageEmbedding.asset_id,
-                ImageEmbedding.embedding_vector.cosine_distance(query_vector).label('distance'),
+                vector_column.cosine_distance(query_vector).label('distance'),
             )
             .where(
                 ImageEmbedding.provider == provider,
                 ImageEmbedding.model_name == model_name,
+                ImageEmbedding.vector_dim == len(query_vector),
                 ImageEmbedding.vector_status == 'ready',
-                ImageEmbedding.embedding_vector.is_not(None),
+                vector_column.is_not(None),
             )
             .order_by('distance')
             .limit(max(top_k * (6 if has_rerank_hint else 4), 24))

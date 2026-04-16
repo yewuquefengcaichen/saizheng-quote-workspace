@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     mall_scrape_page_timeout_ms: int = 30000
     mall_scrape_product_card_selector: str = '[data-product-id], [data-goods-id], .goods-item, .product-item, .product-card, .goods-list-item, .product-list-item'
     mall_scrape_next_selector: str = 'a:has-text("下一页"), button:has-text("下一页"), .next, .pagination-next'
+    mall_scrape_site_adapter: str | None = None
+    mall_scrape_dom_table_selector: str | None = None
+    mall_scrape_network_include_patterns: str | None = None
+    mall_scrape_network_exclude_patterns: str | None = None
     image_archive_root: str = str((BASE_DIR / 'storage' / 'image_archive').resolve())
     image_archive_backend: str = 'local_fs'
     image_archive_bucket: str = 'saizheng-v2-image-archive'

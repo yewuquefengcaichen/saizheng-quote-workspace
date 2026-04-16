@@ -12,6 +12,8 @@ from app.core.config import settings
 from app.services.catalog_sync import normalize_text
 
 
+DINGHUOVIP_PRODUCT_LIST_ADAPTER = 'dinghuovip_product_list'
+
 PRODUCT_CODE_KEYS = (
     'code',
     'productCode',
@@ -80,6 +82,10 @@ class MallScrapeConfig:
     next_selector: str = settings.mall_scrape_next_selector
     screenshot_path: str = 'output/playwright/mall-scrape-latest.png'
     field_map: dict[str, list[str]] = field(default_factory=dict)
+    network_include_patterns: list[str] = field(default_factory=list)
+    network_exclude_patterns: list[str] = field(default_factory=list)
+    dom_table_selector: str | None = None
+    site_adapter: str | None = None
 
 
 @dataclass
@@ -128,6 +134,32 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
     if not start_url:
         start_url = settings.legacy_mall_base_url
 
+    site_adapter = normalize_text(str(overrides.get('site_adapter') or getattr(settings, 'mall_scrape_site_adapter', '') or ''))
+    dom_table_selector = normalize_text(str(overrides.get('dom_table_selector') or getattr(settings, 'mall_scrape_dom_table_selector', '') or ''))
+    network_include_patterns = _normalize_pattern_list(
+        overrides.get('network_include_patterns')
+        if overrides.get('network_include_patterns') is not None
+        else getattr(settings, 'mall_scrape_network_include_patterns', None)
+    )
+    network_exclude_patterns = _normalize_pattern_list(
+        overrides.get('network_exclude_patterns')
+        if overrides.get('network_exclude_patterns') is not None
+        else getattr(settings, 'mall_scrape_network_exclude_patterns', None)
+    )
+
+    if site_adapter == DINGHUOVIP_PRODUCT_LIST_ADAPTER:
+        dom_table_selector = dom_table_selector or '#productList'
+        if not network_include_patterns:
+            network_include_patterns = ['/Product/']
+        network_exclude_patterns = _dedupe_strings(
+            network_exclude_patterns
+            + [
+                '/Notice/',
+                '/ManuSysNotice',
+                '/GetManuSysNotice',
+            ]
+        )
+
     return MallScrapeConfig(
         start_url=start_url,
         page_url_template=page_url_template or None,
@@ -139,7 +171,61 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
         next_selector=normalize_text(str(overrides.get('next_selector') or settings.mall_scrape_next_selector)) or settings.mall_scrape_next_selector,
         screenshot_path=normalize_text(str(overrides.get('screenshot_path') or 'output/playwright/mall-scrape-latest.png')) or 'output/playwright/mall-scrape-latest.png',
         field_map=overrides.get('field_map') if isinstance(overrides.get('field_map'), dict) else {},
+        network_include_patterns=network_include_patterns,
+        network_exclude_patterns=network_exclude_patterns,
+        dom_table_selector=dom_table_selector or None,
+        site_adapter=site_adapter or None,
     )
+
+
+def _normalize_pattern_list(value: Any) -> list[str]:
+    if value in (None, ''):
+        return []
+    raw_items: list[Any]
+    if isinstance(value, str):
+        raw_items = re.split(r'[\n,;]+', value)
+    elif isinstance(value, (list, tuple, set)):
+        raw_items = list(value)
+    else:
+        raw_items = [value]
+    return _dedupe_strings([normalize_text(str(item or '')) or '' for item in raw_items])
+
+
+def _dedupe_strings(items: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: set[str] = set()
+    for item in items:
+        normalized = normalize_text(str(item or ''))
+        if not normalized:
+            continue
+        key = normalized.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(normalized)
+    return deduped
+
+
+def _pattern_matches(value: str, pattern: str) -> bool:
+    if not pattern:
+        return False
+    if pattern.startswith('re:'):
+        try:
+            return re.search(pattern[3:], value, re.IGNORECASE) is not None
+        except re.error:
+            return False
+    return pattern.lower() in value.lower()
+
+
+def _is_url_allowed_by_patterns(url: str, *, include_patterns: list[str], exclude_patterns: list[str]) -> bool:
+    url = str(url or '')
+    if not url:
+        return False
+    if any(_pattern_matches(url, pattern) for pattern in exclude_patterns):
+        return False
+    if include_patterns and not any(_pattern_matches(url, pattern) for pattern in include_patterns):
+        return False
+    return True
 
 
 def _pick_value(payload: dict[str, Any], keys: tuple[str, ...]) -> Any:
@@ -292,7 +378,7 @@ def map_payload_to_legacy_item(payload: dict[str, Any], *, base_url: str, field_
         intro_parts.append(html.escape(intro_text))
     intro_parts.extend(f'<img src="{html.escape(url)}">' for url in images)
 
-    return {
+    item = {
         'code': code,
         'name': name,
         'model': _stringify_value(_pick_value(payload, _field_keys(field_map, 'model', MODEL_KEYS))) or '',
@@ -306,6 +392,16 @@ def map_payload_to_legacy_item(payload: dict[str, Any], *, base_url: str, field_
         'intro': ''.join(intro_parts),
         'mall_source_payload': payload,
     }
+    if images:
+        item['image_urls'] = images
+        item['primary_image_url'] = images[0]
+    detail_url = _stringify_value(payload.get('detail_url') or payload.get('detailUrl') or payload.get('href'))
+    if detail_url:
+        item['detail_url'] = urljoin(base_url, detail_url)
+    image_sync_mode = _stringify_value(payload.get('image_sync_mode') or payload.get('imageSyncMode'))
+    if image_sync_mode:
+        item['image_sync_mode'] = image_sync_mode
+    return item
 
 
 class MallPlaywrightScraper:
@@ -340,6 +436,8 @@ class MallPlaywrightScraper:
             async def capture_response(response: Any) -> None:
                 content_type = (response.headers or {}).get('content-type', '')
                 if 'json' not in content_type.lower():
+                    return
+                if not self._should_capture_response(response.url):
                     return
                 try:
                     payload = await response.json()
@@ -452,6 +550,9 @@ class MallPlaywrightScraper:
             return False
 
     async def _extract_dom_payloads(self, page: Any) -> list[dict[str, Any]]:
+        if self.config.site_adapter == DINGHUOVIP_PRODUCT_LIST_ADAPTER:
+            return await self._extract_dinghuovip_product_list_payloads(page)
+
         try:
             payloads = await page.locator(self.config.product_card_selector).evaluate_all(
                 """nodes => nodes.slice(0, 1000).map((node) => {
@@ -476,6 +577,88 @@ class MallPlaywrightScraper:
             return payloads
         except Exception as exc:
             self.stats.warnings.append(f'DOM 商品卡片提取失败: {str(exc)[:200]}')
+            return []
+
+    def _should_capture_response(self, url: str) -> bool:
+        return _is_url_allowed_by_patterns(
+            url,
+            include_patterns=self.config.network_include_patterns,
+            exclude_patterns=self.config.network_exclude_patterns,
+        )
+
+    async def _extract_dinghuovip_product_list_payloads(self, page: Any) -> list[dict[str, Any]]:
+        selector = self.config.dom_table_selector or '#productList'
+        try:
+            payloads = await page.evaluate(
+                """(selector) => {
+                    const clean = (value) => String(value || '').replace(/\\s+/g, ' ').trim();
+                    const price = (value) => {
+                        const match = clean(value).replace(/,/g, '').match(/-?\\d+(?:\\.\\d+)?/);
+                        return match ? match[0] : '';
+                    };
+                    const firstImageUrl = (row) => {
+                        const img = row.querySelector('img');
+                        if (!img) return '';
+                        return img.currentSrc
+                            || img.getAttribute('data-original')
+                            || img.getAttribute('data-src')
+                            || img.getAttribute('src')
+                            || '';
+                    };
+                    const pickDetailUrl = (row) => {
+                        const links = Array.from(row.querySelectorAll('a[href]'));
+                        const detail = links.find((link) => String(link.getAttribute('href') || '').includes('/Product/ProductInfo'));
+                        return detail ? detail.href : (links[0] ? links[0].href : '');
+                    };
+                    let rows = Array.from(document.querySelectorAll(`${selector} tr`));
+                    if (!rows.length) {
+                        rows = Array.from(document.querySelectorAll(selector));
+                    }
+                    return rows.slice(0, 1000).map((row) => {
+                        const cells = Array.from(row.cells || []);
+                        const nameCell = cells[1] || row;
+                        const nameText = clean(nameCell.innerText || nameCell.textContent || '');
+                        const lines = String(nameCell.innerText || nameCell.textContent || '')
+                            .split('\\n')
+                            .map(clean)
+                            .filter(Boolean);
+                        const codeMatch = nameText.match(/编码[:：]\\s*([A-Za-z0-9_-]+)/);
+                        const code = codeMatch ? codeMatch[1] : '';
+                        const nameLine = lines.find((line) => {
+                            if (!line || /编码[:：]/.test(line)) return false;
+                            if (/^(详情|修改|删除|上架|下架)$/.test(line)) return false;
+                            if (/^￥?\\d+(?:\\.\\d+)?$/.test(line)) return false;
+                            return true;
+                        }) || '';
+                        const imageUrl = firstImageUrl(row);
+                        const detailUrl = pickDetailUrl(row);
+                        return {
+                            source: 'dinghuovip_product_list_dom',
+                            code,
+                            productCode: code,
+                            name: nameLine,
+                            productName: nameLine,
+                            model: clean(cells[2]?.innerText || ''),
+                            market_price: price(cells[3]?.innerText || ''),
+                            cost_price: price(cells[4]?.innerText || ''),
+                            supplier: clean(cells[8]?.innerText || ''),
+                            status: clean(cells[10]?.innerText || ''),
+                            created_at: clean(cells[12]?.innerText || ''),
+                            primary_image_url: imageUrl,
+                            image_urls: imageUrl ? [imageUrl] : [],
+                            detail_url: detailUrl,
+                            image_sync_mode: 'append_only',
+                            intro: nameText,
+                            raw_text: clean(row.innerText || row.textContent || '')
+                        };
+                    }).filter((item) => item.code && item.name);
+                }""",
+                selector,
+            )
+            self.stats.dom_candidates += len(payloads)
+            return payloads
+        except Exception as exc:
+            self.stats.warnings.append(f'dinghuovip 商品表格提取失败: {str(exc)[:200]}')
             return []
 
     def _dedupe_items(self, items: Any) -> list[dict[str, Any]]:

@@ -60,7 +60,7 @@ class ImageEmbeddingGenerator:
                         f'available={item.available} schema_supported={item.schema_supported} '
                         f'missing_dependency={item.missing_dependency or ""}'
                     )
-                print('[image-embedding] 当前脚本第一版只生成 local_hash_embedding；CLIP/provider 已有状态位，向量存储升级后再启用生成。')
+                print('[image-embedding] 当前脚本第一版只生成 local_hash_embedding；CLIP/provider 已有512维存储预留，安装依赖并接入生成器后再启用。')
                 return
 
             assets = await select_assets_for_embedding(

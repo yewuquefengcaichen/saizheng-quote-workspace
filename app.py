@@ -1332,6 +1332,13 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
         max_pages=options.get('max_pages'),
         headless=options.get('headless'),
         storage_state_path=options.get('storage_state_path'),
+        page_timeout_ms=options.get('page_timeout_ms'),
+        product_card_selector=options.get('product_card_selector'),
+        next_selector=options.get('next_selector'),
+        network_include_patterns=options.get('network_include_patterns'),
+        network_exclude_patterns=options.get('network_exclude_patterns'),
+        dom_table_selector=options.get('dom_table_selector'),
+        site_adapter=options.get('site_adapter'),
         field_map=options.get('field_map'),
         screenshot_path=options.get('screenshot_path'),
     )
@@ -1355,7 +1362,7 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
             'stats': scrape_result.stats.to_dict(),
             'visited_urls': scrape_result.visited_urls,
             'sample_items': [
-                {key: item.get(key) for key in ('code', 'name', 'model', 'category', 'unit', 'market_price', 'brand', 'supplier', 'status')}
+                {key: item.get(key) for key in ('code', 'name', 'model', 'category', 'unit', 'market_price', 'cost_price', 'brand', 'supplier', 'status', 'primary_image_url', 'detail_url')}
                 for item in scrape_result.items[:10]
             ],
             'raw_payload_examples': scrape_result.raw_payload_examples,
@@ -1364,6 +1371,14 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
                 'page_url_template': scrape_config.page_url_template,
                 'max_pages': scrape_config.max_pages,
                 'headless': scrape_config.headless,
+                'page_timeout_ms': scrape_config.page_timeout_ms,
+                'product_card_selector': scrape_config.product_card_selector,
+                'next_selector': scrape_config.next_selector,
+                'dom_table_selector': scrape_config.dom_table_selector,
+                'site_adapter': scrape_config.site_adapter,
+                'network_include_patterns': scrape_config.network_include_patterns,
+                'network_exclude_patterns': scrape_config.network_exclude_patterns,
+                'storage_state_configured': bool(scrape_config.storage_state_path),
             },
         },
     }

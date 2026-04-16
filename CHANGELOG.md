@@ -56,11 +56,16 @@
 - 新增 Playwright 商城抓取同步第一版：支持网络 JSON 捕获、DOM 商品卡片兜底、商品库页“抓商城”按钮
 - 新增商城抓取预检：不写库即可检查页面、候选数量、登录态风险、字段样例和预计差异
 - 图搜图新增 embedding provider 状态接口，并让生成脚本支持 `--provider / --model-name` 参数，为 CLIP 升级打底
+- 商城抓取完成真实赛正 dinghuovip 商品列表适配：`site_adapter=dinghuovip_product_list` 可解析 `#productList` 表格
+- 商城抓取新增网络 include / exclude 过滤，避免通知公告 JSON 被误判成商品
+- 商品同步开始直接兼容 `image_urls / primary_image_url`，列表页封面图采用 `append_only` 模式避免误伤历史详情图
+- 图搜图新增 `embedding_vector_512` 数据库列和 HNSW 索引，`clip_local` 状态从“结构不支持”升级为“结构已支持，依赖 / 生成器待接入”
+- 修复 `run_server.py` 导入方式：避免根目录 `app.py` 与 `backend/app` 包同名导致 V2 模块被禁用
 
 ### 当前重点
 
-1. 根据真实商城页面校准起始 URL、登录态、分页和选择器
-2. 给 CLIP 增加 512 维向量存储和真正的 provider 实现
+1. 增强商城分页、详情页补图、下架 / 删除策略和任务状态展示
+2. 给 CLIP 增加真正的 provider 实现与批量生成链路
 3. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 4. 建立更细的商城增量抓取指纹与删除 / 下架策略
 5. 为后续 React / TypeScript 重构打基础
