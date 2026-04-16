@@ -1320,7 +1320,7 @@ async def _run_v2_catalog_items_sync_async(items, requested_by='flask-upload-pro
         return await service.run_items(normalized_items)
 
 
-async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape', options=None):
+async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape', options=None, dry_run=False):
     if not V2_CATALOG_AVAILABLE:
         raise RuntimeError(f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
 
@@ -1331,6 +1331,8 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
         max_pages=options.get('max_pages'),
         headless=options.get('headless'),
         storage_state_path=options.get('storage_state_path'),
+        field_map=options.get('field_map'),
+        screenshot_path=options.get('screenshot_path'),
     )
     scraper = V2MallPlaywrightScraper(scrape_config)
     scrape_result = await scraper.scrape()
@@ -1338,7 +1340,7 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
     async with V2AsyncSessionLocal() as session:
         service = V2LegacyCatalogSyncService(
             session,
-            dry_run=False,
+            dry_run=dry_run,
             source_type='legacy_json_upload',
             source_name='mall_playwright_scrape',
             requested_by=requested_by,
@@ -1351,6 +1353,11 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
         'scrape': {
             'stats': scrape_result.stats.to_dict(),
             'visited_urls': scrape_result.visited_urls,
+            'sample_items': [
+                {key: item.get(key) for key in ('code', 'name', 'model', 'category', 'unit', 'market_price', 'brand', 'supplier', 'status')}
+                for item in scrape_result.items[:10]
+            ],
+            'raw_payload_examples': scrape_result.raw_payload_examples,
             'config': {
                 'start_url': scrape_config.start_url,
                 'page_url_template': scrape_config.page_url_template,
@@ -2296,9 +2303,11 @@ def run_catalog_sync_from_mall():
     """使用 Playwright 从商城页面抓取商品并同步到 V2 PostgreSQL"""
     payload = request.get_json(silent=True) or {}
     requested_by = _normalize_text_value(payload.get('requested_by')) or 'flask-mall-scrape'
+    dry_run = _is_truthy_form_value(payload.get('dry_run'))
     try:
-        result = _run_async_task(_run_v2_catalog_mall_scrape_sync_async(requested_by=requested_by, options=payload))
-        load_products()
+        result = _run_async_task(_run_v2_catalog_mall_scrape_sync_async(requested_by=requested_by, options=payload, dry_run=dry_run))
+        if not dry_run:
+            load_products()
         stats = result.get('stats', {}) or {}
         diff_summary = stats.get('diff_summary', {}) or {}
         scrape_stats = (result.get('scrape') or {}).get('stats') or {}
@@ -2308,8 +2317,9 @@ def run_catalog_sync_from_mall():
         updated_rows = diff_summary.get('updated_rows', 0)
         unchanged_rows = diff_summary.get('unchanged_rows', 0)
         failed_rows = diff_summary.get('failed_rows', 0)
+        prefix = '商城抓取预检完成' if dry_run else '商城抓取完成'
         message = (
-            f'商城抓取完成：页面 {pages}，提取 {extracted}，'
+            f'{prefix}：页面 {pages}，提取 {extracted}，'
             f'新增 {created_rows}，更新 {updated_rows}，无变化 {unchanged_rows}'
         )
         if failed_rows:
@@ -2325,6 +2335,37 @@ def run_catalog_sync_from_mall():
         return jsonify({
             'success': False,
             'message': f'商城抓取同步失败：{str(e)}'
+        }), 500
+
+
+@app.route('/api/catalog/scrape_mall_preview', methods=['POST'])
+def preview_catalog_sync_from_mall():
+    """只预检 Playwright 商城抓取与同步差异，不写入数据库"""
+    payload = request.get_json(silent=True) or {}
+    requested_by = _normalize_text_value(payload.get('requested_by')) or 'flask-mall-scrape-preview'
+    try:
+        result = _run_async_task(_run_v2_catalog_mall_scrape_sync_async(requested_by=requested_by, options=payload, dry_run=True))
+        stats = result.get('stats', {}) or {}
+        diff_summary = stats.get('diff_summary', {}) or {}
+        scrape_stats = (result.get('scrape') or {}).get('stats') or {}
+        extracted = scrape_stats.get('extracted_items', 0)
+        pages = scrape_stats.get('pages_visited', 0)
+        message = (
+            f"商城抓取预检完成：页面 {pages}，提取 {extracted}，"
+            f"预计新增 {diff_summary.get('created_rows', 0)}，"
+            f"预计更新 {diff_summary.get('updated_rows', 0)}，"
+            f"预计无变化 {diff_summary.get('unchanged_rows', 0)}。"
+        )
+        return jsonify({
+            'success': True,
+            'message': message,
+            'products_source': products_data_source,
+            **result,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'商城抓取预检失败：{str(e)}'
         }), 500
 
 

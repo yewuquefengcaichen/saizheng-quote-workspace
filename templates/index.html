@@ -4593,6 +4593,7 @@
             const pageSizeSelect = document.getElementById('catalogPageSize');
             const resetBtn = document.getElementById('catalogResetBtn');
             const syncV2Btn = document.getElementById('catalogSyncV2Btn');
+            const mallPreviewBtn = document.getElementById('catalogMallPreviewBtn');
             const mallScrapeBtn = document.getElementById('catalogMallScrapeBtn');
 
             if (keywordInput) {
@@ -4630,6 +4631,9 @@
             if (syncV2Btn) {
                 syncV2Btn.addEventListener('click', triggerCatalogV2ManualSync);
             }
+            if (mallPreviewBtn) {
+                mallPreviewBtn.addEventListener('click', triggerCatalogMallScrapePreview);
+            }
             if (mallScrapeBtn) {
                 mallScrapeBtn.addEventListener('click', triggerCatalogMallScrapeSync);
             }
@@ -4640,6 +4644,7 @@
         function renderCatalogV2SyncStatus(payload = {}) {
             const statusEl = document.getElementById('catalogSyncV2Status');
             const buttonEl = document.getElementById('catalogSyncV2Btn');
+            const previewButtonEl = document.getElementById('catalogMallPreviewBtn');
             const mallButtonEl = document.getElementById('catalogMallScrapeBtn');
             if (!statusEl) return;
 
@@ -4682,6 +4687,9 @@
             statusEl.innerHTML = `<i class="bi ${icon}"></i><span>${escapeHtml(text)}</span>`;
             if (buttonEl) {
                 buttonEl.disabled = status === 'running';
+            }
+            if (previewButtonEl) {
+                previewButtonEl.disabled = status === 'running';
             }
             if (mallButtonEl) {
                 mallButtonEl.disabled = status === 'running';
@@ -4801,6 +4809,49 @@
                     if (buttonEl) {
                         buttonEl.disabled = false;
                         buttonEl.innerHTML = '<i class="bi bi-cloud-download me-1"></i>抓商城';
+                    }
+                });
+        }
+
+        function triggerCatalogMallScrapePreview() {
+            const buttonEl = document.getElementById('catalogMallPreviewBtn');
+            const statusEl = document.getElementById('catalogSyncV2Status');
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>预检中';
+            }
+            if (statusEl) {
+                statusEl.innerHTML = '<i class="bi bi-eye"></i><span>商城抓取预检中...</span>';
+            }
+
+            fetch('/api/catalog/scrape_mall_preview', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ requested_by: 'catalog-page-mall-preview' })
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || '商城抓取预检失败');
+                    }
+                    showToast('success', result.message || '商城抓取预检完成');
+                    if (statusEl) {
+                        const scrapeStats = result.scrape?.stats || {};
+                        const warningText = (scrapeStats.warnings || []).slice(0, 1).join('；');
+                        const text = warningText ? `${result.message} ${warningText}` : result.message;
+                        statusEl.innerHTML = `<i class="bi bi-eye"></i><span>${escapeHtml(text || '商城抓取预检完成')}</span>`;
+                    }
+                })
+                .catch(error => {
+                    showToast('error', error.message || '商城抓取预检失败');
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="bi bi-exclamation-triangle"></i><span>${escapeHtml(error.message || '商城抓取预检失败')}</span>`;
+                    }
+                })
+                .finally(() => {
+                    if (buttonEl) {
+                        buttonEl.disabled = false;
+                        buttonEl.innerHTML = '<i class="bi bi-eye me-1"></i>预检商城';
                     }
                 });
         }

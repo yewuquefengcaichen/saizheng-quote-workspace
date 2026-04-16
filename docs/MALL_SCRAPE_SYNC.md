@@ -23,7 +23,13 @@ Flask 桥接接口：
 
 ```text
 POST /api/catalog/sync_from_mall
+POST /api/catalog/scrape_mall_preview
 ```
+
+其中：
+
+- `sync_from_mall`：抓取并同步写入 V2 PostgreSQL
+- `scrape_mall_preview`：只预检，不写库；用于确认登录态、分页、字段是否正确
 
 首次使用前确保安装浏览器运行时：
 
@@ -41,6 +47,22 @@ SAIZHENG_MALL_SCRAPE_STORAGE_STATE_PATH
 SAIZHENG_MALL_SCRAPE_HEADLESS
 SAIZHENG_MALL_SCRAPE_MAX_PAGES
 SAIZHENG_MALL_SCRAPE_PAGE_TIMEOUT_MS
+```
+
+请求体也可以临时覆盖配置：
+
+```json
+{
+  "start_url": "https://你的商城商品列表页",
+  "page_url_template": "https://你的商城商品列表页?page={page}",
+  "max_pages": 3,
+  "storage_state_path": "backend/storage/mall-auth/state.json",
+  "field_map": {
+    "code": ["ProductNo", "SkuNo"],
+    "name": ["ProductTitle"],
+    "market_price": ["SellPrice"]
+  }
+}
 ```
 
 ## 登录态
@@ -61,6 +83,10 @@ SAIZHENG_MALL_SCRAPE_STORAGE_STATE_PATH=backend/storage/mall-auth/state.json
 
 - 网络 JSON 自动识别商品字段
 - DOM 商品卡片兜底识别
+- 预检接口，不写库也能看提取数量和差异
+- 疑似登录页检测
+- 抓不到商品时保存调试截图：`output/playwright/mall-scrape-latest.png`
+- 返回受限的 raw payload 样例，方便校准字段名
 - 商品字段转成现有 `code / name / model / category / unit / market_price / cost_price / brand / supplier / intro`
 - 同步到 V2 PostgreSQL
 - 与差异统计、行级重试、未变化跳过写入共用同一套链路

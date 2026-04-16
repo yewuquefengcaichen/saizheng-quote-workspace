@@ -78,6 +78,8 @@ class MallScrapeConfig:
     page_timeout_ms: int = 30000
     product_card_selector: str = settings.mall_scrape_product_card_selector
     next_selector: str = settings.mall_scrape_next_selector
+    screenshot_path: str = 'output/playwright/mall-scrape-latest.png'
+    field_map: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -87,6 +89,10 @@ class MallScrapeStats:
     dom_candidates: int = 0
     extracted_items: int = 0
     deduped_items: int = 0
+    current_url: str | None = None
+    page_title: str | None = None
+    login_suspected: bool = False
+    screenshot_path: str | None = None
     warnings: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
@@ -98,12 +104,14 @@ class MallScrapeResult:
     items: list[dict[str, Any]]
     stats: MallScrapeStats
     visited_urls: list[str]
+    raw_payload_examples: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
             'items': self.items,
             'stats': self.stats.to_dict(),
             'visited_urls': self.visited_urls,
+            'raw_payload_examples': self.raw_payload_examples,
         }
 
 
@@ -129,6 +137,8 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
         page_timeout_ms=max(5000, page_timeout_ms),
         product_card_selector=normalize_text(str(overrides.get('product_card_selector') or settings.mall_scrape_product_card_selector)) or settings.mall_scrape_product_card_selector,
         next_selector=normalize_text(str(overrides.get('next_selector') or settings.mall_scrape_next_selector)) or settings.mall_scrape_next_selector,
+        screenshot_path=normalize_text(str(overrides.get('screenshot_path') or 'output/playwright/mall-scrape-latest.png')) or 'output/playwright/mall-scrape-latest.png',
+        field_map=overrides.get('field_map') if isinstance(overrides.get('field_map'), dict) else {},
     )
 
 
@@ -142,6 +152,16 @@ def _pick_value(payload: dict[str, Any], keys: tuple[str, ...]) -> Any:
         if value not in (None, ''):
             return value
     return None
+
+
+def _field_keys(field_map: dict[str, list[str]] | None, field_name: str, defaults: tuple[str, ...]) -> tuple[str, ...]:
+    custom = []
+    if isinstance(field_map, dict):
+        raw_keys = field_map.get(field_name) or []
+        if isinstance(raw_keys, str):
+            raw_keys = [raw_keys]
+        custom = [str(key) for key in raw_keys if normalize_text(str(key))]
+    return tuple(custom) + defaults
 
 
 def _stringify_value(value: Any) -> str | None:
@@ -244,9 +264,19 @@ def _map_status(value: Any) -> str:
     return text
 
 
-def map_payload_to_legacy_item(payload: dict[str, Any], *, base_url: str) -> dict[str, Any] | None:
-    name = _stringify_value(_pick_value(payload, PRODUCT_NAME_KEYS))
-    code = _stringify_value(_pick_value(payload, PRODUCT_CODE_KEYS))
+def compact_payload_example(payload: dict[str, Any], *, max_text: int = 2000) -> dict[str, Any]:
+    text = str(payload)
+    if len(text) > max_text:
+        text = text[:max_text] + '...'
+    return {
+        'keys': list(payload.keys())[:50],
+        'preview': text,
+    }
+
+
+def map_payload_to_legacy_item(payload: dict[str, Any], *, base_url: str, field_map: dict[str, list[str]] | None = None) -> dict[str, Any] | None:
+    name = _stringify_value(_pick_value(payload, _field_keys(field_map, 'name', PRODUCT_NAME_KEYS)))
+    code = _stringify_value(_pick_value(payload, _field_keys(field_map, 'code', PRODUCT_CODE_KEYS)))
     if not name:
         return None
     if not code:
@@ -265,14 +295,14 @@ def map_payload_to_legacy_item(payload: dict[str, Any], *, base_url: str) -> dic
     return {
         'code': code,
         'name': name,
-        'model': _stringify_value(_pick_value(payload, MODEL_KEYS)) or '',
-        'category': _stringify_value(_pick_value(payload, CATEGORY_KEYS)) or '',
-        'unit': _stringify_value(_pick_value(payload, UNIT_KEYS)) or '',
-        'market_price': _extract_price(_pick_value(payload, PRICE_KEYS)) or '',
-        'cost_price': _extract_price(_pick_value(payload, COST_PRICE_KEYS)) or '',
-        'brand': _stringify_value(_pick_value(payload, BRAND_KEYS)) or '',
-        'supplier': _stringify_value(_pick_value(payload, SUPPLIER_KEYS)) or '',
-        'status': _map_status(_pick_value(payload, STATUS_KEYS)),
+        'model': _stringify_value(_pick_value(payload, _field_keys(field_map, 'model', MODEL_KEYS))) or '',
+        'category': _stringify_value(_pick_value(payload, _field_keys(field_map, 'category', CATEGORY_KEYS))) or '',
+        'unit': _stringify_value(_pick_value(payload, _field_keys(field_map, 'unit', UNIT_KEYS))) or '',
+        'market_price': _extract_price(_pick_value(payload, _field_keys(field_map, 'market_price', PRICE_KEYS))) or '',
+        'cost_price': _extract_price(_pick_value(payload, _field_keys(field_map, 'cost_price', COST_PRICE_KEYS))) or '',
+        'brand': _stringify_value(_pick_value(payload, _field_keys(field_map, 'brand', BRAND_KEYS))) or '',
+        'supplier': _stringify_value(_pick_value(payload, _field_keys(field_map, 'supplier', SUPPLIER_KEYS))) or '',
+        'status': _map_status(_pick_value(payload, _field_keys(field_map, 'status', STATUS_KEYS))),
         'intro': ''.join(intro_parts),
         'mall_source_payload': payload,
     }
@@ -329,8 +359,11 @@ class MallPlaywrightScraper:
 
             try:
                 await self._visit_pages(page)
+                await self._capture_page_state(page)
                 if response_tasks:
                     await asyncio.gather(*response_tasks, return_exceptions=True)
+                if not self._raw_payloads:
+                    await self._save_debug_screenshot(page)
             finally:
                 await context.close()
                 await browser.close()
@@ -338,10 +371,43 @@ class MallPlaywrightScraper:
         items = self._dedupe_items(
             item
             for payload in self._raw_payloads
-            if (item := map_payload_to_legacy_item(payload, base_url=self.config.start_url))
+            if (item := map_payload_to_legacy_item(payload, base_url=self.config.start_url, field_map=self.config.field_map))
         )
         self.stats.extracted_items = len(items)
-        return MallScrapeResult(items=items, stats=self.stats, visited_urls=self.visited_urls)
+        if not items and self.stats.login_suspected:
+            self.stats.warnings.append('疑似进入登录页或登录态失效，请先配置 storage_state_path。')
+        return MallScrapeResult(
+            items=items,
+            stats=self.stats,
+            visited_urls=self.visited_urls,
+            raw_payload_examples=[compact_payload_example(payload) for payload in self._raw_payloads[:5]],
+        )
+
+    async def _capture_page_state(self, page: Any) -> None:
+        try:
+            self.stats.current_url = page.url
+            self.stats.page_title = await page.title()
+            body_text = await page.locator('body').inner_text(timeout=3000)
+            login_words = ('登录', '用户名', '密码', '验证码', '请登录', 'login', 'password')
+            lowered_url = str(page.url or '').lower()
+            lowered_title = str(self.stats.page_title or '').lower()
+            lowered_body = body_text.lower()
+            self.stats.login_suspected = (
+                'login' in lowered_url
+                or 'login' in lowered_title
+                or any(word.lower() in lowered_body for word in login_words)
+            )
+        except Exception as exc:
+            self.stats.warnings.append(f'页面状态检测失败: {str(exc)[:200]}')
+
+    async def _save_debug_screenshot(self, page: Any) -> None:
+        try:
+            screenshot_path = Path(self.config.screenshot_path)
+            screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+            await page.screenshot(path=str(screenshot_path), full_page=True)
+            self.stats.screenshot_path = str(screenshot_path)
+        except Exception as exc:
+            self.stats.warnings.append(f'调试截图保存失败: {str(exc)[:200]}')
 
     async def _visit_pages(self, page: Any) -> None:
         current_url = self.config.start_url
