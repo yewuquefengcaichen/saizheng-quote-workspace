@@ -64,6 +64,8 @@ try:
         MallPlaywrightScraper as V2MallPlaywrightScraper,
         build_default_mall_scrape_config as v2_build_default_mall_scrape_config,
     )
+    from app.core.celery_app import celery_app as V2CeleryApp
+    from app.tasks.embedding import generate_image_embeddings_task as V2GenerateImageEmbeddingsTask
     V2_IMAGE_SEARCH_AVAILABLE = True
     V2_IMAGE_SEARCH_IMPORT_ERROR = ''
     V2_CATALOG_AVAILABLE = True
@@ -261,6 +263,22 @@ def _safe_float(value, default=0.0):
         return float(value)
     except (TypeError, ValueError):
         return default
+
+
+def _safe_int(value, default=0, min_value=None, max_value=None):
+    try:
+        if value is None or value == '':
+            number = int(default)
+        else:
+            number = int(value)
+    except (TypeError, ValueError):
+        number = int(default)
+
+    if min_value is not None:
+        number = max(int(min_value), number)
+    if max_value is not None:
+        number = min(int(max_value), number)
+    return number
 
 
 def _safe_optional_float(value):
@@ -2304,6 +2322,93 @@ def get_catalog_image_embedding_status():
         return jsonify({
             'success': False,
             'message': f'读取图搜图状态失败：{str(e)}'
+        }), 500
+
+
+@app.route('/api/catalog/image_embedding_jobs', methods=['POST'])
+def create_catalog_image_embedding_job():
+    """从 Flask 工作台提交图片 embedding 后台生成任务"""
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'图搜图能力不可用：{V2_IMAGE_SEARCH_IMPORT_ERROR or "依赖未安装"}'
+        }), 503
+
+    payload = request.get_json(silent=True) or {}
+    provider = _normalize_text_value(payload.get('provider')) or V2_CLIP_EMBEDDING_PROVIDER
+    model_name = _normalize_text_value(payload.get('model_name')) or ''
+    provider, model_name = _normalize_image_search_provider(provider, model_name)
+
+    allowed_providers = {V2_IMAGE_EMBEDDING_PROVIDER, V2_CLIP_EMBEDDING_PROVIDER}
+    if provider not in allowed_providers:
+        return jsonify({
+            'success': False,
+            'message': f'暂不支持的 embedding provider：{provider}'
+        }), 400
+
+    limit = _safe_int(payload.get('limit'), default=20, min_value=1, max_value=1000)
+    commit_every = _safe_int(payload.get('commit_every'), default=5, min_value=1, max_value=limit)
+    only_missing = True if payload.get('only_missing') is None else _is_truthy_form_value(payload.get('only_missing'))
+    dry_run = _is_truthy_form_value(payload.get('dry_run'))
+
+    try:
+        task = V2GenerateImageEmbeddingsTask.delay(
+            provider=provider,
+            model_name=model_name,
+            limit=limit,
+            only_missing=only_missing,
+            commit_every=commit_every,
+            dry_run=dry_run,
+        )
+        return jsonify({
+            'success': True,
+            'task_id': task.id,
+            'status': 'queued',
+            'provider': provider,
+            'model_name': model_name,
+            'limit': limit,
+            'commit_every': commit_every,
+            'only_missing': only_missing,
+            'dry_run': dry_run,
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'提交 embedding 任务失败：{str(e)}'
+        }), 503
+
+
+@app.route('/api/catalog/image_embedding_jobs/<task_id>', methods=['GET'])
+def get_catalog_image_embedding_job(task_id):
+    """查询 Flask 工作台提交的图片 embedding 后台任务状态"""
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'图搜图能力不可用：{V2_IMAGE_SEARCH_IMPORT_ERROR or "依赖未安装"}'
+        }), 503
+
+    task_id = _normalize_text_value(task_id)
+    if not task_id:
+        return jsonify({'success': False, 'message': '任务 ID 不能为空'}), 400
+
+    try:
+        result = V2CeleryApp.AsyncResult(task_id)
+        response = {
+            'success': True,
+            'task_id': task_id,
+            'status': result.status,
+            'ready': result.ready(),
+        }
+        if result.ready():
+            if result.successful():
+                response['result'] = result.result
+            else:
+                response['error'] = str(result.result)
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'读取 embedding 任务失败：{str(e)}'
         }), 500
 
 

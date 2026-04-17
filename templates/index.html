@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260415b" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260416a" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -4290,6 +4290,7 @@
         };
         let catalogLoadedOnce = false;
         let catalogKeywordTimer = null;
+        let catalogEmbeddingJobPollTimer = null;
         let quoteCatalogSearchState = {};
         let activeQuoteCatalogModalItemIndex = null;
         let quoteCatalogSearchModalInstance = null;
@@ -4613,6 +4614,7 @@
             const syncV2Btn = document.getElementById('catalogSyncV2Btn');
             const mallPreviewBtn = document.getElementById('catalogMallPreviewBtn');
             const mallScrapeBtn = document.getElementById('catalogMallScrapeBtn');
+            const clipEmbeddingBtn = document.getElementById('catalogClipEmbeddingBtn');
 
             if (keywordInput) {
                 keywordInput.addEventListener('input', function() {
@@ -4655,8 +4657,12 @@
             if (mallScrapeBtn) {
                 mallScrapeBtn.addEventListener('click', triggerCatalogMallScrapeSync);
             }
+            if (clipEmbeddingBtn) {
+                clipEmbeddingBtn.addEventListener('click', triggerCatalogClipEmbeddingJob);
+            }
 
             loadCatalogV2SyncStatus();
+            loadCatalogImageEmbeddingStatus();
         }
 
         function renderCatalogV2SyncStatus(payload = {}) {
@@ -4731,6 +4737,168 @@
                 });
         }
 
+        function formatCatalogEmbeddingProvider(label, providerStatus) {
+            if (!providerStatus) {
+                return `<span class="badge rounded-pill text-bg-secondary">${escapeHtml(label)} 未就绪</span>`;
+            }
+
+            const ready = Number(providerStatus.ready_embeddings || 0);
+            const total = Number(providerStatus.total_ready_assets || 0);
+            const pending = Number(providerStatus.pending_assets || Math.max(total - ready, 0) || 0);
+            const available = providerStatus.available !== false && providerStatus.schema_supported !== false && !providerStatus.missing_dependency;
+            const tone = available ? (pending > 0 ? 'text-bg-warning' : 'text-bg-success') : 'text-bg-secondary';
+            const suffix = available ? `${ready}/${total || ready}` : '不可用';
+            const pendingText = available && pending > 0 ? ` · 待 ${pending}` : '';
+            return `<span class="badge rounded-pill ${tone}">${escapeHtml(label)} ${escapeHtml(suffix)}${escapeHtml(pendingText)}</span>`;
+        }
+
+        function renderCatalogImageEmbeddingStatus(payload = {}) {
+            const statusEl = document.getElementById('catalogImageEmbeddingStatus');
+            const buttonEl = document.getElementById('catalogClipEmbeddingBtn');
+            if (!statusEl) return;
+
+            if (!payload.success) {
+                const message = payload.message || '图搜图向量状态读取失败';
+                statusEl.innerHTML = `<i class="bi bi-images"></i><span>${escapeHtml(message)}</span>`;
+                if (buttonEl && buttonEl.dataset.embeddingRunning !== '1') {
+                    buttonEl.disabled = true;
+                }
+                return;
+            }
+
+            const providers = Array.isArray(payload.providers) ? payload.providers : [];
+            const fast = providers.find(item => item.provider === QUOTE_IMAGE_SEARCH_PROVIDERS.fast.provider);
+            const clip = providers.find(item => item.provider === QUOTE_IMAGE_SEARCH_PROVIDERS.clip.provider);
+            const clipReady = !!clip && clip.available !== false && clip.schema_supported !== false && !clip.missing_dependency;
+            const html = [
+                formatCatalogEmbeddingProvider('快速', fast),
+                formatCatalogEmbeddingProvider('CLIP', clip)
+            ].join(' ');
+            statusEl.innerHTML = `<i class="bi bi-images"></i><span class="d-flex flex-wrap gap-2">${html}</span>`;
+
+            if (buttonEl && buttonEl.dataset.embeddingRunning !== '1') {
+                buttonEl.disabled = !clipReady;
+                buttonEl.title = clipReady ? '提交一批 CLIP 向量生成任务' : 'CLIP 依赖或数据库结构未就绪';
+            }
+        }
+
+        function loadCatalogImageEmbeddingStatus() {
+            fetch('/api/catalog/image_embedding_status')
+                .then(response => response.json())
+                .then(result => {
+                    renderCatalogImageEmbeddingStatus(result || {});
+                })
+                .catch(error => {
+                    renderCatalogImageEmbeddingStatus({
+                        success: false,
+                        message: error.message || '图搜图向量状态读取失败'
+                    });
+                });
+        }
+
+        function setCatalogEmbeddingJobStatus(message, icon = 'bi-hourglass-split', visible = true) {
+            const statusEl = document.getElementById('catalogImageEmbeddingJobStatus');
+            if (!statusEl) return;
+            statusEl.style.display = visible ? 'flex' : 'none';
+            statusEl.innerHTML = `<i class="bi ${icon}"></i><span>${escapeHtml(message || '')}</span>`;
+        }
+
+        function resetCatalogClipEmbeddingButton() {
+            const buttonEl = document.getElementById('catalogClipEmbeddingBtn');
+            if (!buttonEl) return;
+            buttonEl.dataset.embeddingRunning = '0';
+            buttonEl.disabled = false;
+            buttonEl.innerHTML = '<i class="bi bi-stars me-1"></i>生成 CLIP';
+        }
+
+        function pollCatalogEmbeddingJob(taskId, attempt = 0) {
+            if (!taskId) return;
+            clearTimeout(catalogEmbeddingJobPollTimer);
+
+            fetch(`/api/catalog/image_embedding_jobs/${encodeURIComponent(taskId)}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || '读取 CLIP 任务失败');
+                    }
+
+                    const status = String(result.status || '').toUpperCase();
+                    if (result.ready) {
+                        const taskResult = result.result || {};
+                        if (status === 'SUCCESS') {
+                            const processed = Number(taskResult.processed_assets || 0);
+                            const ready = Number(taskResult.ready_embeddings || 0);
+                            const failed = Number(taskResult.failed_assets || 0);
+                            setCatalogEmbeddingJobStatus(`CLIP 完成：处理 ${processed}，成功 ${ready}，失败 ${failed}`, failed > 0 ? 'bi-exclamation-triangle' : 'bi-check2-circle');
+                            showToast(failed > 0 ? 'warning' : 'success', failed > 0 ? 'CLIP 任务完成，存在失败图片' : 'CLIP 任务完成');
+                            resetCatalogClipEmbeddingButton();
+                            loadCatalogImageEmbeddingStatus();
+                            return;
+                        }
+
+                        const errorText = result.error || 'CLIP 任务失败';
+                        setCatalogEmbeddingJobStatus(errorText, 'bi-exclamation-triangle');
+                        showToast('error', errorText);
+                        resetCatalogClipEmbeddingButton();
+                        loadCatalogImageEmbeddingStatus();
+                        return;
+                    }
+
+                    const queuedText = status === 'PENDING' ? '排队中' : status;
+                    setCatalogEmbeddingJobStatus(`CLIP ${queuedText} · ${taskId.slice(0, 8)}`, 'bi-arrow-repeat');
+
+                    if (attempt >= 240) {
+                        setCatalogEmbeddingJobStatus('CLIP 仍在后台执行，可稍后刷新状态', 'bi-hourglass-split');
+                        resetCatalogClipEmbeddingButton();
+                        return;
+                    }
+                    catalogEmbeddingJobPollTimer = setTimeout(() => pollCatalogEmbeddingJob(taskId, attempt + 1), 5000);
+                })
+                .catch(error => {
+                    setCatalogEmbeddingJobStatus(error.message || '读取 CLIP 任务失败', 'bi-exclamation-triangle');
+                    showToast('error', error.message || '读取 CLIP 任务失败');
+                    resetCatalogClipEmbeddingButton();
+                });
+        }
+
+        function triggerCatalogClipEmbeddingJob() {
+            const buttonEl = document.getElementById('catalogClipEmbeddingBtn');
+            if (buttonEl) {
+                buttonEl.dataset.embeddingRunning = '1';
+                buttonEl.disabled = true;
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>生成中';
+            }
+            setCatalogEmbeddingJobStatus('CLIP 任务提交中…', 'bi-hourglass-split');
+
+            fetch('/api/catalog/image_embedding_jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    provider: QUOTE_IMAGE_SEARCH_PROVIDERS.clip.provider,
+                    model_name: QUOTE_IMAGE_SEARCH_PROVIDERS.clip.modelName,
+                    limit: 20,
+                    commit_every: 5,
+                    only_missing: true,
+                    dry_run: false
+                })
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || 'CLIP 任务提交失败');
+                    }
+                    setCatalogEmbeddingJobStatus(`CLIP 已排队 · ${String(result.task_id || '').slice(0, 8)}`, 'bi-hourglass-split');
+                    showToast('success', 'CLIP 任务已提交');
+                    pollCatalogEmbeddingJob(result.task_id);
+                })
+                .catch(error => {
+                    setCatalogEmbeddingJobStatus(error.message || 'CLIP 任务提交失败', 'bi-exclamation-triangle');
+                    showToast('error', error.message || 'CLIP 任务提交失败');
+                    resetCatalogClipEmbeddingButton();
+                    loadCatalogImageEmbeddingStatus();
+                });
+        }
+
         function triggerCatalogV2ManualSync() {
             const buttonEl = document.getElementById('catalogSyncV2Btn');
             if (buttonEl) {
@@ -4762,6 +4930,7 @@
                     }
                     showToast('success', result.message || 'V2 商品同步完成');
                     loadCatalogV2SyncStatus();
+                    loadCatalogImageEmbeddingStatus();
                     if (document.body.dataset.sceneTab === 'catalog') {
                         loadCatalogProducts(catalogState.page || 1);
                     }
@@ -4812,6 +4981,7 @@
                     }
                     showToast('success', result.message || '商城抓取同步完成');
                     loadCatalogV2SyncStatus();
+                    loadCatalogImageEmbeddingStatus();
                     if (document.body.dataset.sceneTab === 'catalog') {
                         loadCatalogProducts(catalogState.page || 1);
                     }

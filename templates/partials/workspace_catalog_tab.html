@@ -18,6 +18,9 @@
             <button type="button" class="btn btn-outline-primary btn-sm" id="catalogMallScrapeBtn">
                 <i class="bi bi-cloud-download me-1"></i>抓商城
             </button>
+            <button type="button" class="btn btn-outline-info btn-sm" id="catalogClipEmbeddingBtn">
+                <i class="bi bi-stars me-1"></i>生成 CLIP
+            </button>
             <span class="workspace-source-chip workspace-source-chip--compact" id="catalogProductsSourceChip"></span>
             <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-layout-text-window me-1"></i>去报价台
@@ -114,6 +117,8 @@
             <div class="col-md-12">
                 <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>先看有图、品牌清晰、供应商明确的商品。</span></div>
                 <div class="catalog-toolbar-note mt-2" id="catalogSyncV2Status"><i class="bi bi-database"></i><span>V2 同步状态读取中…</span></div>
+                <div class="catalog-toolbar-note mt-2 catalog-embedding-status" id="catalogImageEmbeddingStatus"><i class="bi bi-images"></i><span>图搜图向量状态读取中…</span></div>
+                <div class="catalog-toolbar-note mt-2 catalog-embedding-job-status" id="catalogImageEmbeddingJobStatus" style="display: none;"><i class="bi bi-hourglass-split"></i><span></span></div>
             </div>
         </div>
     </div>

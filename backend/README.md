@@ -149,11 +149,19 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --
 - 商城抓取支持 `site_adapter=dinghuovip_product_list`，可解析真实 `#productList` 表格
 - 商城抓取支持“下一页”分页和可选详情页补图
 - 报价台以图识图支持“快速图搜 / 智能 CLIP”模式切换
-- CLIP 批量生成已具备 Celery 任务入口
+- CLIP 批量生成已具备 Celery 任务入口，并已桥接到 Flask 商品库页任务面板
 
 ---
 
 ## 7. Celery 后台任务
+
+先启动 Redis：
+
+```powershell
+cd ..
+docker compose -f docker-compose.v2.yml up -d redis
+cd backend
+```
 
 当前已提供图片 embedding 生成任务：
 
@@ -173,6 +181,19 @@ cd backend
 ```text
 POST /api/v1/image-search/embedding-jobs
 GET  /api/v1/image-search/embedding-jobs/{task_id}
+```
+
+Flask 工作台桥接 API：
+
+```text
+POST /api/catalog/image_embedding_jobs
+GET  /api/catalog/image_embedding_jobs/{task_id}
+```
+
+前端入口：
+
+```text
+/catalog -> 生成 CLIP
 ```
 
 示例请求体：

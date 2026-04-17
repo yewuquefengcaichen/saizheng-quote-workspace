@@ -68,6 +68,7 @@
 - [x] 接入真正的 CLIP / 更强 provider 生成器基础链路
 - [x] 生成首批 CLIP 512 维向量
 - [ ] 批量生成全量 CLIP 512 维向量
+- [x] 商品库页接入 CLIP 向量后台任务面板
 - [ ] 接入历史反馈精排
 
 ---
@@ -142,7 +143,8 @@
 | P3 | 图搜图 | embedding provider 状态化 | [x] | 已可查看 local_hash / clip_local 可用性、维度和待生成数量 |
 | P3 | 图搜图 | 生成脚本 provider 参数化 | [x] | 已支持 `--provider / --model-name`，CLIP 未就绪时清晰提示 |
 | P3 | 图搜图 | Celery embedding 任务入口 | [x] | 已新增 `app.tasks.embedding.generate_image_embeddings` 与 FastAPI 任务 API |
-| P3 | 图搜图 | 前端 embedding 任务面板 | [ ] | 还需把任务提交 / 进度 / 结果接到业务页或管理页 |
+| P3 | 图搜图 | Flask embedding job 桥接 API | [x] | 已新增 `/api/catalog/image_embedding_jobs` 与状态查询 |
+| P3 | 图搜图 | 前端 embedding 任务面板 | [x] | 商品库页已显示快速 / CLIP ready-pending，并可提交每批 20 张的 CLIP 后台任务 |
 | P3 | 图搜图 | 历史反馈精排 | [ ] | 把已确认行为用于 rerank |
 | P3 | 图搜图 | 拍照 / 粘贴图片入口增强 | [ ] | 更接近真实业务用法 |
 | P3 | 图搜图 | 图搜图结果缓存 | [ ] | 为性能优化做准备 |

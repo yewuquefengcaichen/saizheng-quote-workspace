@@ -70,12 +70,14 @@
 - 报价台以图识图新增“快速图搜 / 智能 CLIP”切换，前端会把 provider / model 传给后端
 - 新增 Celery embedding 任务入口：`app.tasks.embedding.generate_image_embeddings`
 - 新增 FastAPI embedding job API：`POST /api/v1/image-search/embedding-jobs` 与任务状态查询
+- 新增 Flask 商品库 embedding job 桥接 API：`POST /api/catalog/image_embedding_jobs` 与状态查询
+- 商品库页新增“生成 CLIP”入口，可查看快速 / CLIP 向量 ready 与 pending，并提交每批 20 张的后台生成任务
 - 推荐使用 `backend\.venv\Scripts\python.exe app.py` 启动 Flask，以便报价台直接使用 RTX 4060 的 CLIP 能力
 
 ### 当前重点
 
 1. 增强商城全量抓取策略、详情页补图限速、下架 / 删除策略和任务状态展示
-2. 把 embedding job 状态接到前端任务面板，并分批生成更多 CLIP 向量
+2. 启动 Redis / Celery worker 后从商品库页分批生成更多 CLIP 向量
 3. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 4. 建立更细的商城增量抓取指纹与删除 / 下架策略
 5. 为后续 React / TypeScript 重构打基础

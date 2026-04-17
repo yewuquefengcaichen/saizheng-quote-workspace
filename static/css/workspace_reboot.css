@@ -4702,6 +4702,17 @@ body[data-route="catalog"] .catalog-intro-preview {
   gap: 10px;
 }
 
+.catalog-toolbar-note .badge.text-bg-success,
+.catalog-toolbar-note .badge.text-bg-secondary,
+.catalog-toolbar-note .badge.text-bg-info,
+.catalog-toolbar-note .badge.text-bg-primary {
+  color: #fff !important;
+}
+
+.catalog-toolbar-note .badge.text-bg-warning {
+  color: #422006 !important;
+}
+
 .dashboard-link-chip,
 .focus-step-pill {
   display: inline-flex;

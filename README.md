@@ -9,6 +9,7 @@
 - 人工确认、无匹配 / 问老板收口
 - 图搜图辅助选品
 - 图搜图 embedding provider 状态检查
+- 商品库页提交 / 追踪 CLIP 向量后台生成任务
 - 批量调价、导出、历史记录、词库维护
 - 手动把 legacy 商品库同步到 V2 PostgreSQL
 - 查看 V2 同步新增 / 更新 / 无变化 / 旧图待处理统计
@@ -182,7 +183,7 @@
 - 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构支持、依赖可用”，并已生成首批 20 条真实 CLIP 向量
 - 本项目 `backend\.venv` 已切到 RTX 4060 可用的 `torch 2.5.1+cu121`；这只影响项目虚拟环境，不改系统 CUDA 或其他深度学习环境
 - 报价台以图识图已支持“快速图搜 / 智能 CLIP”切换
-- CLIP 批量生成已有 Celery 任务入口，后续可接前端任务面板
+- 商品库页已接入“生成 CLIP”任务入口：每次提交一批后台向量任务，并显示快速 / CLIP 当前 ready 与 pending 数量
 - 首页 / 报价台 / 商品库会显示当前商品源状态
 - Bootstrap Icons 改为本地静态资源，避免外网抖动导致图标问号 / 空框
 
@@ -259,6 +260,23 @@ cd backend
 
 > 说明：为了让报价台也能用 RTX 4060 跑 CLIP，推荐用 `backend\.venv` 启动 Flask；这样不会污染系统 Python 或其他深度学习环境。
 
+### PostgreSQL / Redis / CLIP Worker
+
+CLIP 后台任务依赖 Redis 和 Celery worker。先启动 V2 基础设施：
+
+```powershell
+docker compose -f docker-compose.v2.yml up -d postgres redis
+```
+
+再启动 embedding worker：
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m celery -A app.core.celery_app.celery_app worker -Q embedding --pool=solo --loglevel=info
+```
+
+然后打开 `/catalog`，点击“生成 CLIP”。当前默认每批 20 张、每 5 张提交一次，适合 Windows + RTX 4060 环境稳妥跑。
+
 ---
 
 ## 8. 回退到稳定版怎么做
@@ -292,7 +310,7 @@ git checkout next/v2-architecture-upgrade
 
 1. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 2. 继续增强商城全量抓取策略、详情补图限速、下架 / 删除策略和任务状态
-3. 扩大 CLIP 向量生成范围，接入 provider 切换、历史反馈精排和结果缓存
+3. 扩大 CLIP 向量生成范围，继续接入历史反馈精排和结果缓存
 4. 引入 Redis 做缓存、任务状态、热点检索优化
 5. 继续拆分前后端，为 React / TypeScript 版本做准备
 
