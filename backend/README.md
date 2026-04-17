@@ -145,7 +145,7 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --
 - 报价项人工搜索优先查 PostgreSQL
 - 图搜图直接查 PostgreSQL / 图片归档 / 精排结果
 - 商品库页支持手动触发同步
-- 商品库页支持手动触发 Playwright 商城抓取同步
+- 商品库页支持手动触发 Playwright 商城抓取后台同步
 - 商城抓取支持 `site_adapter=dinghuovip_product_list`，可解析真实 `#productList` 表格
 - 商城抓取支持“下一页”分页和可选详情页补图
 - 报价台以图识图支持“快速图搜 / 智能 CLIP”模式切换
@@ -163,10 +163,11 @@ docker compose -f docker-compose.v2.yml up -d redis
 cd backend
 ```
 
-当前已提供图片 embedding 生成任务：
+当前已提供后台任务：
 
 ```text
 app.tasks.embedding.generate_image_embeddings
+app.tasks.catalog.scrape_mall_sync
 ```
 
 启动 worker 示例：
@@ -174,6 +175,12 @@ app.tasks.embedding.generate_image_embeddings
 ```powershell
 cd backend
 .\.venv\Scripts\python.exe -m celery -A app.core.celery_app.celery_app worker -Q embedding --pool=solo --loglevel=info
+```
+
+商城抓取 / 同步 worker：
+
+```powershell
+.\.venv\Scripts\python.exe -m celery -A app.core.celery_app.celery_app worker -Q sync --pool=solo --loglevel=info
 ```
 
 提交任务 API：
@@ -188,6 +195,8 @@ Flask 工作台桥接 API：
 ```text
 POST /api/catalog/image_embedding_jobs
 GET  /api/catalog/image_embedding_jobs/{task_id}
+POST /api/catalog/mall_sync_jobs
+GET  /api/catalog/mall_sync_jobs/{task_id}
 ```
 
 前端入口：

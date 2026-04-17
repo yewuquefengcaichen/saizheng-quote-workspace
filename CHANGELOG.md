@@ -72,11 +72,13 @@
 - 新增 FastAPI embedding job API：`POST /api/v1/image-search/embedding-jobs` 与任务状态查询
 - 新增 Flask 商品库 embedding job 桥接 API：`POST /api/catalog/image_embedding_jobs` 与状态查询
 - 商品库页新增“生成 CLIP”入口，可查看快速 / CLIP 向量 ready 与 pending，并提交每批 20 张的后台生成任务
+- 新增商城抓取后台任务：`app.tasks.catalog.scrape_mall_sync`
+- 商品库页“抓商城”改为提交后台任务，前端轮询 `/api/catalog/mall_sync_jobs/{task_id}`，完成后刷新商品源和向量状态
 - 推荐使用 `backend\.venv\Scripts\python.exe app.py` 启动 Flask，以便报价台直接使用 RTX 4060 的 CLIP 能力
 
 ### 当前重点
 
-1. 增强商城全量抓取策略、详情页补图限速、下架 / 删除策略和任务状态展示
+1. 增强商城全量抓取策略、详情页补图限速、下架 / 删除策略和断点续抓
 2. 启动 Redis / Celery worker 后从商品库页分批生成更多 CLIP 向量
 3. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 4. 建立更细的商城增量抓取指纹与删除 / 下架策略

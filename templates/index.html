@@ -4291,6 +4291,7 @@
         let catalogLoadedOnce = false;
         let catalogKeywordTimer = null;
         let catalogEmbeddingJobPollTimer = null;
+        let catalogMallSyncJobPollTimer = null;
         let quoteCatalogSearchState = {};
         let activeQuoteCatalogModalItemIndex = null;
         let quoteCatalogSearchModalInstance = null;
@@ -4954,7 +4955,7 @@
             const buttonEl = document.getElementById('catalogMallScrapeBtn');
             if (buttonEl) {
                 buttonEl.disabled = true;
-                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>抓取中';
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>排队中';
             }
             renderCatalogV2SyncStatus({
                 success: true,
@@ -4966,38 +4967,130 @@
                 }
             });
 
-            fetch('/api/catalog/sync_from_mall', {
+            fetch('/api/catalog/mall_sync_jobs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ requested_by: 'catalog-page-mall-scrape' })
+                body: JSON.stringify({
+                    requested_by: 'catalog-page-mall-scrape',
+                    dry_run: false
+                })
             })
                 .then(response => response.json())
                 .then(result => {
                     if (!result.success) {
-                        throw new Error(result.message || '商城抓取同步失败');
+                        throw new Error(result.message || '商城抓取任务提交失败');
                     }
-                    if (result.products_source) {
-                        updateProductsSourceState(result.products_source, workspaceProductsCount);
+                    showToast('success', '商城抓取任务已提交');
+                    const statusEl = document.getElementById('catalogSyncV2Status');
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="bi bi-cloud-download"></i><span>商城抓取已排队 · ${escapeHtml(String(result.task_id || '').slice(0, 8))}</span>`;
                     }
-                    showToast('success', result.message || '商城抓取同步完成');
-                    loadCatalogV2SyncStatus();
-                    loadCatalogImageEmbeddingStatus();
-                    if (document.body.dataset.sceneTab === 'catalog') {
-                        loadCatalogProducts(catalogState.page || 1);
-                    }
+                    pollCatalogMallSyncJob(result.task_id);
                 })
                 .catch(error => {
-                    showToast('error', error.message || '商城抓取同步失败');
+                    showToast('error', error.message || '商城抓取任务提交失败');
                     renderCatalogV2SyncStatus({
                         success: false,
-                        message: error.message || '商城抓取同步失败'
+                        message: error.message || '商城抓取任务提交失败'
                     });
-                })
-                .finally(() => {
                     if (buttonEl) {
                         buttonEl.disabled = false;
                         buttonEl.innerHTML = '<i class="bi bi-cloud-download me-1"></i>抓商城';
                     }
+                });
+        }
+
+        function summarizeCatalogMallSyncResult(result = {}) {
+            const stats = result.stats || {};
+            const diffSummary = stats.diff_summary || {};
+            const scrapeStats = (result.scrape || {}).stats || {};
+            const prefix = result.dry_run ? '商城抓取预检完成' : '商城抓取完成';
+            const pages = Number(scrapeStats.pages_visited || 0);
+            const extracted = Number(scrapeStats.extracted_items || 0);
+            const created = Number(diffSummary.created_rows || 0);
+            const updated = Number(diffSummary.updated_rows || 0);
+            const unchanged = Number(diffSummary.unchanged_rows || 0);
+            const failed = Number(diffSummary.failed_rows || 0);
+            let text = `${prefix}：页面 ${pages}，提取 ${extracted}，新增 ${created}，更新 ${updated}，无变化 ${unchanged}`;
+            if (failed > 0) {
+                text += `，失败 ${failed}`;
+            }
+            return `${text}。`;
+        }
+
+        function resetCatalogMallScrapeButton() {
+            const buttonEl = document.getElementById('catalogMallScrapeBtn');
+            if (!buttonEl) return;
+            buttonEl.disabled = false;
+            buttonEl.innerHTML = '<i class="bi bi-cloud-download me-1"></i>抓商城';
+        }
+
+        function pollCatalogMallSyncJob(taskId, attempt = 0) {
+            if (!taskId) {
+                resetCatalogMallScrapeButton();
+                return;
+            }
+            clearTimeout(catalogMallSyncJobPollTimer);
+
+            fetch(`/api/catalog/mall_sync_jobs/${encodeURIComponent(taskId)}`)
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || '读取商城抓取任务失败');
+                    }
+
+                    const status = String(result.status || '').toUpperCase();
+                    const statusEl = document.getElementById('catalogSyncV2Status');
+                    if (result.ready) {
+                        if (status === 'SUCCESS') {
+                            const taskResult = result.result || {};
+                            const message = summarizeCatalogMallSyncResult(taskResult);
+                            if (result.products_source) {
+                                updateProductsSourceState(result.products_source, Number(result.products_count || workspaceProductsCount || 0));
+                            }
+                            if (statusEl) {
+                                statusEl.innerHTML = `<i class="bi bi-cloud-check"></i><span>${escapeHtml(message)}</span>`;
+                            }
+                            showToast('success', message);
+                            loadCatalogV2SyncStatus();
+                            loadCatalogImageEmbeddingStatus();
+                            if (document.body.dataset.sceneTab === 'catalog') {
+                                loadCatalogProducts(catalogState.page || 1);
+                            }
+                            resetCatalogMallScrapeButton();
+                            return;
+                        }
+
+                        const errorText = result.error || '商城抓取任务失败';
+                        if (statusEl) {
+                            statusEl.innerHTML = `<i class="bi bi-exclamation-triangle"></i><span>${escapeHtml(errorText)}</span>`;
+                        }
+                        showToast('error', errorText);
+                        resetCatalogMallScrapeButton();
+                        return;
+                    }
+
+                    const runningText = status === 'PENDING' ? '排队中' : status;
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="bi bi-arrow-repeat"></i><span>商城抓取${escapeHtml(runningText)} · ${escapeHtml(String(taskId).slice(0, 8))}</span>`;
+                    }
+
+                    if (attempt >= 720) {
+                        if (statusEl) {
+                            statusEl.innerHTML = '<i class="bi bi-hourglass-split"></i><span>商城抓取仍在后台执行，可稍后刷新状态</span>';
+                        }
+                        resetCatalogMallScrapeButton();
+                        return;
+                    }
+                    catalogMallSyncJobPollTimer = setTimeout(() => pollCatalogMallSyncJob(taskId, attempt + 1), 5000);
+                })
+                .catch(error => {
+                    const statusEl = document.getElementById('catalogSyncV2Status');
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="bi bi-exclamation-triangle"></i><span>${escapeHtml(error.message || '读取商城抓取任务失败')}</span>`;
+                    }
+                    showToast('error', error.message || '读取商城抓取任务失败');
+                    resetCatalogMallScrapeButton();
                 });
         }
 

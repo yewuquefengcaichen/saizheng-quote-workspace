@@ -14,6 +14,7 @@ celery_app = Celery(
 celery_app.conf.update(
     task_default_queue='default',
     task_routes={
+        'app.tasks.catalog.*': {'queue': 'sync'},
         'app.tasks.sync.*': {'queue': 'sync'},
         'app.tasks.image.*': {'queue': 'image'},
         'app.tasks.embedding.*': {'queue': 'embedding'},

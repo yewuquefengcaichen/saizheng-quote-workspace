@@ -64,8 +64,13 @@ try:
         MallPlaywrightScraper as V2MallPlaywrightScraper,
         build_default_mall_scrape_config as v2_build_default_mall_scrape_config,
     )
+    from app.services.mall_sync import (
+        pick_mall_scrape_options as v2_pick_mall_scrape_options,
+        run_mall_scrape_sync_async as v2_run_mall_scrape_sync_async,
+    )
     from app.core.celery_app import celery_app as V2CeleryApp
     from app.tasks.embedding import generate_image_embeddings_task as V2GenerateImageEmbeddingsTask
+    from app.tasks.catalog import scrape_mall_sync_task as V2ScrapeMallSyncTask
     V2_IMAGE_SEARCH_AVAILABLE = True
     V2_IMAGE_SEARCH_IMPORT_ERROR = ''
     V2_CATALOG_AVAILABLE = True
@@ -1345,72 +1350,11 @@ async def _run_v2_catalog_mall_scrape_sync_async(requested_by='flask-mall-scrape
     if not V2_CATALOG_AVAILABLE:
         raise RuntimeError(f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
 
-    options = options or {}
-    scrape_config = v2_build_default_mall_scrape_config(
-        start_url=options.get('start_url'),
-        page_url_template=options.get('page_url_template'),
-        max_pages=options.get('max_pages'),
-        headless=options.get('headless'),
-        storage_state_path=options.get('storage_state_path'),
-        page_timeout_ms=options.get('page_timeout_ms'),
-        product_card_selector=options.get('product_card_selector'),
-        next_selector=options.get('next_selector'),
-        network_include_patterns=options.get('network_include_patterns'),
-        network_exclude_patterns=options.get('network_exclude_patterns'),
-        dom_table_selector=options.get('dom_table_selector'),
-        site_adapter=options.get('site_adapter'),
-        fetch_detail_images=options.get('fetch_detail_images'),
-        detail_fetch_limit=options.get('detail_fetch_limit'),
-        detail_image_limit_per_item=options.get('detail_image_limit_per_item'),
-        field_map=options.get('field_map'),
-        screenshot_path=options.get('screenshot_path'),
+    return await v2_run_mall_scrape_sync_async(
+        requested_by=requested_by,
+        options=options or {},
+        dry_run=dry_run,
     )
-    scraper = V2MallPlaywrightScraper(scrape_config)
-    scrape_result = await scraper.scrape()
-
-    async with V2AsyncSessionLocal() as session:
-        service = V2LegacyCatalogSyncService(
-            session,
-            dry_run=dry_run,
-            source_type='legacy_json_upload',
-            source_name='mall_playwright_scrape',
-            requested_by=requested_by,
-            source_path=Path('mall_playwright_scrape'),
-        )
-        sync_result = await service.run_items(scrape_result.items)
-
-    return {
-        **sync_result,
-        'scrape': {
-            'stats': scrape_result.stats.to_dict(),
-            'visited_urls': scrape_result.visited_urls,
-            'sample_items': [
-                {
-                    **{key: item.get(key) for key in ('code', 'name', 'model', 'category', 'unit', 'market_price', 'cost_price', 'brand', 'supplier', 'status', 'primary_image_url', 'detail_url', 'detail_image_count')},
-                    'image_count': len(item.get('image_urls') or []),
-                }
-                for item in scrape_result.items[:10]
-            ],
-            'raw_payload_examples': scrape_result.raw_payload_examples,
-            'config': {
-                'start_url': scrape_config.start_url,
-                'page_url_template': scrape_config.page_url_template,
-                'max_pages': scrape_config.max_pages,
-                'headless': scrape_config.headless,
-                'page_timeout_ms': scrape_config.page_timeout_ms,
-                'product_card_selector': scrape_config.product_card_selector,
-                'next_selector': scrape_config.next_selector,
-                'dom_table_selector': scrape_config.dom_table_selector,
-                'site_adapter': scrape_config.site_adapter,
-                'fetch_detail_images': scrape_config.fetch_detail_images,
-                'detail_fetch_limit': scrape_config.detail_fetch_limit,
-                'detail_image_limit_per_item': scrape_config.detail_image_limit_per_item,
-                'network_include_patterns': scrape_config.network_include_patterns,
-                'network_exclude_patterns': scrape_config.network_exclude_patterns,
-                'storage_state_configured': bool(scrape_config.storage_state_path),
-            },
-        },
-    }
 
 
 def _normalize_image_search_provider(provider='', model_name=''):
@@ -2534,6 +2478,83 @@ def run_catalog_sync_from_mall():
         return jsonify({
             'success': False,
             'message': f'商城抓取同步失败：{str(e)}'
+        }), 500
+
+
+@app.route('/api/catalog/mall_sync_jobs', methods=['POST'])
+def create_catalog_mall_sync_job():
+    """提交商城抓取同步后台任务"""
+    if not V2_CATALOG_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}'
+        }), 503
+
+    payload = request.get_json(silent=True) or {}
+    requested_by = _normalize_text_value(payload.get('requested_by')) or 'catalog-page-mall-scrape'
+    dry_run = _is_truthy_form_value(payload.get('dry_run'))
+    options = v2_pick_mall_scrape_options(payload)
+
+    try:
+        task = V2ScrapeMallSyncTask.delay(
+            requested_by=requested_by,
+            options=options,
+            dry_run=dry_run,
+        )
+        return jsonify({
+            'success': True,
+            'task_id': task.id,
+            'status': 'queued',
+            'dry_run': dry_run,
+            'options': {
+                key: value
+                for key, value in options.items()
+                if key not in {'storage_state_path'}
+            },
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'提交商城抓取任务失败：{str(e)}'
+        }), 503
+
+
+@app.route('/api/catalog/mall_sync_jobs/<task_id>', methods=['GET'])
+def get_catalog_mall_sync_job(task_id):
+    """查询商城抓取同步后台任务状态"""
+    if not V2_CATALOG_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'V2 商品同步不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}'
+        }), 503
+
+    task_id = _normalize_text_value(task_id)
+    if not task_id:
+        return jsonify({'success': False, 'message': '任务 ID 不能为空'}), 400
+
+    try:
+        result = V2CeleryApp.AsyncResult(task_id)
+        response = {
+            'success': True,
+            'task_id': task_id,
+            'status': result.status,
+            'ready': result.ready(),
+        }
+        if result.ready():
+            if result.successful():
+                task_result = result.result or {}
+                response['result'] = task_result
+                if not task_result.get('dry_run'):
+                    load_products()
+                    response['products_source'] = products_data_source
+                    response['products_count'] = len(products_data or [])
+            else:
+                response['error'] = str(result.result)
+        return jsonify(response)
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'读取商城抓取任务失败：{str(e)}'
         }), 500
 
 

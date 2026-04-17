@@ -175,7 +175,7 @@
 - 上传商品库可选立即同步到 V2，并自动刷新运行时商品源
 - V2 同步完成后会显示新增、更新、无变化、旧图待处理统计，并写入 `sync_jobs.stats_json`
 - V2 同步已支持单行失败重试；未变化商品会跳过 product / variant / image 的无意义写入
-- 商品库页新增“抓商城”按钮；后端会通过 Playwright 捕获页面网络 JSON，并用 DOM 商品卡片提取做兜底
+- 商品库页“抓商城”已改为后台任务；后端会通过 Playwright 捕获页面网络 JSON，并用 DOM 商品卡片提取做兜底
 - 商品库页新增“预检商城”按钮；不写库也能检查登录态、字段和预计同步差异
 - 真实商城 `Product/ProductList` 已校准：`site_adapter=dinghuovip_product_list` 会解析 `#productList` 表格，避开通知 JSON 误判
 - 商城列表页只提供封面图时，图片同步采用 `append_only`，不会把详情页历史图片误判成待删除旧图
@@ -276,6 +276,15 @@ cd backend
 ```
 
 然后打开 `/catalog`，点击“生成 CLIP”。当前默认每批 20 张、每 5 张提交一次，适合 Windows + RTX 4060 环境稳妥跑。
+
+商城抓取后台任务走 `sync` 队列，另开一个 PowerShell：
+
+```powershell
+cd backend
+.\.venv\Scripts\python.exe -m celery -A app.core.celery_app.celery_app worker -Q sync --pool=solo --loglevel=info
+```
+
+如果只想简单启动一个 worker，也可以用 `-Q embedding,sync`，但图片向量和商城抓取会排队串行执行。
 
 ---
 
