@@ -147,7 +147,7 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --
 - 商品库页支持手动触发同步
 - 商品库页支持手动触发 Playwright 商城抓取后台同步
 - 商城抓取支持 `site_adapter=dinghuovip_product_list`，可解析真实 `#productList` 表格
-- 商城抓取支持“下一页”分页和可选详情页补图
+- 商城抓取支持“下一页”分页、可选详情页补图、页间限速和断点续抓
 - 报价台以图识图支持“快速图搜 / 智能 CLIP”模式切换
 - CLIP 批量生成已具备 Celery 任务入口，并已桥接到 Flask 商品库页任务面板
 
@@ -203,7 +203,25 @@ GET  /api/catalog/mall_sync_jobs/{task_id}
 
 ```text
 /catalog -> 生成 CLIP
+/catalog -> 小批量 / 全量抓商城
 ```
+
+商城抓取可用参数：
+
+```json
+{
+  "max_pages": 100,
+  "start_page": 1,
+  "max_items": 0,
+  "page_delay_ms": 1200,
+  "next_delay_ms": 900,
+  "detail_delay_ms": 800,
+  "checkpoint_path": "backend/storage/mall-sync-checkpoints/catalog-mall-latest.json",
+  "resume_from_checkpoint": true
+}
+```
+
+断点文件在 `backend/storage/` 下，已被 `.gitignore` 忽略，不会提交。
 
 示例请求体：
 

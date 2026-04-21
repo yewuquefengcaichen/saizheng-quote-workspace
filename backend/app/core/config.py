@@ -25,7 +25,14 @@ class Settings(BaseSettings):
     mall_scrape_storage_state_path: str | None = None
     mall_scrape_headless: bool = True
     mall_scrape_max_pages: int = 3
+    mall_scrape_start_page: int = 1
+    mall_scrape_max_items: int = 0
     mall_scrape_page_timeout_ms: int = 30000
+    mall_scrape_page_delay_ms: int = 800
+    mall_scrape_next_page_delay_ms: int = 500
+    mall_scrape_detail_page_delay_ms: int = 500
+    mall_scrape_checkpoint_path: str | None = None
+    mall_scrape_resume_from_checkpoint: bool = False
     mall_scrape_product_card_selector: str = '[data-product-id], [data-goods-id], .goods-item, .product-item, .product-card, .goods-list-item, .product-list-item'
     mall_scrape_next_selector: str = 'a:has-text("下一页"), button:has-text("下一页"), .next, .pagination-next'
     mall_scrape_site_adapter: str | None = None

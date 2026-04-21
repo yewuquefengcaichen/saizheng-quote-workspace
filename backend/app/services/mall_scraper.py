@@ -2,8 +2,10 @@ from __future__ import annotations
 
 import asyncio
 import html
+import json
 import re
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 from urllib.parse import urljoin
@@ -12,6 +14,8 @@ from app.core.config import settings
 from app.services.catalog_sync import normalize_text
 
 
+BACKEND_ROOT = Path(__file__).resolve().parents[2]
+PROJECT_ROOT = Path(__file__).resolve().parents[3]
 DINGHUOVIP_PRODUCT_LIST_ADAPTER = 'dinghuovip_product_list'
 
 PRODUCT_CODE_KEYS = (
@@ -75,12 +79,19 @@ class MallScrapeConfig:
     start_url: str
     page_url_template: str | None = None
     max_pages: int = 3
+    start_page: int = 1
+    max_items: int = 0
     headless: bool = True
     storage_state_path: str | None = None
     page_timeout_ms: int = 30000
+    page_delay_ms: int = 800
+    next_delay_ms: int = 500
+    detail_delay_ms: int = 500
     product_card_selector: str = settings.mall_scrape_product_card_selector
     next_selector: str = settings.mall_scrape_next_selector
     screenshot_path: str = 'output/playwright/mall-scrape-latest.png'
+    checkpoint_path: str | None = None
+    resume_from_checkpoint: bool = False
     field_map: dict[str, list[str]] = field(default_factory=dict)
     network_include_patterns: list[str] = field(default_factory=list)
     network_exclude_patterns: list[str] = field(default_factory=list)
@@ -105,6 +116,9 @@ class MallScrapeStats:
     login_suspected: bool = False
     screenshot_path: str | None = None
     warnings: list[str] = field(default_factory=list)
+    checkpoint_path: str | None = None
+    checkpoint_status: str | None = None
+    resumed_from_checkpoint: bool = False
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -130,8 +144,14 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
     start_url = normalize_text(str(overrides.get('start_url') or settings.mall_scrape_start_url or settings.legacy_mall_base_url))
     page_url_template = normalize_text(str(overrides.get('page_url_template') or settings.mall_scrape_page_url_template or ''))
     storage_state_path = normalize_text(str(overrides.get('storage_state_path') or settings.mall_scrape_storage_state_path or ''))
-    max_pages = int(overrides.get('max_pages') or settings.mall_scrape_max_pages or 3)
-    page_timeout_ms = int(overrides.get('page_timeout_ms') or settings.mall_scrape_page_timeout_ms or 30000)
+    max_pages = _coerce_int(overrides.get('max_pages'), default=settings.mall_scrape_max_pages or 3, min_value=1, max_value=500)
+    start_page = _coerce_int(overrides.get('start_page'), default=getattr(settings, 'mall_scrape_start_page', 1), min_value=1, max_value=500000)
+    max_items = _coerce_int(overrides.get('max_items'), default=getattr(settings, 'mall_scrape_max_items', 0), min_value=0, max_value=200000)
+    page_timeout_ms = _coerce_int(overrides.get('page_timeout_ms'), default=settings.mall_scrape_page_timeout_ms or 30000, min_value=5000, max_value=180000)
+    page_delay_ms = _coerce_int(overrides.get('page_delay_ms'), default=getattr(settings, 'mall_scrape_page_delay_ms', 800), min_value=0, max_value=60000)
+    next_delay_ms = _coerce_int(overrides.get('next_delay_ms'), default=getattr(settings, 'mall_scrape_next_delay_ms', getattr(settings, 'mall_scrape_next_page_delay_ms', 500)), min_value=0, max_value=60000)
+    detail_delay_ms = _coerce_int(overrides.get('detail_delay_ms'), default=getattr(settings, 'mall_scrape_detail_delay_ms', getattr(settings, 'mall_scrape_detail_page_delay_ms', 500)), min_value=0, max_value=60000)
+    checkpoint_path = normalize_text(str(overrides.get('checkpoint_path') or getattr(settings, 'mall_scrape_checkpoint_path', '') or ''))
     headless = overrides.get('headless')
     if headless is None:
         headless = settings.mall_scrape_headless
@@ -170,13 +190,25 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
     return MallScrapeConfig(
         start_url=start_url,
         page_url_template=page_url_template or None,
-        max_pages=max(1, min(max_pages, 100)),
+        max_pages=max_pages,
+        start_page=start_page,
+        max_items=max_items,
         headless=bool(headless),
         storage_state_path=storage_state_path or None,
-        page_timeout_ms=max(5000, page_timeout_ms),
+        page_timeout_ms=page_timeout_ms,
+        page_delay_ms=page_delay_ms,
+        next_delay_ms=next_delay_ms,
+        detail_delay_ms=detail_delay_ms,
         product_card_selector=normalize_text(str(overrides.get('product_card_selector') or settings.mall_scrape_product_card_selector)) or settings.mall_scrape_product_card_selector,
         next_selector=normalize_text(str(overrides.get('next_selector') or settings.mall_scrape_next_selector)) or settings.mall_scrape_next_selector,
         screenshot_path=normalize_text(str(overrides.get('screenshot_path') or 'output/playwright/mall-scrape-latest.png')) or 'output/playwright/mall-scrape-latest.png',
+        checkpoint_path=checkpoint_path or None,
+        resume_from_checkpoint=_coerce_bool(
+            overrides.get('resume_from_checkpoint')
+            if overrides.get('resume_from_checkpoint') is not None
+            else getattr(settings, 'mall_scrape_resume_from_checkpoint', False),
+            default=False,
+        ),
         field_map=overrides.get('field_map') if isinstance(overrides.get('field_map'), dict) else {},
         network_include_patterns=network_include_patterns,
         network_exclude_patterns=network_exclude_patterns,
@@ -188,9 +220,20 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
             else getattr(settings, 'mall_scrape_fetch_detail_images', False),
             default=False,
         ),
-        detail_fetch_limit=max(0, int(overrides.get('detail_fetch_limit') or getattr(settings, 'mall_scrape_detail_fetch_limit', 0) or 0)),
-        detail_image_limit_per_item=max(1, min(int(overrides.get('detail_image_limit_per_item') or getattr(settings, 'mall_scrape_detail_image_limit_per_item', 20) or 20), 80)),
+        detail_fetch_limit=_coerce_int(overrides.get('detail_fetch_limit'), default=getattr(settings, 'mall_scrape_detail_fetch_limit', 0), min_value=0, max_value=10000),
+        detail_image_limit_per_item=_coerce_int(overrides.get('detail_image_limit_per_item'), default=getattr(settings, 'mall_scrape_detail_image_limit_per_item', 20), min_value=1, max_value=80),
     )
+
+
+def _coerce_int(value: Any, *, default: int, min_value: int, max_value: int) -> int:
+    try:
+        if value in (None, ''):
+            number = int(default)
+        else:
+            number = int(value)
+    except Exception:
+        number = int(default)
+    return max(min_value, min(max_value, number))
 
 
 def _coerce_bool(value: Any, *, default: bool = False) -> bool:
@@ -232,6 +275,19 @@ def _dedupe_strings(items: list[str]) -> list[str]:
         seen.add(key)
         deduped.append(normalized)
     return deduped
+
+
+def _resolve_runtime_path(value: str | None) -> Path | None:
+    text = normalize_text(str(value or ''))
+    if not text:
+        return None
+    path = Path(text)
+    if path.is_absolute():
+        return path
+    first_part = path.parts[0].lower() if path.parts else ''
+    if first_part == 'storage':
+        return BACKEND_ROOT / path
+    return PROJECT_ROOT / path
 
 
 def _pattern_matches(value: str, pattern: str) -> bool:
@@ -440,6 +496,7 @@ class MallPlaywrightScraper:
     def __init__(self, config: MallScrapeConfig) -> None:
         self.config = config
         self.stats = MallScrapeStats()
+        self.stats.checkpoint_path = config.checkpoint_path
         self.visited_urls: list[str] = []
         self._raw_payloads: list[dict[str, Any]] = []
 
@@ -453,7 +510,7 @@ class MallPlaywrightScraper:
             browser = await playwright.chromium.launch(headless=self.config.headless)
             context_options: dict[str, Any] = {}
             if self.config.storage_state_path:
-                state_path = Path(self.config.storage_state_path)
+                state_path = _resolve_runtime_path(self.config.storage_state_path)
                 if state_path.exists():
                     context_options['storage_state'] = str(state_path)
                 else:
@@ -503,6 +560,9 @@ class MallPlaywrightScraper:
             for payload in self._raw_payloads
             if (item := map_payload_to_legacy_item(payload, base_url=self.config.start_url, field_map=self.config.field_map))
         )
+        if self.config.max_items and len(items) > self.config.max_items:
+            items = items[: self.config.max_items]
+            self.stats.deduped_items = len(items)
         self.stats.extracted_items = len(items)
         if not items and self.stats.login_suspected:
             self.stats.warnings.append('疑似进入登录页或登录态失效，请先配置 storage_state_path。')
@@ -532,7 +592,7 @@ class MallPlaywrightScraper:
 
     async def _save_debug_screenshot(self, page: Any) -> None:
         try:
-            screenshot_path = Path(self.config.screenshot_path)
+            screenshot_path = _resolve_runtime_path(self.config.screenshot_path) or Path(self.config.screenshot_path)
             screenshot_path.parent.mkdir(parents=True, exist_ok=True)
             await page.screenshot(path=str(screenshot_path), full_page=True)
             self.stats.screenshot_path = str(screenshot_path)
@@ -540,30 +600,178 @@ class MallPlaywrightScraper:
             self.stats.warnings.append(f'调试截图保存失败: {str(exc)[:200]}')
 
     async def _visit_pages(self, page: Any) -> None:
-        current_url = self.config.start_url
-        for page_index in range(1, self.config.max_pages + 1):
+        start_page, current_url = self._resolve_resume_cursor()
+        end_page = start_page + self.config.max_pages - 1
+        last_page_index = start_page - 1
+        last_page_url = current_url
+
+        for page_index in range(start_page, end_page + 1):
             target_url = self._page_url(page_index, current_url)
             await page.goto(target_url, wait_until='domcontentloaded', timeout=self.config.page_timeout_ms)
             self.visited_urls.append(page.url)
             self.stats.pages_visited += 1
+            last_page_index = page_index
+            last_page_url = page.url
             try:
                 await page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
             except Exception:
                 pass
-            await page.wait_for_timeout(800)
+            await page.wait_for_timeout(self.config.page_delay_ms)
             dom_payloads = await self._extract_dom_payloads(page)
             if self.config.fetch_detail_images and dom_payloads:
                 dom_payloads = await self._enrich_payloads_with_detail_images(page, dom_payloads)
             self._raw_payloads.extend(dom_payloads)
+            self._write_checkpoint(
+                status='processed_page',
+                page_index=page_index,
+                page_url=page.url,
+                raw_payload_count=len(self._raw_payloads),
+                dom_payload_count=len(dom_payloads),
+            )
+
+            if self.config.max_items and len(self._raw_payloads) >= self.config.max_items:
+                self.stats.checkpoint_status = 'max_items_reached'
+                checkpoint_extra: dict[str, Any] = {}
+                if self.config.page_url_template:
+                    checkpoint_extra['next_page_index'] = page_index + 1
+                else:
+                    next_url = await self._find_next_page_href(page)
+                    if next_url:
+                        checkpoint_extra['next_page_index'] = page_index + 1
+                        checkpoint_extra['next_url'] = next_url
+                self._write_checkpoint(
+                    status='max_items_reached',
+                    page_index=page_index,
+                    page_url=page.url,
+                    raw_payload_count=len(self._raw_payloads),
+                    **checkpoint_extra,
+                )
+                break
 
             if self.config.page_url_template:
                 continue
-            if page_index >= self.config.max_pages:
+            if page_index >= end_page:
                 break
             clicked = await self._click_next(page)
             if not clicked:
+                self.stats.checkpoint_status = 'no_next_page'
+                self._write_checkpoint(
+                    status='no_next_page',
+                    page_index=page_index,
+                    page_url=page.url,
+                    raw_payload_count=len(self._raw_payloads),
+                )
                 break
             current_url = page.url
+            self._write_checkpoint(
+                status='next_ready',
+                page_index=page_index,
+                page_url=target_url,
+                next_page_index=page_index + 1,
+                next_url=current_url,
+                raw_payload_count=len(self._raw_payloads),
+            )
+
+        if self.stats.checkpoint_status not in {'max_items_reached', 'no_next_page'}:
+            self.stats.checkpoint_status = 'page_limit_reached'
+            checkpoint_extra: dict[str, Any] = {}
+            if self.config.page_url_template:
+                checkpoint_extra['next_page_index'] = last_page_index + 1
+            else:
+                next_url = await self._find_next_page_href(page)
+                if next_url:
+                    checkpoint_extra['next_page_index'] = last_page_index + 1
+                    checkpoint_extra['next_url'] = next_url
+            self._write_checkpoint(
+                status='page_limit_reached',
+                page_index=last_page_index,
+                page_url=self.visited_urls[-1] if self.visited_urls else last_page_url,
+                raw_payload_count=len(self._raw_payloads),
+                **checkpoint_extra,
+            )
+
+    def _resolve_resume_cursor(self) -> tuple[int, str]:
+        start_page = max(1, int(self.config.start_page or 1))
+        current_url = self.config.start_url
+        if not self.config.resume_from_checkpoint or not self.config.checkpoint_path:
+            return start_page, current_url
+
+        checkpoint_path = _resolve_runtime_path(self.config.checkpoint_path) or Path(self.config.checkpoint_path)
+        if not checkpoint_path.exists():
+            return start_page, current_url
+
+        try:
+            checkpoint = json.loads(checkpoint_path.read_text(encoding='utf-8'))
+        except Exception as exc:
+            self.stats.warnings.append(f'断点文件读取失败，将从配置起点开始: {str(exc)[:200]}')
+            return start_page, current_url
+
+        try:
+            next_page_index = int(checkpoint.get('next_page_index') or 0)
+        except Exception:
+            next_page_index = 0
+        try:
+            last_page_index = int(checkpoint.get('last_page_index') or 0)
+        except Exception:
+            last_page_index = 0
+
+        next_url = normalize_text(str(checkpoint.get('next_url') or ''))
+        last_url = normalize_text(str(checkpoint.get('last_url') or checkpoint.get('page_url') or ''))
+        status = normalize_text(str(checkpoint.get('status') or '')) or ''
+
+        if next_page_index > 0:
+            start_page = max(start_page, next_page_index)
+        elif self.config.page_url_template and last_page_index > 0:
+            start_page = max(start_page, last_page_index + 1)
+
+        if not self.config.page_url_template:
+            if next_url:
+                current_url = next_url
+            elif status in {'done', 'no_next_page'}:
+                self.stats.warnings.append('断点显示已到末页，如需重跑请关闭 resume_from_checkpoint 或删除断点文件。')
+            elif last_url:
+                self.stats.warnings.append('断点文件没有下一页 URL，非模板分页只能从最后记录 URL 尝试继续。')
+                current_url = last_url
+
+        self.stats.resumed_from_checkpoint = True
+        self.stats.checkpoint_status = f'resumed:{status or "unknown"}'
+        return start_page, current_url
+
+    def _write_checkpoint(self, *, status: str, page_index: int, page_url: str, **extra: Any) -> None:
+        if not self.config.checkpoint_path:
+            self.stats.checkpoint_status = status
+            return
+
+        checkpoint_path = _resolve_runtime_path(self.config.checkpoint_path) or Path(self.config.checkpoint_path)
+        try:
+            checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                'status': status,
+                'updated_at': datetime.now(timezone.utc).isoformat(),
+                'last_page_index': page_index,
+                'last_url': page_url,
+                'pages_visited': self.stats.pages_visited,
+                'network_json_candidates': self.stats.network_json_candidates,
+                'dom_candidates': self.stats.dom_candidates,
+                'raw_payload_count': len(self._raw_payloads),
+                'config': {
+                    'start_url': self.config.start_url,
+                    'page_url_template': self.config.page_url_template,
+                    'max_pages': self.config.max_pages,
+                    'start_page': self.config.start_page,
+                    'max_items': self.config.max_items,
+                    'site_adapter': self.config.site_adapter,
+                    'fetch_detail_images': self.config.fetch_detail_images,
+                },
+                **extra,
+            }
+            tmp_path = checkpoint_path.with_suffix(checkpoint_path.suffix + '.tmp')
+            tmp_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding='utf-8')
+            tmp_path.replace(checkpoint_path)
+            self.stats.checkpoint_path = str(checkpoint_path)
+            self.stats.checkpoint_status = status
+        except Exception as exc:
+            self.stats.warnings.append(f'断点文件写入失败: {str(exc)[:200]}')
 
     def _page_url(self, page_index: int, fallback_url: str) -> str:
         if self.config.page_url_template:
@@ -579,7 +787,7 @@ class MallPlaywrightScraper:
                     await page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
                 except Exception:
                     pass
-                await page.wait_for_timeout(500)
+                await page.wait_for_timeout(self.config.next_delay_ms)
                 return True
 
             next_locator = page.locator(self.config.next_selector).first
@@ -597,7 +805,7 @@ class MallPlaywrightScraper:
                 await page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
             except Exception:
                 pass
-            await page.wait_for_timeout(500)
+            await page.wait_for_timeout(self.config.next_delay_ms)
             return True
         except Exception as exc:
             self.stats.warnings.append(f'下一页点击失败: {str(exc)[:200]}')
@@ -769,7 +977,7 @@ class MallPlaywrightScraper:
             await detail_page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
         except Exception:
             pass
-        await detail_page.wait_for_timeout(500)
+        await detail_page.wait_for_timeout(self.config.detail_delay_ms)
         urls = await detail_page.evaluate(
             """(limit) => {
                 const urls = [];

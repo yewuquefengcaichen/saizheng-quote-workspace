@@ -17,6 +17,7 @@
 - 通过 Playwright 从商城页面抓取商品并同步到 V2
 - 商城抓取支持预检模式，先看提取数量和预计差异，再决定是否写库
 - 已接入赛正 dinghuovip 商品列表 DOM 专用适配器，可用登录态抓取真实商品列表
+- 商城抓取支持小批量 / 全量模式、页间限速、详情页限速和断点续抓
 - 图搜图已接入 CLIP 512 维基础生成链路，并已生成首批真实 CLIP 向量
 
 ---
@@ -180,6 +181,7 @@
 - 真实商城 `Product/ProductList` 已校准：`site_adapter=dinghuovip_product_list` 会解析 `#productList` 表格，避开通知 JSON 误判
 - 商城列表页只提供封面图时，图片同步采用 `append_only`，不会把详情页历史图片误判成待删除旧图
 - 商城分页已能跟随“下一页”链接继续抓取；详情补图开关已接入，可从商品详情页补齐主图和详情图
+- 商城抓取任务已加入 `max_pages / start_page / max_items / page_delay_ms / next_delay_ms / detail_delay_ms / checkpoint_path / resume_from_checkpoint`，前端默认写入 `backend/storage/mall-sync-checkpoints/catalog-mall-latest.json`
 - 图搜图数据库已新增 512 维向量列；`clip_local` 当前显示为“结构支持、依赖可用”，并已生成首批 20 条真实 CLIP 向量
 - 本项目 `backend\.venv` 已切到 RTX 4060 可用的 `torch 2.5.1+cu121`；这只影响项目虚拟环境，不改系统 CUDA 或其他深度学习环境
 - 报价台以图识图已支持“快速图搜 / 智能 CLIP”切换
@@ -318,7 +320,7 @@ git checkout next/v2-architecture-upgrade
 ## 9. 后续升级方向
 
 1. 继续把 legacy JSON 读路径往 PostgreSQL 收口
-2. 继续增强商城全量抓取策略、详情补图限速、下架 / 删除策略和任务状态
+2. 继续增强商城下架 / 删除策略、断点批次记录和失败项重跑
 3. 扩大 CLIP 向量生成范围，继续接入历史反馈精排和结果缓存
 4. 引入 Redis 做缓存、任务状态、热点检索优化
 5. 继续拆分前后端，为 React / TypeScript 版本做准备

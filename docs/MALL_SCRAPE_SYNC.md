@@ -17,6 +17,7 @@
 - `同步 V2`：把当前 `data/products.json` 同步进 PostgreSQL
 - `抓商城`：用 Playwright 从商城页面抓取后同步进 PostgreSQL
 - `预检商城`：只抓取和 dry-run，不写库，用来先确认字段、登录态和预计差异
+- 小批量 / 全量：商品库页可切换抓取页数，默认开启断点续抓
 
 ## 后端入口
 
@@ -25,12 +26,15 @@ Flask 桥接接口：
 ```text
 POST /api/catalog/sync_from_mall
 POST /api/catalog/scrape_mall_preview
+POST /api/catalog/mall_sync_jobs
+GET  /api/catalog/mall_sync_jobs/{task_id}
 ```
 
 其中：
 
 - `sync_from_mall`：抓取并同步写入 V2 PostgreSQL
 - `scrape_mall_preview`：只预检，不写库；用于确认登录态、分页、字段是否正确
+- `mall_sync_jobs`：提交 Celery 后台任务，前端轮询任务状态；正式抓商城优先走这个
 
 首次使用前确保安装浏览器运行时：
 
@@ -47,7 +51,14 @@ SAIZHENG_MALL_SCRAPE_PAGE_URL_TEMPLATE
 SAIZHENG_MALL_SCRAPE_STORAGE_STATE_PATH
 SAIZHENG_MALL_SCRAPE_HEADLESS
 SAIZHENG_MALL_SCRAPE_MAX_PAGES
+SAIZHENG_MALL_SCRAPE_START_PAGE
+SAIZHENG_MALL_SCRAPE_MAX_ITEMS
 SAIZHENG_MALL_SCRAPE_PAGE_TIMEOUT_MS
+SAIZHENG_MALL_SCRAPE_PAGE_DELAY_MS
+SAIZHENG_MALL_SCRAPE_NEXT_PAGE_DELAY_MS
+SAIZHENG_MALL_SCRAPE_DETAIL_PAGE_DELAY_MS
+SAIZHENG_MALL_SCRAPE_CHECKPOINT_PATH
+SAIZHENG_MALL_SCRAPE_RESUME_FROM_CHECKPOINT
 SAIZHENG_MALL_SCRAPE_SITE_ADAPTER
 SAIZHENG_MALL_SCRAPE_DOM_TABLE_SELECTOR
 SAIZHENG_MALL_SCRAPE_NETWORK_INCLUDE_PATTERNS
@@ -61,6 +72,13 @@ SAIZHENG_MALL_SCRAPE_NETWORK_EXCLUDE_PATTERNS
   "start_url": "https://你的商城商品列表页",
   "page_url_template": "https://你的商城商品列表页?page={page}",
   "max_pages": 3,
+  "start_page": 1,
+  "max_items": 0,
+  "page_delay_ms": 1200,
+  "next_delay_ms": 900,
+  "detail_delay_ms": 800,
+  "checkpoint_path": "backend/storage/mall-sync-checkpoints/catalog-mall-latest.json",
+  "resume_from_checkpoint": true,
   "storage_state_path": "backend/storage/mall-auth/state.json",
   "site_adapter": "dinghuovip_product_list",
   "dom_table_selector": "#productList",
@@ -94,6 +112,7 @@ SAIZHENG_MALL_SCRAPE_STORAGE_STATE_PATH=backend/storage/mall-auth/state.json
 注意：
 
 - 登录态文件放在 `backend/storage/mall-auth/`，该目录已被 `.gitignore` 忽略。
+- 断点文件放在 `backend/storage/mall-sync-checkpoints/`，同样不会提交。
 - 不要把商城账号、密码、Cookie、登录态 JSON 写进 README、提交记录或公开文档。
 
 ## 赛正 dinghuovip 已校准参数
@@ -110,6 +129,10 @@ https://sz.dinghuovip.com/Product/ProductList
 {
   "start_url": "https://sz.dinghuovip.com/Product/ProductList",
   "max_pages": 1,
+  "page_delay_ms": 800,
+  "next_delay_ms": 500,
+  "checkpoint_path": "backend/storage/mall-sync-checkpoints/catalog-mall-latest.json",
+  "resume_from_checkpoint": true,
   "headless": true,
   "page_timeout_ms": 30000,
   "storage_state_path": "backend/storage/mall-auth/saizheng-state.json",
@@ -140,6 +163,9 @@ https://sz.dinghuovip.com/Product/ProductList
 - `dinghuovip_product_list` 站点适配器：专门解析 `#productList` 商品表
 - 网络 include / exclude 过滤，避免通知 JSON 被当成商品
 - 下一页链接跟随
+- 小批量 / 全量页数控制
+- 页间限速、下一页限速、详情页限速
+- 断点文件与 resume：中断后可从下一页或模板页码继续
 - 可选详情页补图
 - 预检接口，不写库也能看提取数量和差异
 - 疑似登录页检测
@@ -151,7 +177,7 @@ https://sz.dinghuovip.com/Product/ProductList
 
 ## 还需要实战校准的点
 
-- 全量抓取时的页数上限、限速、失败重试
+- 全量抓取批次历史可视化、失败项重跑
 - 是否需要长期默认进入商品详情页补齐多张详情图
 - 下架 / 删除商品如何表达：只标记 inactive，还是进入人工复核
-- 长任务化：抓取、同步、图片归档、embedding 生成应该进入 Redis / Celery 任务队列
+- 图片归档、embedding 生成与抓商城之间的任务编排优先级

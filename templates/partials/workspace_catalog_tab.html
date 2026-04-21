@@ -115,6 +115,27 @@
         </div>
         <div class="row g-3 mt-1 align-items-center">
             <div class="col-md-12">
+                <div class="catalog-mall-sync-options" id="catalogMallSyncOptions">
+                    <span class="catalog-mall-sync-label">商城抓取</span>
+                    <select class="form-select form-select-sm" id="catalogMallScrapeMode" aria-label="商城抓取模式">
+                        <option value="small" selected>小批量</option>
+                        <option value="full">全量</option>
+                    </select>
+                    <select class="form-select form-select-sm" id="catalogMallMaxPages" aria-label="商城抓取页数">
+                        <option value="2" selected>2页</option>
+                        <option value="10">10页</option>
+                        <option value="50">50页</option>
+                        <option value="100">100页</option>
+                    </select>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="catalogMallFetchDetailImages">
+                        <label class="form-check-label" for="catalogMallFetchDetailImages">详情补图</label>
+                    </div>
+                    <div class="form-check form-check-inline">
+                        <input class="form-check-input" type="checkbox" id="catalogMallResumeEnabled" checked>
+                        <label class="form-check-label" for="catalogMallResumeEnabled">断点续抓</label>
+                    </div>
+                </div>
                 <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>先看有图、品牌清晰、供应商明确的商品。</span></div>
                 <div class="catalog-toolbar-note mt-2" id="catalogSyncV2Status"><i class="bi bi-database"></i><span>V2 同步状态读取中…</span></div>
                 <div class="catalog-toolbar-note mt-2 catalog-embedding-status" id="catalogImageEmbeddingStatus"><i class="bi bi-images"></i><span>图搜图向量状态读取中…</span></div>

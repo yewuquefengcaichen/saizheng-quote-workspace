@@ -60,10 +60,6 @@ try:
         resolve_archive_file_path as v2_resolve_archive_file_path,
         search_similar_products as v2_search_similar_products,
     )
-    from app.services.mall_scraper import (
-        MallPlaywrightScraper as V2MallPlaywrightScraper,
-        build_default_mall_scrape_config as v2_build_default_mall_scrape_config,
-    )
     from app.services.mall_sync import (
         pick_mall_scrape_options as v2_pick_mall_scrape_options,
         run_mall_scrape_sync_async as v2_run_mall_scrape_sync_async,

@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260416a" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260421a" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -4615,6 +4615,8 @@
             const syncV2Btn = document.getElementById('catalogSyncV2Btn');
             const mallPreviewBtn = document.getElementById('catalogMallPreviewBtn');
             const mallScrapeBtn = document.getElementById('catalogMallScrapeBtn');
+            const mallScrapeModeSelect = document.getElementById('catalogMallScrapeMode');
+            const mallMaxPagesSelect = document.getElementById('catalogMallMaxPages');
             const clipEmbeddingBtn = document.getElementById('catalogClipEmbeddingBtn');
 
             if (keywordInput) {
@@ -4657,6 +4659,11 @@
             }
             if (mallScrapeBtn) {
                 mallScrapeBtn.addEventListener('click', triggerCatalogMallScrapeSync);
+            }
+            if (mallScrapeModeSelect && mallMaxPagesSelect) {
+                mallScrapeModeSelect.addEventListener('change', function() {
+                    mallMaxPagesSelect.value = this.value === 'full' ? '100' : '2';
+                });
             }
             if (clipEmbeddingBtn) {
                 clipEmbeddingBtn.addEventListener('click', triggerCatalogClipEmbeddingJob);
@@ -4951,6 +4958,28 @@
                 });
         }
 
+        function getCatalogMallScrapeOptions(overrides = {}) {
+            const mode = document.getElementById('catalogMallScrapeMode')?.value || 'small';
+            const maxPages = Number(document.getElementById('catalogMallMaxPages')?.value || (mode === 'full' ? 100 : 2)) || 2;
+            const fetchDetailImages = !!document.getElementById('catalogMallFetchDetailImages')?.checked;
+            const resumeEnabled = document.getElementById('catalogMallResumeEnabled')?.checked !== false;
+            return {
+                requested_by: 'catalog-page-mall-scrape',
+                crawl_mode: mode,
+                max_pages: Math.max(1, Math.min(maxPages, 100)),
+                max_items: 0,
+                fetch_detail_images: fetchDetailImages,
+                detail_fetch_limit: fetchDetailImages ? (mode === 'full' ? 80 : 20) : 0,
+                detail_image_limit_per_item: 10,
+                page_delay_ms: mode === 'full' ? 1200 : 800,
+                next_delay_ms: mode === 'full' ? 900 : 500,
+                detail_delay_ms: 800,
+                resume_from_checkpoint: resumeEnabled,
+                checkpoint_path: 'backend/storage/mall-sync-checkpoints/catalog-mall-latest.json',
+                ...overrides
+            };
+        }
+
         function triggerCatalogMallScrapeSync() {
             const buttonEl = document.getElementById('catalogMallScrapeBtn');
             if (buttonEl) {
@@ -4970,10 +4999,7 @@
             fetch('/api/catalog/mall_sync_jobs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    requested_by: 'catalog-page-mall-scrape',
-                    dry_run: false
-                })
+                body: JSON.stringify(getCatalogMallScrapeOptions({ dry_run: false }))
             })
                 .then(response => response.json())
                 .then(result => {
@@ -5108,7 +5134,10 @@
             fetch('/api/catalog/scrape_mall_preview', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ requested_by: 'catalog-page-mall-preview' })
+                body: JSON.stringify(getCatalogMallScrapeOptions({
+                    requested_by: 'catalog-page-mall-preview',
+                    dry_run: true
+                }))
             })
                 .then(response => response.json())
                 .then(result => {
