@@ -76,12 +76,14 @@
 - 商品库页“抓商城”改为提交后台任务，前端轮询 `/api/catalog/mall_sync_jobs/{task_id}`，完成后刷新商品源和向量状态
 - 商城抓取新增小批量 / 全量参数入口，并支持 `start_page / max_items / page_delay_ms / next_delay_ms / detail_delay_ms`
 - 商城抓取新增断点文件：支持 `checkpoint_path / resume_from_checkpoint`，中断后可从下一页或模板页码继续
+- 修复商品库默认排序：打开商品库优先展示有图商品，并刷新图片脚本缓存，避免满屏空图误判为图片链路失效
+- 修复首页上传报价后切到报价台时仍按首页路由渲染的问题，报价确认区会使用报价台的紧凑布局
 - 推荐使用 `backend\.venv\Scripts\python.exe app.py` 启动 Flask，以便报价台直接使用 RTX 4060 的 CLIP 能力
 
 ### 当前重点
 
-1. 增强商城下架 / 删除策略、断点批次记录和失败项重跑
-2. 启动 Redis / Celery worker 后从商品库页分批生成更多 CLIP 向量
-3. 继续把 legacy JSON 读路径往 PostgreSQL 收口
-4. 建立更细的商城增量抓取指纹与删除 / 下架策略
+1. 真实跑小批量商城抓取与 CLIP worker，确认任务队列稳定
+2. 增强商城下架 / 删除策略、断点批次记录和失败项重跑
+3. 图搜图历史反馈精排、拍照 / 粘贴图片入口增强
+4. 继续把 legacy JSON 读路径往 PostgreSQL 收口
 5. 为后续 React / TypeScript 重构打基础

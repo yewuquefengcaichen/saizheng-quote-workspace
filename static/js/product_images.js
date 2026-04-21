@@ -79,6 +79,16 @@ const ProductImageManager = {
         return image.proxy_url || this.normalizeUrl(image.source_url || image.url || '') || '';
     },
 
+    getSourceUrl(image) {
+        if (!image) return '';
+        const proxyUrl = String(image.proxy_url || '').trim();
+        const sourceUrl = this.normalizeUrl(image.source_url || '');
+        const directUrl = this.normalizeUrl(image.url || '');
+        if (sourceUrl && sourceUrl !== proxyUrl) return sourceUrl;
+        if (directUrl && directUrl !== proxyUrl) return directUrl;
+        return '';
+    },
+
     getCacheKey(product) {
         if (!product) return '';
         return [
@@ -103,14 +113,25 @@ const ProductImageManager = {
         if (product.images && product.images.length > 0) {
             images = product.images.map((img, index) => {
                 const sourceUrl = this.normalizeUrl(img.source_url || img.url);
-                const proxyUrl = img.proxy_url || this.getProxyUrl(product, index) || '';
+                const explicitProxyUrl = this.normalizeUrl(img.proxy_url || img.thumb || '');
+                const legacyProxyUrl = this.getProxyUrl(product, index) || '';
+                const proxyUrl = explicitProxyUrl || (!sourceUrl ? legacyProxyUrl : '');
                 return {
                     ...img,
-                    url: sourceUrl || proxyUrl,
+                    url: proxyUrl || sourceUrl,
                     source_url: sourceUrl,
                     proxy_url: proxyUrl
                 };
             });
+        } else if (product.image_url || product.source_image_url) {
+            const explicitImageUrl = this.normalizeUrl(product.image_url || '');
+            const sourceUrl = this.normalizeUrl(product.source_image_url || product.image_url || '');
+            images = [{
+                url: explicitImageUrl || sourceUrl,
+                title: product.name || '',
+                source_url: sourceUrl,
+                proxy_url: explicitImageUrl && explicitImageUrl.startsWith('/api/') ? explicitImageUrl : ''
+            }];
         } else if (product.intro) {
             images = this.extractImagesFromIntro(product.intro, product);
         } else {
@@ -141,8 +162,8 @@ const ProductImageManager = {
         return extractedImages.map((img, index) => ({
             ...img,
             source_url: this.normalizeUrl(img.source_url || img.url),
-            proxy_url: this.getProxyUrl(product, index),
-            url: this.normalizeUrl(img.url)
+            proxy_url: '',
+            url: this.normalizeUrl(img.url) || this.getProxyUrl(product, index)
         }));
     },
 
@@ -366,11 +387,13 @@ const ProductImageManager = {
             .product-image-thumb {
                 width: 60px;
                 height: 60px;
-                object-fit: cover;
+                object-fit: contain;
                 border-radius: 8px;
                 cursor: pointer;
                 transition: transform 0.2s;
                 border: 2px solid #e2e8f0;
+                background: linear-gradient(135deg, #ffffff 0%, #f8fafc 52%, #eef2ff 100%);
+                padding: 2px;
             }
 
             .product-image-thumb:hover {
@@ -528,8 +551,9 @@ const ProductImageManager = {
                           size === 'medium' ? 'width: 80px; height: 80px;' :
                           'width: 60px; height: 60px;';
         const displayUrl = this.getDisplayUrl(firstImage) || this.getViewerUrl(firstImage) || this.placeholderDataUrl();
+        const fallbackUrl = this.getSourceUrl(firstImage);
         const payload = this.buildViewerPayload(images);
-        const loading = size === 'large' ? 'lazy' : 'lazy';
+        const loading = size === 'large' ? 'eager' : 'lazy';
         const decoding = 'async';
         const errorPlaceholderHtml = this.escapeHtmlAttr(`<div class="product-image-placeholder"><i class="bi bi-image"></i><span>图片加载失败</span></div>${imageHint}`);
 
@@ -541,7 +565,8 @@ const ProductImageManager = {
                      style="${sizeStyle}"
                      loading="${loading}"
                      decoding="${decoding}"
-                     data-fallback-src="${this.escapeHtmlAttr(this.getViewerUrl(firstImage) || '')}"
+                     fetchpriority="${size === 'large' ? 'high' : 'auto'}"
+                     data-fallback-src="${this.escapeHtmlAttr(fallbackUrl || '')}"
                      onclick="ProductImageManager.openViewer(JSON.parse(decodeURIComponent('${payload}')))"
                      onerror="ProductImageManager.handleImageError(this, '${errorPlaceholderHtml}')">
                 ${imageHint}
@@ -553,7 +578,9 @@ const ProductImageManager = {
         if (!imgEl) return;
 
         const fallbackSrc = imgEl.dataset ? imgEl.dataset.fallbackSrc : '';
-        if (fallbackSrc && imgEl.src !== fallbackSrc) {
+        const currentAbs = imgEl.src ? new URL(imgEl.src, window.location.href).href : '';
+        const fallbackAbs = fallbackSrc ? new URL(fallbackSrc, window.location.href).href : '';
+        if (fallbackSrc && fallbackAbs && currentAbs !== fallbackAbs) {
             imgEl.onerror = () => this.handleImageError(imgEl, errorPlaceholderHtml);
             imgEl.src = fallbackSrc;
             return;

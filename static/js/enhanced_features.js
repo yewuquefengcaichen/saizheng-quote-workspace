@@ -45,7 +45,30 @@ function mountWorkspaceAction(actionId, element, { prepend = false } = {}) {
 }
 
 function setWorkspacePageContext(tab = 'upload') {
-    document.body.setAttribute('data-scene-tab', tab || 'upload');
+    const normalizedTab = tab || 'upload';
+    const routeMap = {
+        upload: 'dashboard',
+        match: 'quotes',
+        catalog: 'catalog',
+        templates: 'templates',
+        history: 'history',
+        synonyms: 'synonyms',
+        guide: 'guide'
+    };
+    const route = routeMap[normalizedTab] || normalizedTab || 'dashboard';
+    document.body.setAttribute('data-scene-tab', normalizedTab);
+    document.body.setAttribute('data-route', route);
+    document.body.setAttribute('data-page', `workspace-${route}`);
+
+    document.querySelectorAll('.workspace-topbar-link, .scene-nav-link').forEach(link => {
+        const href = String(link.getAttribute('href') || '');
+        const isActive = (
+            (route === 'dashboard' && (href === '/' || href === '/dashboard'))
+            || (route !== 'dashboard' && href === `/${route}`)
+        );
+        link.classList.toggle('active', isActive);
+        link.classList.toggle('is-active', isActive);
+    });
 }
 
 window.getWorkspaceActionHost = getWorkspaceActionHost;

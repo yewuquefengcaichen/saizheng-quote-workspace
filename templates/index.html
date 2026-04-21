@@ -4575,6 +4575,32 @@
             }
         }
 
+        function activateQuoteWorkbenchAfterUpload() {
+            if (document.body.dataset.route !== 'quotes' || window.location.pathname !== '/quotes') {
+                window.location.href = '{{ workspace_routes.quotes }}';
+                return;
+            }
+
+            document.querySelectorAll('#mainTabs .nav-link').forEach(link => {
+                link.classList.toggle('active', link.dataset.tab === 'match');
+            });
+            document.querySelectorAll('.tab-content').forEach(content => {
+                content.style.display = 'none';
+            });
+            const matchTab = document.getElementById('matchTab');
+            if (matchTab) {
+                matchTab.style.display = 'block';
+            }
+            if (typeof setWorkspacePage === 'function') {
+                setWorkspacePage('match');
+            } else {
+                document.body.dataset.sceneTab = 'match';
+                document.body.dataset.route = 'quotes';
+                document.body.dataset.page = 'workspace-quotes';
+            }
+            requestAnimationFrame(() => renderMatchResults(true));
+        }
+
         // =============== 标签页切换 ===============
         function initTabs() {
             document.querySelectorAll('#mainTabs .nav-link').forEach(link => {
@@ -5416,8 +5442,8 @@
                 <div class="catalog-card" data-product-code="${escapeHtmlAttr(item.code || '')}">
                     <div class="catalog-card-topline">
                         <div class="catalog-card-kicker-row">
-                            <span class="catalog-card-kicker">${hasImage ? 'Image-backed asset' : 'Text asset'}</span>
-                            <span class="catalog-asset-type">${hasImage ? '图像资产' : '文本资产'}</span>
+                            <span class="catalog-card-kicker">${hasImage ? '有图商品' : '无图商品'}</span>
+                            <span class="catalog-asset-type">${hasImage ? '可预览' : '待补图'}</span>
                         </div>
                         <div class="catalog-card-state">
                             <span class="${hasImage ? 'qe-badge qe-badge-info' : 'qe-badge qe-badge-muted'}">
@@ -5457,7 +5483,7 @@
                     <div class="catalog-card-footer">
                         <div class="catalog-footer-note">
                             <i class="bi bi-stars"></i>
-                            <span>详情里展开完整图片、介绍与原始字段。</span>
+                            <span>${hasImage ? '点开看完整图片' : '点开看商品信息'}</span>
                         </div>
                         <button class="btn btn-outline-primary btn-sm catalog-detail-btn" data-product-code="${escapeHtmlAttr(item.code || '')}">
                             <i class="bi bi-eye me-1"></i>查看详情
@@ -5717,9 +5743,7 @@
 
             // 开始匹配按钮
             document.getElementById('startMatchBtn').addEventListener('click', function() {
-                // 切换到匹配标签页
-                document.querySelector('[data-tab="match"]').click();
-                renderMatchResults();
+                activateQuoteWorkbenchAfterUpload();
             });
 
             // 导出按钮
@@ -6123,11 +6147,9 @@
                     document.getElementById('startMatchBtn').disabled = false;
                     showToast('success', result.message);
 
-                    // 自动跳转到匹配页面
                     setTimeout(() => {
-                        document.querySelector('[data-tab="match"]').click();
-                        renderMatchResults();
-                    }, 500);
+                        activateQuoteWorkbenchAfterUpload();
+                    }, 300);
                 } else {
                     showToast('error', result.message, true);
                 }
@@ -10239,11 +10261,11 @@
     <!-- AI助手交互脚本 -->
     <script src="/static/js/ai_assistant.js?v=20260413d"></script>
     <!-- 增强功能：深色模式、动画、快捷键、仪表盘 -->
-    <script src="/static/js/enhanced_features.js?v=20260413f"></script>
+    <script src="/static/js/enhanced_features.js?v=20260421a"></script>
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js?v=20260413a"></script>
     <!-- 商品图片展示 -->
-    <script src="/static/js/product_images.js?v=20260402c"></script>
+    <script src="/static/js/product_images.js?v=20260421b"></script>
     <!-- OCR图片识别 -->
     <script src="/static/js/ocr_manager.js?v=20260413a"></script>
     <!-- 合同生成 -->

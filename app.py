@@ -1097,17 +1097,17 @@ async def _build_v2_catalog_response_async(keyword='', category='', supplier='',
         current_page = min(page, total_pages) if total else 1
         offset = (current_page - 1) * page_size
 
-        paged_ids = list(
-            (
-                await session.scalars(
-                    base_ids_stmt
-                    .distinct()
-                    .order_by(V2Product.id.desc())
-                    .offset(offset)
-                    .limit(page_size)
-                )
-            ).all()
+        paged_rows = (
+            await session.execute(
+                base_ids_stmt
+                .with_only_columns(V2Product.id, product_has_image_clause.label('has_image'))
+                .distinct()
+                .order_by(product_has_image_clause.desc(), V2Product.id.desc())
+                .offset(offset)
+                .limit(page_size)
+            )
         )
+        paged_ids = [row[0] for row in paged_rows.all()]
 
         if has_image == 'yes':
             image_total = total
