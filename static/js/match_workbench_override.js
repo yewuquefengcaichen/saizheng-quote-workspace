@@ -47,8 +47,8 @@
   let workbenchUserPinnedFocus = false;
   const CANDIDATE_VIEW_KEY = 'quotes-candidate-view';
   const QUOTE_SPLIT_WIDTH_KEY = 'quotes-left-pane-width';
-  const DEFAULT_QUOTE_SPLIT_WIDTH = 352;
-  const MIN_QUOTE_SPLIT_WIDTH = 300;
+  const DEFAULT_QUOTE_SPLIT_WIDTH = 320;
+  const MIN_QUOTE_SPLIT_WIDTH = 280;
   const MAX_QUOTE_SPLIT_WIDTH = 460;
   const expandedConfirmedWorkbenchItems = new Set();
 

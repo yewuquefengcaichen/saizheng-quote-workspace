@@ -332,6 +332,7 @@ git checkout next/v2-architecture-upgrade
 ## 10. 关键文档
 
 - `docs/UPGRADE_TASK_CHECKLIST.md`：V2 后续任务清单
+- `docs/PROJECT_UPGRADE_TASKS.md`：升级落地计划、数据存放、商城同步、图搜图和回退说明
 - `docs/MALL_SCRAPE_SYNC.md`：商城抓取同步说明
 - `docs/VERSION_POLICY.md`：版本命名、分支和标签规则
 - `docs/BACKUP_RUNBOOK.md`：备份和回退操作
