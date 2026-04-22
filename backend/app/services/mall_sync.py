@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+from uuid import uuid4
 
 from app.db.session import AsyncSessionLocal
+from app.models import SyncJob, SyncJobLog
 from app.services.catalog_sync import LegacyCatalogSyncService
-from app.services.mall_scraper import MallPlaywrightScraper, build_default_mall_scrape_config
+from app.services.mall_scraper import MallPlaywrightScraper, MallScrapeResult, build_default_mall_scrape_config
 
 
 MALL_SCRAPE_OPTION_KEYS = (
@@ -33,6 +36,9 @@ MALL_SCRAPE_OPTION_KEYS = (
     'detail_image_limit_per_item',
     'field_map',
     'screenshot_path',
+    'crawl_mode',
+    'finalize_missing',
+    'missing_mark_threshold',
 )
 
 
@@ -47,9 +53,35 @@ async def run_mall_scrape_sync_async(
     options: dict[str, Any] | None = None,
     dry_run: bool = False,
 ) -> dict[str, Any]:
-    scrape_config = build_default_mall_scrape_config(**pick_mall_scrape_options(options))
+    safe_options = pick_mall_scrape_options(options)
+    crawl_mode = str(safe_options.get('crawl_mode') or '').strip() or 'small'
+    batch_id = f'mall-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{uuid4().hex[:8]}'
+    batch_started_at = datetime.now(timezone.utc).isoformat()
+    finalize_missing = (
+        not dry_run
+        and crawl_mode == 'full'
+        and bool(safe_options.get('finalize_missing', True))
+    )
+    try:
+        missing_mark_threshold = int(safe_options.get('missing_mark_threshold') or 3)
+    except Exception:
+        missing_mark_threshold = 3
+
+    scrape_config = build_default_mall_scrape_config(**safe_options)
     scraper = MallPlaywrightScraper(scrape_config)
     scrape_result = await scraper.scrape()
+
+    mall_batch = {
+        'batch_id': batch_id,
+        'crawl_mode': crawl_mode,
+        'started_at': batch_started_at,
+        'checkpoint_path': scrape_config.checkpoint_path,
+        'resume_from_checkpoint': scrape_config.resume_from_checkpoint,
+        'max_pages': scrape_config.max_pages,
+        'start_page': scrape_config.start_page,
+        'max_items': scrape_config.max_items,
+        'finalize_missing': finalize_missing,
+    }
 
     async with AsyncSessionLocal() as session:
         service = LegacyCatalogSyncService(
@@ -59,11 +91,34 @@ async def run_mall_scrape_sync_async(
             source_name='mall_playwright_scrape',
             requested_by=requested_by,
             source_path=Path('mall_playwright_scrape'),
+            job_type='catalog_mall_scrape_sync',
+            batch_id=batch_id,
+            finalize_missing=finalize_missing,
+            missing_mark_threshold=missing_mark_threshold,
         )
         sync_result = await service.run_items(scrape_result.items)
 
+    mall_batch['finished_at'] = datetime.now(timezone.utc).isoformat()
+    sync_stats = sync_result.get('stats') or {}
+    if isinstance(sync_stats, dict):
+        sync_stats['mall_batch'] = mall_batch
+        sync_stats['batch_id'] = batch_id
+        sync_stats.setdefault('visibility', {})
+        if isinstance(sync_stats.get('visibility'), dict):
+            sync_stats['visibility']['finalize_missing'] = finalize_missing
+            sync_stats['visibility']['missing_mark_threshold'] = missing_mark_threshold
+    if not dry_run:
+        job_id = ((sync_result.get('job') or {}).get('job_id') if isinstance(sync_result.get('job'), dict) else None)
+        if job_id:
+            await _attach_mall_scrape_stats_to_job(
+                int(job_id),
+                scrape_result=scrape_result,
+                mall_batch=mall_batch,
+            )
+
     return {
         **sync_result,
+        'mall_batch': mall_batch,
         'scrape': {
             'stats': scrape_result.stats.to_dict(),
             'visited_urls': scrape_result.visited_urls,
@@ -115,6 +170,52 @@ async def run_mall_scrape_sync_async(
                 'network_include_patterns': scrape_config.network_include_patterns,
                 'network_exclude_patterns': scrape_config.network_exclude_patterns,
                 'storage_state_configured': bool(scrape_config.storage_state_path),
+                'crawl_mode': crawl_mode,
+                'batch_id': batch_id,
+                'finalize_missing': finalize_missing,
+                'missing_mark_threshold': missing_mark_threshold,
             },
         },
     }
+
+
+async def _attach_mall_scrape_stats_to_job(
+    job_id: int,
+    *,
+    scrape_result: MallScrapeResult,
+    mall_batch: dict[str, Any],
+) -> None:
+    async with AsyncSessionLocal() as session:
+        job = await session.get(SyncJob, job_id)
+        if job is None:
+            return
+        stats_json = dict(job.stats_json or {})
+        scrape_stats = scrape_result.stats.to_dict()
+        stats_json['mall_batch'] = mall_batch
+        stats_json['scrape'] = {
+            'stats': scrape_stats,
+            'visited_urls': scrape_result.visited_urls,
+        }
+        stats_json['page_records'] = scrape_stats.get('page_records') or []
+        stats_json['failed_pages'] = scrape_stats.get('failed_pages') or []
+        job.stats_json = stats_json
+        session.add(
+            SyncJobLog(
+                job_id=job_id,
+                level='warning' if scrape_stats.get('failed_pages') else 'info',
+                event_type='mall_scrape_pages',
+                message=(
+                    f"商城抓取页级记录：页面 {scrape_stats.get('pages_visited', 0)}，"
+                    f"提取 {scrape_stats.get('extracted_items', 0)}，"
+                    f"失败页 {len(scrape_stats.get('failed_pages') or [])}。"
+                ),
+                context_json={
+                    'mall_batch': mall_batch,
+                    'page_records': scrape_stats.get('page_records') or [],
+                    'failed_pages': scrape_stats.get('failed_pages') or [],
+                    'checkpoint_path': scrape_stats.get('checkpoint_path'),
+                    'checkpoint_status': scrape_stats.get('checkpoint_status'),
+                },
+            )
+        )
+        await session.commit()

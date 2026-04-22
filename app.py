@@ -48,6 +48,7 @@ try:
         LegacyCatalogSyncService as V2LegacyCatalogSyncService,
         build_sync_job_summary as v2_build_sync_job_summary,
         get_latest_catalog_sync_job as v2_get_latest_catalog_sync_job,
+        get_latest_sync_job_by_type as v2_get_latest_sync_job_by_type,
     )
     from app.services.image_embedding import (
         CLIP_PLACEHOLDER_MODEL_NAME as V2_CLIP_EMBEDDING_MODEL_NAME,
@@ -1303,10 +1304,15 @@ async def _get_v2_catalog_sync_status_async():
         }
     async with V2AsyncSessionLocal() as session:
         job = await v2_get_latest_catalog_sync_job(session)
+        mall_job = await v2_get_latest_sync_job_by_type(session, 'catalog_mall_scrape_sync')
+        mall_job_summary = v2_build_sync_job_summary(mall_job)
+        if not mall_job_summary.get('exists'):
+            mall_job_summary['job_type'] = 'catalog_mall_scrape_sync'
         product_count = await session.scalar(sa_select(sa_func.count()).select_from(V2Product))
         return {
             'success': True,
             'job': v2_build_sync_job_summary(job),
+            'latest_mall_job': mall_job_summary,
             'product_count': int(product_count or 0),
         }
 
@@ -2456,11 +2462,17 @@ def run_catalog_sync_from_mall():
         updated_rows = diff_summary.get('updated_rows', 0)
         unchanged_rows = diff_summary.get('unchanged_rows', 0)
         failed_rows = diff_summary.get('failed_rows', 0)
+        suspected_missing = diff_summary.get('suspected_missing_rows', 0) or diff_summary.get('marked_missing_rows', 0)
+        failed_pages = len(scrape_stats.get('failed_pages') or []) if isinstance(scrape_stats.get('failed_pages'), list) else int(scrape_stats.get('failed_pages') or 0)
         prefix = '商城抓取预检完成' if dry_run else '商城抓取完成'
         message = (
             f'{prefix}：页面 {pages}，提取 {extracted}，'
             f'新增 {created_rows}，更新 {updated_rows}，无变化 {unchanged_rows}'
         )
+        if suspected_missing:
+            message += f'，疑似下架 {suspected_missing}'
+        if failed_pages:
+            message += f'，失败页 {failed_pages}'
         if failed_rows:
             message += f'，失败 {failed_rows}'
         message += '。'
@@ -2566,12 +2578,15 @@ def preview_catalog_sync_from_mall():
         scrape_stats = (result.get('scrape') or {}).get('stats') or {}
         extracted = scrape_stats.get('extracted_items', 0)
         pages = scrape_stats.get('pages_visited', 0)
+        failed_pages = len(scrape_stats.get('failed_pages') or []) if isinstance(scrape_stats.get('failed_pages'), list) else int(scrape_stats.get('failed_pages') or 0)
         message = (
             f"商城抓取预检完成：页面 {pages}，提取 {extracted}，"
             f"预计新增 {diff_summary.get('created_rows', 0)}，"
             f"预计更新 {diff_summary.get('updated_rows', 0)}，"
             f"预计无变化 {diff_summary.get('unchanged_rows', 0)}。"
         )
+        if failed_pages:
+            message = message.rstrip('。') + f"，失败页 {failed_pages}。"
         return jsonify({
             'success': True,
             'message': message,

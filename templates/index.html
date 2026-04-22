@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260421b" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260422a" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -4699,6 +4699,108 @@
             loadCatalogImageEmbeddingStatus();
         }
 
+        function pickCatalogMallSyncPayload(payload = {}) {
+            const jobStats = payload.job?.stats || {};
+            const mallJobStats = payload.latest_mall_job?.stats || {};
+            const preferredJobStats = mallJobStats.mall_batch ? mallJobStats : jobStats;
+            const stats = payload.stats || payload.result?.stats || preferredJobStats || {};
+            const scrape = payload.scrape || payload.result?.scrape || stats.scrape || {};
+            const scrapeStats = scrape.stats || stats.scrape_stats || stats.mall_scrape_stats || {};
+            const diffSummary = stats.diff_summary || payload.diff_summary || {};
+            const mallBatch = payload.mall_batch || payload.result?.mall_batch || stats.mall_batch || jobStats.mall_batch || mallJobStats.mall_batch || {};
+            const scrapeConfig = scrape.config || mallBatch.config || {};
+            return {
+                stats,
+                scrape,
+                scrapeStats,
+                diffSummary,
+                mallBatch,
+                scrapeConfig,
+            };
+        }
+
+        function compactCatalogBatchId(value) {
+            const text = String(value || '').trim();
+            if (!text) return '';
+            return text.length > 14 ? text.slice(0, 8) : text;
+        }
+
+        function catalogSyncChip(label, value, tone = '') {
+            if (value === undefined || value === null || value === '') return '';
+            const toneClass = tone ? ` ${tone}` : '';
+            return `<span class="catalog-sync-chip${toneClass}"><span>${escapeHtml(label)}</span><strong>${escapeHtml(String(value))}</strong></span>`;
+        }
+
+        function renderCatalogMallSyncBrief(payload = {}) {
+            const briefEl = document.getElementById('catalogMallSyncBrief');
+            if (!briefEl) return;
+            const { scrapeStats, diffSummary, mallBatch, scrapeConfig } = pickCatalogMallSyncPayload(payload);
+            const chips = [];
+            const batchId = compactCatalogBatchId(mallBatch.batch_id || mallBatch.public_id || payload.task_id || payload.job?.public_id);
+            const pages = Number(scrapeStats.pages_visited || mallBatch.pages_visited || 0);
+            const maxPages = Number(mallBatch.max_pages || scrapeConfig.max_pages || 0);
+            const extracted = Number(scrapeStats.extracted_items || mallBatch.extracted_items || 0);
+            const created = Number(diffSummary.created_rows || 0);
+            const updated = Number(diffSummary.updated_rows || 0);
+            const unchanged = Number(diffSummary.unchanged_rows || 0);
+            const failedRows = Number(diffSummary.failed_rows || 0);
+            const failedPageValue = scrapeStats.failed_pages || mallBatch.failed_pages || 0;
+            const failedPages = Array.isArray(failedPageValue) ? failedPageValue.length : Number(failedPageValue || 0);
+            const suspectedMissing = Number(
+                diffSummary.suspected_missing_rows
+                || diffSummary.suspected_inactive_rows
+                || diffSummary.missing_candidates
+                || 0
+            );
+            const checkpointPath = mallBatch.checkpoint_path || scrapeStats.checkpoint_path || '';
+            const checkpointStatus = mallBatch.checkpoint_status || scrapeStats.checkpoint_status || '';
+
+            if (batchId) chips.push(catalogSyncChip('批次', batchId, 'is-muted'));
+            if (pages || maxPages) chips.push(catalogSyncChip('页', maxPages ? `${pages}/${maxPages}` : pages));
+            if (extracted) chips.push(catalogSyncChip('提取', extracted));
+            if (created || updated || unchanged) {
+                chips.push(catalogSyncChip('差异', `+${created} / 改${updated} / 同${unchanged}`, created || updated ? 'is-success' : 'is-muted'));
+            }
+            if (suspectedMissing) chips.push(catalogSyncChip('疑似下架', suspectedMissing, 'is-warning'));
+            if (failedRows) chips.push(catalogSyncChip('失败行', failedRows, 'is-danger'));
+            if (failedPages) chips.push(catalogSyncChip('失败页', failedPages, 'is-danger'));
+            if (checkpointPath || checkpointStatus) chips.push(catalogSyncChip('断点', checkpointStatus || '已保存', 'is-muted'));
+
+            briefEl.innerHTML = chips.join('');
+            briefEl.style.display = chips.length ? 'flex' : 'none';
+        }
+
+        function renderCatalogMallSyncIssues(payload = {}) {
+            const issueEl = document.getElementById('catalogMallSyncIssues');
+            if (!issueEl) return;
+            const { stats, scrapeStats, diffSummary } = pickCatalogMallSyncPayload(payload);
+            const rawIssues = []
+                .concat(scrapeStats.failed_pages || [])
+                .concat(scrapeStats.failed_page_examples || [])
+                .concat(diffSummary.failed_page_examples || [])
+                .concat(stats.failed_row_examples || [])
+                .concat(scrapeStats.warnings || stats.warnings || []);
+            const issueTexts = rawIssues.map(item => {
+                if (!item) return '';
+                if (typeof item === 'string') return item;
+                const page = item.page_index || item.page || item.last_page_index;
+                const code = item.code || item.sku_code || '';
+                const error = item.error || item.message || item.reason || '';
+                return [page ? `第${page}页` : '', code, error].filter(Boolean).join(' · ');
+            }).filter(Boolean).slice(0, 3);
+
+            if (!issueTexts.length) {
+                issueEl.innerHTML = '';
+                issueEl.style.display = 'none';
+                return;
+            }
+
+            issueEl.innerHTML = issueTexts
+                .map(text => `<span class="catalog-sync-issue">${escapeHtml(text).slice(0, 160)}</span>`)
+                .join('');
+            issueEl.style.display = 'flex';
+        }
+
         function renderCatalogV2SyncStatus(payload = {}) {
             const statusEl = document.getElementById('catalogSyncV2Status');
             const buttonEl = document.getElementById('catalogSyncV2Btn');
@@ -4755,6 +4857,8 @@
             if (payload.products_source) {
                 updateProductsSourceState(payload.products_source, workspaceProductsCount);
             }
+            renderCatalogMallSyncBrief(payload);
+            renderCatalogMallSyncIssues(payload);
         }
 
         function loadCatalogV2SyncStatus() {
@@ -4992,6 +5096,11 @@
             return {
                 requested_by: 'catalog-page-mall-scrape',
                 crawl_mode: mode,
+                start_url: 'https://sz.dinghuovip.com/Product/ProductList',
+                storage_state_path: 'backend/storage/mall-auth/saizheng-state.json',
+                site_adapter: 'dinghuovip_product_list',
+                dom_table_selector: '#productList',
+                network_exclude_patterns: ['/Notice/', '/ManuSysNotice', '/GetManuSysNotice'],
                 max_pages: Math.max(1, Math.min(maxPages, 100)),
                 max_items: 0,
                 fetch_detail_images: fetchDetailImages,
@@ -5037,6 +5146,15 @@
                     if (statusEl) {
                         statusEl.innerHTML = `<i class="bi bi-cloud-download"></i><span>商城抓取已排队 · ${escapeHtml(String(result.task_id || '').slice(0, 8))}</span>`;
                     }
+                    renderCatalogMallSyncBrief({
+                        task_id: result.task_id,
+                        mall_batch: {
+                            batch_id: result.task_id,
+                            max_pages: getCatalogMallScrapeOptions().max_pages,
+                            checkpoint_status: '排队中'
+                        }
+                    });
+                    renderCatalogMallSyncIssues({});
                     pollCatalogMallSyncJob(result.task_id);
                 })
                 .catch(error => {
@@ -5053,9 +5171,7 @@
         }
 
         function summarizeCatalogMallSyncResult(result = {}) {
-            const stats = result.stats || {};
-            const diffSummary = stats.diff_summary || {};
-            const scrapeStats = (result.scrape || {}).stats || {};
+            const { diffSummary, scrapeStats } = pickCatalogMallSyncPayload(result);
             const prefix = result.dry_run ? '商城抓取预检完成' : '商城抓取完成';
             const pages = Number(scrapeStats.pages_visited || 0);
             const extracted = Number(scrapeStats.extracted_items || 0);
@@ -5063,7 +5179,21 @@
             const updated = Number(diffSummary.updated_rows || 0);
             const unchanged = Number(diffSummary.unchanged_rows || 0);
             const failed = Number(diffSummary.failed_rows || 0);
+            const failedPageValue = scrapeStats.failed_pages || 0;
+            const failedPages = Array.isArray(failedPageValue) ? failedPageValue.length : Number(failedPageValue || 0);
+            const suspectedMissing = Number(
+                diffSummary.suspected_missing_rows
+                || diffSummary.suspected_inactive_rows
+                || diffSummary.missing_candidates
+                || 0
+            );
             let text = `${prefix}：页面 ${pages}，提取 ${extracted}，新增 ${created}，更新 ${updated}，无变化 ${unchanged}`;
+            if (suspectedMissing > 0) {
+                text += `，疑似下架 ${suspectedMissing}`;
+            }
+            if (failedPages > 0) {
+                text += `，失败页 ${failedPages}`;
+            }
             if (failed > 0) {
                 text += `，失败 ${failed}`;
             }
@@ -5103,6 +5233,15 @@
                             if (statusEl) {
                                 statusEl.innerHTML = `<i class="bi bi-cloud-check"></i><span>${escapeHtml(message)}</span>`;
                             }
+                            renderCatalogMallSyncBrief({
+                                ...taskResult,
+                                task_id: taskId,
+                                mall_batch: {
+                                    ...(taskResult.mall_batch || {}),
+                                    batch_id: taskResult.mall_batch?.batch_id || taskId
+                                }
+                            });
+                            renderCatalogMallSyncIssues(taskResult);
                             showToast('success', message);
                             loadCatalogV2SyncStatus();
                             loadCatalogImageEmbeddingStatus();
@@ -5126,6 +5265,13 @@
                     if (statusEl) {
                         statusEl.innerHTML = `<i class="bi bi-arrow-repeat"></i><span>商城抓取${escapeHtml(runningText)} · ${escapeHtml(String(taskId).slice(0, 8))}</span>`;
                     }
+                    renderCatalogMallSyncBrief({
+                        task_id: taskId,
+                        mall_batch: {
+                            batch_id: taskId,
+                            checkpoint_status: runningText
+                        }
+                    });
 
                     if (attempt >= 720) {
                         if (statusEl) {
@@ -5171,6 +5317,8 @@
                         throw new Error(result.message || '商城抓取预检失败');
                     }
                     showToast('success', result.message || '商城抓取预检完成');
+                    renderCatalogMallSyncBrief(result);
+                    renderCatalogMallSyncIssues(result);
                     if (statusEl) {
                         const scrapeStats = result.scrape?.stats || {};
                         const warningText = (scrapeStats.warnings || []).slice(0, 1).join('；');

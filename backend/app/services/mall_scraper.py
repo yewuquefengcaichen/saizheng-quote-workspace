@@ -119,6 +119,8 @@ class MallScrapeStats:
     checkpoint_path: str | None = None
     checkpoint_status: str | None = None
     resumed_from_checkpoint: bool = False
+    page_records: list[dict[str, Any]] = field(default_factory=list)
+    failed_pages: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -607,7 +609,20 @@ class MallPlaywrightScraper:
 
         for page_index in range(start_page, end_page + 1):
             target_url = self._page_url(page_index, current_url)
-            await page.goto(target_url, wait_until='domcontentloaded', timeout=self.config.page_timeout_ms)
+            try:
+                await page.goto(target_url, wait_until='domcontentloaded', timeout=self.config.page_timeout_ms)
+            except Exception as exc:
+                self._record_failed_page(page_index, target_url, 'goto_failed', exc)
+                self._write_checkpoint(
+                    status='page_failed',
+                    page_index=page_index,
+                    page_url=target_url,
+                    raw_payload_count=len(self._raw_payloads),
+                    error=str(exc)[:500],
+                )
+                if self.config.page_url_template:
+                    continue
+                break
             self.visited_urls.append(page.url)
             self.stats.pages_visited += 1
             last_page_index = page_index
@@ -617,10 +632,21 @@ class MallPlaywrightScraper:
             except Exception:
                 pass
             await page.wait_for_timeout(self.config.page_delay_ms)
-            dom_payloads = await self._extract_dom_payloads(page)
-            if self.config.fetch_detail_images and dom_payloads:
-                dom_payloads = await self._enrich_payloads_with_detail_images(page, dom_payloads)
+            try:
+                dom_payloads = await self._extract_dom_payloads(page)
+                if self.config.fetch_detail_images and dom_payloads:
+                    dom_payloads = await self._enrich_payloads_with_detail_images(page, dom_payloads)
+            except Exception as exc:
+                self._record_failed_page(page_index, page.url, 'extract_failed', exc)
+                dom_payloads = []
             self._raw_payloads.extend(dom_payloads)
+            self._record_page(
+                page_index=page_index,
+                url=page.url,
+                status='processed_page',
+                dom_payload_count=len(dom_payloads),
+                raw_payload_count=len(self._raw_payloads),
+            )
             self._write_checkpoint(
                 status='processed_page',
                 page_index=page_index,
@@ -689,6 +715,37 @@ class MallPlaywrightScraper:
                 raw_payload_count=len(self._raw_payloads),
                 **checkpoint_extra,
             )
+
+    def _record_page(
+        self,
+        *,
+        page_index: int,
+        url: str,
+        status: str,
+        dom_payload_count: int = 0,
+        raw_payload_count: int = 0,
+    ) -> None:
+        self.stats.page_records.append(
+            {
+                'page_index': int(page_index),
+                'url': url,
+                'status': status,
+                'dom_payload_count': int(dom_payload_count or 0),
+                'raw_payload_count': int(raw_payload_count or 0),
+                'recorded_at': datetime.now(timezone.utc).isoformat(),
+            }
+        )
+
+    def _record_failed_page(self, page_index: int, url: str, status: str, exc: Exception) -> None:
+        record = {
+            'page_index': int(page_index),
+            'url': url,
+            'status': status,
+            'error': str(exc)[:500],
+            'recorded_at': datetime.now(timezone.utc).isoformat(),
+        }
+        self.stats.failed_pages.append(record)
+        self.stats.warnings.append(f'第 {page_index} 页抓取异常：{status}，{str(exc)[:160]}')
 
     def _resolve_resume_cursor(self) -> tuple[int, str]:
         start_page = max(1, int(self.config.start_page or 1))

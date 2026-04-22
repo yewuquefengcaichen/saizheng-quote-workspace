@@ -154,6 +154,10 @@ class CatalogSyncStats:
     unchanged_row_examples: list[dict[str, Any]] = field(default_factory=list)
     failed_row_examples: list[dict[str, Any]] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    suspected_missing_rows: int = 0
+    marked_missing_rows: int = 0
+    reactivated_rows: int = 0
+    missing_row_examples: list[dict[str, Any]] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         payload = asdict(self)
@@ -165,6 +169,9 @@ class CatalogSyncStats:
             'retried_rows': self.retried_rows,
             'skipped_unchanged_writes': self.skipped_unchanged_writes,
             'stale_images_detected': self.stale_images_detected,
+            'suspected_missing_rows': self.suspected_missing_rows,
+            'marked_missing_rows': self.marked_missing_rows,
+            'reactivated_rows': self.reactivated_rows,
         }
         return payload
 
@@ -197,9 +204,13 @@ def build_sync_job_summary(job: SyncJob | None) -> dict[str, Any]:
 
 
 async def get_latest_catalog_sync_job(session: AsyncSession) -> SyncJob | None:
+    return await get_latest_sync_job_by_type(session, 'catalog_manual_sync')
+
+
+async def get_latest_sync_job_by_type(session: AsyncSession, job_type: str) -> SyncJob | None:
     return await session.scalar(
         select(SyncJob)
-        .where(SyncJob.job_type == 'catalog_manual_sync')
+        .where(SyncJob.job_type == job_type)
         .order_by(SyncJob.created_at.desc(), SyncJob.id.desc())
         .limit(1)
     )
@@ -218,6 +229,10 @@ class LegacyCatalogSyncService:
         source_path: Path | None = None,
         row_retry_attempts: int = 2,
         skip_unchanged_writes: bool = True,
+        job_type: str = 'catalog_manual_sync',
+        batch_id: str | None = None,
+        finalize_missing: bool = False,
+        missing_mark_threshold: int = 3,
     ) -> None:
         self.session = session
         self.dry_run = dry_run
@@ -228,6 +243,11 @@ class LegacyCatalogSyncService:
         self.source_path = (source_path or LEGACY_PRODUCTS_PATH).resolve()
         self.row_retry_attempts = max(1, int(row_retry_attempts or 1))
         self.skip_unchanged_writes = skip_unchanged_writes
+        self.job_type = job_type or 'catalog_manual_sync'
+        self.batch_id = normalize_text(batch_id)
+        self.finalize_missing = bool(finalize_missing and self.batch_id)
+        self.missing_mark_threshold = max(1, int(missing_mark_threshold or 1))
+        self.seen_codes: set[str] = set()
         self.brand_cache: dict[str, Brand] = {}
         self.supplier_cache: dict[str, Supplier] = {}
         self.category_cache: dict[tuple[str, ...], Category] = {}
@@ -294,9 +314,12 @@ class LegacyCatalogSyncService:
                 await self.session.rollback()
                 return {
                     'dry_run': True,
-                    'stats': self.stats.to_dict(),
+                    'stats': self._build_job_stats_payload(),
                     'job': None,
                 }
+
+            if self.finalize_missing:
+                await self._finalize_missing_products()
 
             await self.session.commit()
             await self._finish_job(status='success')
@@ -314,7 +337,7 @@ class LegacyCatalogSyncService:
     async def _start_job(self, total_steps: int) -> None:
         started_at = datetime.now(timezone.utc)
         self.job = SyncJob(
-            job_type='catalog_manual_sync',
+            job_type=self.job_type,
             source_name=self.source_name,
             trigger_mode='manual',
             status='running',
@@ -326,6 +349,7 @@ class LegacyCatalogSyncService:
                 'source_path': str(self.source_path),
                 'dry_run': False,
                 'source_type': self.source_type,
+                'batch_id': self.batch_id,
             },
         )
         self.session.add(self.job)
@@ -339,6 +363,7 @@ class LegacyCatalogSyncService:
                 context_json={
                     'source_path': str(self.source_path),
                     'source_type': self.source_type,
+                    'batch_id': self.batch_id,
                 },
             )
         )
@@ -386,6 +411,30 @@ class LegacyCatalogSyncService:
             'source_type': self.source_type,
             'row_retry_attempts': self.row_retry_attempts,
             'skip_unchanged_writes': self.skip_unchanged_writes,
+            'batch_id': self.batch_id,
+            'mall_batch': self._build_mall_batch_payload(),
+            'visibility': self._build_visibility_payload(),
+        }
+
+    def _build_mall_batch_payload(self) -> dict[str, Any] | None:
+        if not self.batch_id:
+            return None
+        return {
+            'batch_id': self.batch_id,
+            'source_name': self.source_name,
+            'source_type': self.source_type,
+            'finalize_missing': self.finalize_missing,
+            'seen_count': len(self.seen_codes),
+        }
+
+    def _build_visibility_payload(self) -> dict[str, Any]:
+        return {
+            'seen_count': len(self.seen_codes),
+            'suspected_missing_rows': self.stats.suspected_missing_rows,
+            'marked_missing_rows': self.stats.marked_missing_rows,
+            'reactivated_rows': self.stats.reactivated_rows,
+            'missing_mark_threshold': self.missing_mark_threshold,
+            'missing_examples': self.stats.missing_row_examples,
         }
 
     def _reset_lookup_caches(self) -> None:
@@ -416,6 +465,8 @@ class LegacyCatalogSyncService:
                 self._row_example_from_item(item, error='missing code/name'),
             )
             return
+        if self.batch_id:
+            self.seen_codes.add(code)
 
         brand = await self.get_or_create_brand(normalize_text(str(item.get('brand') or '')))
         supplier = await self.get_or_create_supplier(normalize_text(str(item.get('supplier') or '')))
@@ -441,6 +492,8 @@ class LegacyCatalogSyncService:
 
         is_new_product = product is None
         product_changes: list[str] = []
+        existing_product_payload: dict[str, Any] = dict(product.source_payload or {}) if product is not None else {}
+        existing_mall_sync: dict[str, Any] = dict(existing_product_payload.get('mall_sync') or {})
         if product is None:
             product = Product(
                 source_type=self.source_type,
@@ -487,7 +540,7 @@ class LegacyCatalogSyncService:
             else:
                 self.stats.unchanged_products += 1
 
-        product_should_write = is_new_product or bool(product_changes) or not self.skip_unchanged_writes
+        product_should_write = is_new_product or bool(product_changes) or not self.skip_unchanged_writes or bool(self.batch_id)
         if product_should_write:
             product.product_code = code
             product.name = name
@@ -502,14 +555,21 @@ class LegacyCatalogSyncService:
             product.primary_image_url = primary_image_url
             product.search_text = search_text
             product.last_synced_at = datetime.now(timezone.utc)
-            product.source_payload = {
+            product_payload = dict(existing_product_payload)
+            product_payload.update({
                 'source_row': item,
                 'source_intro_text': intro_text,
                 'source_image_count': len(image_urls),
                 'source_type': self.source_type,
+                'source_name': self.source_name,
                 'image_sync_mode': image_sync_mode,
                 'sync_note': '当前商品源缺少统一 SPU/SKU 拆分，先按一行一个 product + 一个 variant 迁移。',
-            }
+            })
+            if self.batch_id:
+                if existing_mall_sync.get('visibility_status') in {'missing_in_latest_scrape', 'inactive_candidate'}:
+                    self.stats.reactivated_rows += 1
+                product_payload['mall_sync'] = self._build_seen_mall_sync_payload(existing_mall_sync)
+            product.source_payload = product_payload
 
         if is_new_product:
             await self.session.flush()
@@ -522,6 +582,7 @@ class LegacyCatalogSyncService:
         )
         is_new_variant = variant is None
         variant_changes: list[str] = []
+        existing_variant_payload: dict[str, Any] = dict(variant.source_payload or {}) if variant is not None else {}
         if variant is None:
             variant = ProductVariant(
                 product_id=product.id,
@@ -560,7 +621,7 @@ class LegacyCatalogSyncService:
             else:
                 self.stats.unchanged_variants += 1
 
-        variant_should_write = is_new_variant or bool(variant_changes) or not self.skip_unchanged_writes
+        variant_should_write = is_new_variant or bool(variant_changes) or not self.skip_unchanged_writes or bool(self.batch_id)
         if variant_should_write:
             variant.sku_code = code
             variant.variant_name = model or name
@@ -571,15 +632,22 @@ class LegacyCatalogSyncService:
             variant.status = status
             variant.is_active = is_active
             variant.last_synced_at = datetime.now(timezone.utc)
-            variant.source_payload = {
+            variant_payload = dict(existing_variant_payload)
+            variant_payload.update({
                 'source_row_code': code,
                 'import_mode': 'one-row-one-variant',
                 'source_image_count': len(image_urls),
                 'source_type': self.source_type,
+                'source_name': self.source_name,
                 'image_sync_mode': image_sync_mode,
                 'is_new_product': is_new_product,
                 'is_new_variant': is_new_variant,
-            }
+            })
+            if self.batch_id:
+                variant_payload['mall_sync'] = self._build_seen_mall_sync_payload(
+                    dict(existing_variant_payload.get('mall_sync') or {})
+                )
+            variant.source_payload = variant_payload
 
         if is_new_variant:
             await self.session.flush()
@@ -604,9 +672,69 @@ class LegacyCatalogSyncService:
             )
         else:
             self.stats.unchanged_rows += 1
-            if self.skip_unchanged_writes:
+            if self.skip_unchanged_writes and not self.batch_id:
                 self.stats.skipped_unchanged_writes += 1
             append_limited(self.stats.unchanged_row_examples, row_example)
+
+    def _build_seen_mall_sync_payload(self, existing: dict[str, Any] | None = None) -> dict[str, Any]:
+        now_iso = datetime.now(timezone.utc).isoformat()
+        existing = dict(existing or {})
+        return {
+            **existing,
+            'last_seen_batch_id': self.batch_id,
+            'last_seen_at': now_iso,
+            'visibility_status': 'seen',
+            'missing_count': 0,
+            'missing_since': None,
+            'missing_since_batch_id': None,
+        }
+
+    async def _finalize_missing_products(self) -> None:
+        if not self.batch_id:
+            return
+
+        products = list(
+            await self.session.scalars(
+                select(Product).where(Product.source_type == self.source_type)
+            )
+        )
+        now_iso = datetime.now(timezone.utc).isoformat()
+        for product in products:
+            code = normalize_text(product.external_product_id or product.product_code)
+            if not code or code in self.seen_codes:
+                continue
+            payload = dict(product.source_payload or {})
+            mall_sync = dict(payload.get('mall_sync') or {})
+            if not mall_sync:
+                continue
+            if mall_sync.get('last_seen_batch_id') == self.batch_id:
+                continue
+
+            missing_count = int(mall_sync.get('missing_count') or 0) + 1
+            visibility_status = 'inactive_candidate' if missing_count >= self.missing_mark_threshold else 'missing_in_latest_scrape'
+            mall_sync.update(
+                {
+                    'visibility_status': visibility_status,
+                    'missing_count': missing_count,
+                    'missing_since': mall_sync.get('missing_since') or now_iso,
+                    'missing_since_batch_id': mall_sync.get('missing_since_batch_id') or self.batch_id,
+                    'latest_missing_batch_id': self.batch_id,
+                    'latest_missing_at': now_iso,
+                }
+            )
+            payload['mall_sync'] = mall_sync
+            product.source_payload = payload
+            self.stats.suspected_missing_rows += 1
+            self.stats.marked_missing_rows += 1
+            append_limited(
+                self.stats.missing_row_examples,
+                {
+                    'code': code,
+                    'name': product.name,
+                    'missing_count': missing_count,
+                    'visibility_status': visibility_status,
+                },
+            )
 
     async def sync_product_images(
         self,
