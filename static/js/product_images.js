@@ -48,12 +48,13 @@ const ProductImageManager = {
     getImageUrl(product) {
         if (!product) return '';
 
-        if (product.source_image_url) {
-            return this.normalizeUrl(product.source_image_url);
+        if (product.image_url) {
+            const imageUrl = this.normalizeUrl(product.image_url);
+            if (imageUrl) return imageUrl;
         }
 
-        if (product.image_url) {
-            return this.normalizeUrl(product.image_url);
+        if (product.source_image_url) {
+            return this.normalizeUrl(product.source_image_url);
         }
 
         const images = this.getImages(product);
@@ -123,6 +124,15 @@ const ProductImageManager = {
                     proxy_url: proxyUrl
                 };
             });
+            const productImageUrl = this.normalizeUrl(product.image_url || '');
+            if (productImageUrl && productImageUrl.startsWith('/api/') && !images.some(img => (img.url || img.proxy_url) === productImageUrl)) {
+                images.unshift({
+                    url: productImageUrl,
+                    title: product.name || '',
+                    source_url: this.normalizeUrl(product.source_image_url || ''),
+                    proxy_url: productImageUrl
+                });
+            }
         } else if (product.image_url || product.source_image_url) {
             const explicitImageUrl = this.normalizeUrl(product.image_url || '');
             const sourceUrl = this.normalizeUrl(product.source_image_url || product.image_url || '');

@@ -5,6 +5,8 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from sqlalchemy import select
+
 from app.db.session import AsyncSessionLocal
 from app.models import SyncJob, SyncJobLog
 from app.services.catalog_sync import LegacyCatalogSyncService
@@ -39,12 +41,73 @@ MALL_SCRAPE_OPTION_KEYS = (
     'crawl_mode',
     'finalize_missing',
     'missing_mark_threshold',
+    'rerun_urls',
+    'failed_page_urls',
+    'rerun_failed_page_urls',
 )
 
 
 def pick_mall_scrape_options(payload: dict[str, Any] | None) -> dict[str, Any]:
     payload = payload or {}
     return {key: payload[key] for key in MALL_SCRAPE_OPTION_KEYS if key in payload}
+
+
+async def get_recent_mall_sync_job_summaries(limit: int = 5) -> list[dict[str, Any]]:
+    limit = max(1, min(int(limit or 5), 20))
+    async with AsyncSessionLocal() as session:
+        jobs = list(
+            await session.scalars(
+                select(SyncJob)
+                .where(SyncJob.job_type == 'catalog_mall_scrape_sync')
+                .order_by(SyncJob.created_at.desc(), SyncJob.id.desc())
+                .limit(limit)
+            )
+        )
+    return [_build_mall_job_brief(job) for job in jobs]
+
+
+def _build_mall_job_brief(job: SyncJob) -> dict[str, Any]:
+    stats = dict(job.stats_json or {})
+    scrape = stats.get('scrape') or {}
+    scrape_stats = scrape.get('stats') or {}
+    page_records = stats.get('page_records') or scrape_stats.get('page_records') or []
+    failed_pages = stats.get('failed_pages') or scrape_stats.get('failed_pages') or []
+    diff_summary = stats.get('diff_summary') or {}
+    mall_batch = stats.get('mall_batch') or {}
+    compact_stats = {
+        'mall_batch': mall_batch,
+        'diff_summary': diff_summary,
+        'scrape': {
+            'stats': {
+                **scrape_stats,
+                'page_records': page_records[:5],
+                'failed_pages': failed_pages[:5],
+            }
+        },
+        'page_records': page_records[:5],
+        'failed_pages': failed_pages[:5],
+    }
+    return {
+        'job_id': job.id,
+        'public_id': job.public_id,
+        'status': job.status,
+        'requested_by': job.requested_by,
+        'started_at': job.started_at.isoformat() if job.started_at else None,
+        'finished_at': job.finished_at.isoformat() if job.finished_at else None,
+        'updated_at': job.updated_at.isoformat() if job.updated_at else None,
+        'error_message': job.error_message,
+        'mall_batch': mall_batch,
+        'diff_summary': diff_summary,
+        'stats': compact_stats,
+        'page_summary': {
+            'pages_visited': scrape_stats.get('pages_visited', 0),
+            'extracted_items': scrape_stats.get('extracted_items', 0),
+            'page_records_count': len(page_records),
+            'failed_pages_count': len(failed_pages),
+            'page_records': page_records[:5],
+            'failed_pages': failed_pages[:5],
+        },
+    }
 
 
 async def run_mall_scrape_sync_async(
@@ -55,6 +118,13 @@ async def run_mall_scrape_sync_async(
 ) -> dict[str, Any]:
     safe_options = pick_mall_scrape_options(options)
     crawl_mode = str(safe_options.get('crawl_mode') or '').strip() or 'small'
+    rerun_urls = safe_options.get('rerun_urls') or safe_options.get('failed_page_urls') or safe_options.get('rerun_failed_page_urls') or []
+    if isinstance(rerun_urls, (str, bytes)):
+        rerun_urls = [str(rerun_urls)]
+    rerun_urls = [str(url).strip() for url in rerun_urls if str(url or '').strip()]
+    rerun_failed_pages = bool(rerun_urls)
+    if rerun_failed_pages and crawl_mode == 'small':
+        crawl_mode = 'rerun_failed_pages'
     batch_id = f'mall-{datetime.now(timezone.utc):%Y%m%d%H%M%S}-{uuid4().hex[:8]}'
     batch_started_at = datetime.now(timezone.utc).isoformat()
     finalize_missing = (
@@ -81,6 +151,8 @@ async def run_mall_scrape_sync_async(
         'start_page': scrape_config.start_page,
         'max_items': scrape_config.max_items,
         'finalize_missing': finalize_missing,
+        'rerun_failed_pages': rerun_failed_pages,
+        'rerun_url_count': len(rerun_urls),
     }
 
     async with AsyncSessionLocal() as session:
@@ -174,6 +246,8 @@ async def run_mall_scrape_sync_async(
                 'batch_id': batch_id,
                 'finalize_missing': finalize_missing,
                 'missing_mark_threshold': missing_mark_threshold,
+                'rerun_failed_pages': rerun_failed_pages,
+                'rerun_url_count': len(rerun_urls),
             },
         },
     }

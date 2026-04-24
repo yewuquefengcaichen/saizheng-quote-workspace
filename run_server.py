@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """启动报价系统"""
-import subprocess
+import argparse
 import sys
 import os
 import traceback
@@ -15,6 +15,11 @@ def log(msg):
     log_file.flush()
 
 try:
+    parser = argparse.ArgumentParser(description='启动赛正报价工作台服务')
+    parser.add_argument('--port', type=int, default=int(os.environ.get('SAIZHENG_PORT', '8080')), help='监听端口，默认 8080')
+    parser.add_argument('--host', default=os.environ.get('SAIZHENG_HOST', '127.0.0.1'), help='监听地址，默认 127.0.0.1')
+    args = parser.parse_args()
+
     app_dir = r"D:\A赛正\完整导出的商品信息\claudecode-报价系统"
     os.chdir(app_dir)
 
@@ -51,13 +56,13 @@ try:
 
     log("=" * 50)
     log("一键报价系统启动...")
-    log("请访问: http://localhost:8080")
+    log(f"请访问: http://{args.host}:{args.port}")
     log("=" * 50)
 
     # 使用waitress生产服务器
     from waitress import serve
-    log("Starting waitress server on port 8080...")
-    serve(app, host='127.0.0.1', port=8080)
+    log(f"Starting waitress server on {args.host}:{args.port} ...")
+    serve(app, host=args.host, port=args.port)
     log("Server started successfully!")
 
 except Exception as e:

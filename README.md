@@ -215,8 +215,8 @@
 
 ```text
 .
-├─ app.py                               # Flask 主入口（5000）
-├─ run_server.py                        # Waitress 入口（8080）
+├─ app.py                               # Flask 调试入口（不建议直接启动）
+├─ run_server.py                        # 推荐入口（支持 --port 5000 / 8080）
 ├─ README.md
 ├─ CHANGELOG.md
 ├─ data/                                # legacy SQLite + JSON
@@ -239,7 +239,7 @@
 
 ```powershell
 cd "D:\A赛正\完整导出的商品信息\claudecode-报价系统"
-backend\.venv\Scripts\python.exe app.py
+python run_server.py --port 5000
 ```
 
 访问：
@@ -252,7 +252,7 @@ http://127.0.0.1:5000
 
 ```powershell
 cd "D:\A赛正\完整导出的商品信息\claudecode-报价系统"
-backend\.venv\Scripts\python.exe run_server.py
+python run_server.py --port 8080
 ```
 
 ### V2 FastAPI（8001，可单独调试）
@@ -262,7 +262,9 @@ cd backend
 .\.venv\Scripts\python.exe -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8001
 ```
 
-> 说明：为了让报价台也能用 RTX 4060 跑 CLIP，推荐用 `backend\.venv` 启动 Flask；这样不会污染系统 Python 或其他深度学习环境。
+> 说明 1：**不要再直接 `python app.py` 启动 5000**。根目录 `app.py` 与 `backend/app` 包同名，直接跑时容易触发模块遮蔽，导致工作台回退到旧 JSON 链路，看起来像“V2 没生效 / 商城同步历史没了 / 疑似下架筛选没反应”。现在统一用 `run_server.py --port 5000` 启动。
+>
+> 说明 2：为了让报价台也能用 RTX 4060 跑 CLIP，推荐在你自己的深度学习环境之外单独维护项目环境；CUDA 不需要为了这个项目去覆盖你现有环境的全局安装。
 
 ### PostgreSQL / Redis / CLIP Worker
 

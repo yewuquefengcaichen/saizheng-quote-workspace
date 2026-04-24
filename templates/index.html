@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260422a" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260424a" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -4636,6 +4636,7 @@
             const brandSelect = document.getElementById('catalogBrandFilter');
             const supplierSelect = document.getElementById('catalogSupplierFilter');
             const imageSelect = document.getElementById('catalogImageFilter');
+            const mallVisibilitySelect = document.getElementById('catalogMallVisibilityFilter');
             const pageSizeSelect = document.getElementById('catalogPageSize');
             const resetBtn = document.getElementById('catalogResetBtn');
             const syncV2Btn = document.getElementById('catalogSyncV2Btn');
@@ -4652,7 +4653,7 @@
                 });
             }
 
-            [categorySelect, brandSelect, supplierSelect, imageSelect].forEach(el => {
+            [categorySelect, brandSelect, supplierSelect, imageSelect, mallVisibilitySelect].forEach(el => {
                 if (el) {
                     el.addEventListener('change', () => loadCatalogProducts(1));
                 }
@@ -4672,6 +4673,7 @@
                     if (brandSelect) brandSelect.value = '';
                     if (supplierSelect) supplierSelect.value = '';
                     if (imageSelect) imageSelect.value = '';
+                    if (mallVisibilitySelect) mallVisibilitySelect.value = '';
                     if (pageSizeSelect) pageSizeSelect.value = String(catalogState.pageSize || 24);
                     loadCatalogProducts(1);
                 });
@@ -4801,6 +4803,140 @@
             issueEl.style.display = 'flex';
         }
 
+        function normalizeCatalogMallJobs(payload = {}) {
+            const jobs = [];
+            const candidates = []
+                .concat(Array.isArray(payload.recent_mall_jobs) ? payload.recent_mall_jobs : [])
+                .concat(Array.isArray(payload.mall_sync_history) ? payload.mall_sync_history : []);
+            if (payload.latest_mall_job?.exists) {
+                candidates.unshift(payload.latest_mall_job);
+            }
+            const seen = new Set();
+            candidates.forEach(job => {
+                if (!job) return;
+                const stats = job.stats || {};
+                const key = job.public_id || job.job_id || stats.mall_batch?.batch_id || JSON.stringify(job).slice(0, 80);
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                jobs.push(job);
+            });
+            return jobs.slice(0, 3);
+        }
+
+        function getCatalogFailedPageUrls(jobOrPayload = {}) {
+            const stats = jobOrPayload.stats || jobOrPayload;
+            const pageSummary = jobOrPayload.page_summary || {};
+            const scrapeStats = stats.scrape?.stats || stats.scrape_stats || stats.mall_scrape_stats || jobOrPayload.scrape?.stats || pageSummary || {};
+            const failedPages = []
+                .concat(scrapeStats.failed_pages || [])
+                .concat(pageSummary.failed_pages || [])
+                .concat(jobOrPayload.failed_pages || [])
+                .concat(stats.failed_pages || []);
+            const urls = failedPages
+                .map(item => typeof item === 'string' ? item : (item?.url || item?.page_url || item?.last_url || ''))
+                .map(text => String(text || '').trim())
+                .filter(Boolean);
+            return Array.from(new Set(urls));
+        }
+
+        function renderCatalogMallSyncHistory(payload = {}) {
+            const historyEl = document.getElementById('catalogMallSyncHistory');
+            if (!historyEl) return;
+            const jobs = normalizeCatalogMallJobs(payload);
+            if (!jobs.length) {
+                historyEl.innerHTML = '';
+                historyEl.style.display = 'none';
+                return;
+            }
+
+            historyEl.innerHTML = jobs.map(job => {
+                const stats = job.stats || {};
+                const pageSummary = job.page_summary || {};
+                const batch = stats.mall_batch || job.mall_batch || {};
+                const scrapeStats = stats.scrape?.stats || stats.scrape_stats || pageSummary || {};
+                const diff = stats.diff_summary || job.diff_summary || {};
+                const batchText = compactCatalogBatchId(batch.batch_id || job.public_id || job.task_id || job.job_id);
+                const status = String(job.status || '').trim() || '-';
+                const pages = Number(scrapeStats.pages_visited || pageSummary.pages_visited || batch.pages_visited || 0);
+                const extracted = Number(scrapeStats.extracted_items || pageSummary.extracted_items || batch.extracted_items || 0);
+                const failedUrls = getCatalogFailedPageUrls(job);
+                const finishedAt = job.finished_at ? new Date(job.finished_at).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '';
+                const chips = [
+                    catalogSyncChip('批次', batchText || '-', 'is-muted'),
+                    catalogSyncChip('状态', status === 'success' ? '完成' : status, status === 'failed' ? 'is-danger' : 'is-muted'),
+                    pages ? catalogSyncChip('页', pages) : '',
+                    extracted ? catalogSyncChip('提取', extracted) : '',
+                    (diff.created_rows || diff.updated_rows || diff.unchanged_rows) ? catalogSyncChip('差异', `+${Number(diff.created_rows || 0)} / 改${Number(diff.updated_rows || 0)} / 同${Number(diff.unchanged_rows || 0)}`, 'is-muted') : '',
+                    failedUrls.length ? catalogSyncChip('失败页', failedUrls.length, 'is-danger') : '',
+                    finishedAt ? catalogSyncChip('时间', finishedAt, 'is-muted') : '',
+                ].filter(Boolean).join('');
+                const rerunPayload = encodeURIComponent(JSON.stringify(failedUrls));
+                const rerunButton = failedUrls.length
+                    ? `<button class="btn btn-outline-danger btn-sm catalog-rerun-failed-btn" type="button" data-failed-urls="${rerunPayload}"><i class="bi bi-arrow-repeat me-1"></i>重跑失败页</button>`
+                    : '';
+                return `<div class="catalog-sync-history-row">${chips}${rerunButton}</div>`;
+            }).join('');
+            historyEl.style.display = 'flex';
+            bindCatalogMallHistoryActions();
+        }
+
+        function bindCatalogMallHistoryActions() {
+            document.querySelectorAll('.catalog-rerun-failed-btn').forEach(button => {
+                if (button.dataset.bound === 'true') return;
+                button.dataset.bound = 'true';
+                button.addEventListener('click', () => {
+                    let urls = [];
+                    try {
+                        urls = JSON.parse(decodeURIComponent(button.dataset.failedUrls || '[]'));
+                    } catch (error) {
+                        urls = [];
+                    }
+                    triggerCatalogMallFailedPageRerun(urls, button);
+                });
+            });
+        }
+
+        function triggerCatalogMallFailedPageRerun(urls = [], buttonEl = null) {
+            const failedUrls = Array.from(new Set((urls || []).map(url => String(url || '').trim()).filter(Boolean)));
+            if (!failedUrls.length) {
+                showToast('warning', '没有可重跑的失败页');
+                return;
+            }
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>重跑中';
+            }
+            const payload = getCatalogMallScrapeOptions({
+                dry_run: false,
+                requested_by: 'catalog-page-rerun-failed-pages',
+                crawl_mode: 'rerun_failed_pages',
+                rerun_urls: failedUrls,
+                failed_page_urls: failedUrls,
+                max_pages: failedUrls.length,
+                resume_from_checkpoint: false,
+            });
+            fetch('/api/catalog/mall_sync_jobs', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (!result.success) {
+                        throw new Error(result.message || '失败页重跑提交失败');
+                    }
+                    showToast('success', `失败页重跑已提交：${failedUrls.length} 页`);
+                    pollCatalogMallSyncJob(result.task_id);
+                })
+                .catch(error => {
+                    showToast('error', error.message || '失败页重跑提交失败');
+                    if (buttonEl) {
+                        buttonEl.disabled = false;
+                        buttonEl.innerHTML = '<i class="bi bi-arrow-repeat me-1"></i>重跑失败页';
+                    }
+                });
+        }
+
         function renderCatalogV2SyncStatus(payload = {}) {
             const statusEl = document.getElementById('catalogSyncV2Status');
             const buttonEl = document.getElementById('catalogSyncV2Btn');
@@ -4859,6 +4995,7 @@
             }
             renderCatalogMallSyncBrief(payload);
             renderCatalogMallSyncIssues(payload);
+            renderCatalogMallSyncHistory(payload);
         }
 
         function loadCatalogV2SyncStatus() {
@@ -5242,6 +5379,20 @@
                                 }
                             });
                             renderCatalogMallSyncIssues(taskResult);
+                            renderCatalogMallSyncHistory({
+                                recent_mall_jobs: [
+                                    {
+                                        public_id: taskResult.mall_batch?.batch_id || taskId,
+                                        status: 'success',
+                                        stats: {
+                                            ...(taskResult.stats || {}),
+                                            scrape: taskResult.scrape || {},
+                                            mall_batch: taskResult.mall_batch || taskResult.stats?.mall_batch || {},
+                                        },
+                                        finished_at: taskResult.mall_batch?.finished_at || null,
+                                    }
+                                ]
+                            });
                             showToast('success', message);
                             loadCatalogV2SyncStatus();
                             loadCatalogImageEmbeddingStatus();
@@ -5348,6 +5499,7 @@
                 brand: document.getElementById('catalogBrandFilter')?.value || '',
                 supplier: document.getElementById('catalogSupplierFilter')?.value || '',
                 has_image: document.getElementById('catalogImageFilter')?.value || '',
+                mall_visibility: document.getElementById('catalogMallVisibilityFilter')?.value || '',
                 page_size: String(pageSize)
             };
         }
@@ -5468,12 +5620,11 @@
                         <div class="workspace-empty-orbit-visual">
                             <i class="bi bi-box-seam"></i>
                         </div>
-                        <div class="workspace-empty-orbit-title">商品资产画廊还没有载入任何内容</div>
-                        <div class="workspace-empty-orbit-copy">先在总览页导入商品 Excel。导入完成后，这里会按图片、品牌、供应商和价格信息把商品资产重新组织成更适合浏览与核查的卡片画廊。</div>
+                        <div class="workspace-empty-orbit-title">暂无商品</div>
+                        <div class="workspace-empty-orbit-copy">请先导入商品库。</div>
                         <div class="workspace-empty-orbit-pills">
-                            <span class="workspace-empty-orbit-pill">先导入商品库</span>
-                            <span class="workspace-empty-orbit-pill">优先筛出有图商品</span>
-                            <span class="workspace-empty-orbit-pill">再回到这里做资产核查</span>
+                            <span class="workspace-empty-orbit-pill">导入商品库</span>
+                            <span class="workspace-empty-orbit-pill">同步 V2</span>
                         </div>
                     </div>
                 `;
@@ -5489,12 +5640,11 @@
                         <div class="workspace-empty-orbit-visual">
                             <i class="bi bi-search"></i>
                         </div>
-                        <div class="workspace-empty-orbit-title">当前筛选条件下没有找到可浏览的商品</div>
-                        <div class="workspace-empty-orbit-copy">试着放宽关键字、品牌、供应商或图片条件，让商品资产重新回到一个更适合比对和确认的范围里。</div>
+                        <div class="workspace-empty-orbit-title">没有找到商品</div>
+                        <div class="workspace-empty-orbit-copy">请调整筛选条件。</div>
                         <div class="workspace-empty-orbit-pills">
                             <span class="workspace-empty-orbit-pill">放宽关键词</span>
-                            <span class="workspace-empty-orbit-pill">重置品牌或供应商</span>
-                            <span class="workspace-empty-orbit-pill">取消图片限制</span>
+                            <span class="workspace-empty-orbit-pill">重置筛选</span>
                         </div>
                     </div>
                 `;
@@ -5562,6 +5712,34 @@
             });
         }
 
+        function renderMallVisibilityBadge(item = {}) {
+            const status = String(item.mall_visibility_status || item.mall_sync?.visibility_status || '').trim();
+            if (!status || status === 'seen') {
+                return '';
+            }
+            if (status === 'missing_in_latest_scrape') {
+                return '<span class="qe-badge qe-badge-warning"><i class="bi bi-exclamation-triangle me-1"></i>疑似下架</span>';
+            }
+            if (status === 'inactive_candidate') {
+                return '<span class="qe-badge qe-badge-danger"><i class="bi bi-slash-circle me-1"></i>连续缺失</span>';
+            }
+            return `<span class="qe-badge qe-badge-muted">${escapeHtml(status)}</span>`;
+        }
+
+        function renderCatalogStatusBadge(statusText = '') {
+            const status = String(statusText || '').trim();
+            if (!status) {
+                return '<span class="qe-badge qe-badge-secondary">未知</span>';
+            }
+            if (status === '上架' || status === '在售') {
+                return `<span class="qe-badge qe-badge-success">${escapeHtml(status)}</span>`;
+            }
+            if (status === '下架') {
+                return `<span class="qe-badge qe-badge-danger">${escapeHtml(status)}</span>`;
+            }
+            return `<span class="qe-badge qe-badge-secondary">${escapeHtml(status)}</span>`;
+        }
+
         function renderCatalogCard(item) {
             const introPreview = buildTextPreview(item.intro_text || item.intro || '', 96);
             const hasImage = !!(item.has_image || item.image_url || (item.images && item.images.length));
@@ -5585,6 +5763,7 @@
                 images: item.images || [],
                 intro: item.intro || ''
             };
+            const mallVisibilityBadge = renderMallVisibilityBadge(item);
 
             return `
                 <div class="catalog-card" data-product-code="${escapeHtmlAttr(item.code || '')}">
@@ -5597,7 +5776,8 @@
                             <span class="${hasImage ? 'qe-badge qe-badge-info' : 'qe-badge qe-badge-muted'}">
                                 <i class="bi ${hasImage ? 'bi-image' : 'bi-file-text'} me-1"></i>${hasImage ? `${imageCount} 张图` : '暂无图片'}
                             </span>
-                            <span class="${item.status ? 'qe-badge qe-badge-success' : 'qe-badge qe-badge-secondary'}">${escapeHtml(statusText)}</span>
+                            ${renderCatalogStatusBadge(statusText)}
+                            ${mallVisibilityBadge}
                         </div>
                     </div>
                     <div class="catalog-card-header">
@@ -5625,13 +5805,13 @@
                         </div>
                     </div>
                     <div class="catalog-intro-preview">
-                        <span class="catalog-intro-label">摘要</span>
-                        <p>${escapeHtml(introPreview || '暂无摘要，详情里查看完整图片与原始字段。')}</p>
+                        <span class="catalog-intro-label">简介</span>
+                        <p>${escapeHtml(introPreview || '暂无简介')}</p>
                     </div>
                     <div class="catalog-card-footer">
                         <div class="catalog-footer-note">
                             <i class="bi bi-stars"></i>
-                            <span>${hasImage ? '点开看完整图片' : '点开看商品信息'}</span>
+                            <span>${hasImage ? '查看详情与图片' : '查看详情'}</span>
                         </div>
                         <button class="btn btn-outline-primary btn-sm catalog-detail-btn" data-product-code="${escapeHtmlAttr(item.code || '')}">
                             <i class="bi bi-eye me-1"></i>查看详情
@@ -5739,6 +5919,7 @@
             const introText = stripHtml(product.intro_text || product.intro || '');
             const introHtml = sanitizeIntroHtml(product.intro_html || product.intro || '');
             const detailFields = Array.isArray(product.detail_fields) ? product.detail_fields.filter(field => field && field.label && field.value) : [];
+            const mallVisibilityBadge = renderMallVisibilityBadge(product);
             const detailFieldHtml = detailFields.length ? detailFields.map(field => `
                 <div class="col-md-6">
                     <div class="qe-surface-muted h-100">
@@ -5765,6 +5946,7 @@
                                     ${product.brand ? `<span class="qe-badge qe-badge-neutral">品牌 ${escapeHtml(product.brand)}</span>` : ''}
                                     ${product.status ? `<span class="qe-badge qe-badge-success">${escapeHtml(product.status)}</span>` : ''}
                                     ${product.has_image ? `<span class="qe-badge qe-badge-info"><i class="bi bi-image me-1"></i>${images.length || product.image_count || 1}张图</span>` : '<span class="qe-badge qe-badge-muted">暂无图片</span>'}
+                                    ${mallVisibilityBadge}
                                 </div>
                             </div>
                         </div>
@@ -5779,6 +5961,7 @@
                                             ${product.brand ? `<span class="qe-badge qe-badge-neutral">品牌 ${escapeHtml(product.brand)}</span>` : ''}
                                             ${product.status ? `<span class="qe-badge qe-badge-success">${escapeHtml(product.status)}</span>` : ''}
                                             ${product.has_image ? `<span class="qe-badge qe-badge-info"><i class="bi bi-image me-1"></i>${images.length || product.image_count || 1}张图</span>` : '<span class="qe-badge qe-badge-muted">暂无图片</span>'}
+                                            ${mallVisibilityBadge}
                                         </div>
                                     </div>
                                     <div class="catalog-detail-price-stack">
@@ -10413,13 +10596,13 @@
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js?v=20260413a"></script>
     <!-- 商品图片展示 -->
-    <script src="/static/js/product_images.js?v=20260421c"></script>
+    <script src="/static/js/product_images.js?v=20260424a"></script>
     <!-- OCR图片识别 -->
     <script src="/static/js/ocr_manager.js?v=20260413a"></script>
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260421a"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260424a"></script>
 </body>
 </html>
 

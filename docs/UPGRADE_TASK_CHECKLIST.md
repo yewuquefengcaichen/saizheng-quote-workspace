@@ -131,8 +131,8 @@
 | P1 | 商品同步 | 商品详情页补图 | [x] | 已支持 `fetch_detail_images`，实测 1 个详情页补 4 张图 |
 | P1 | 商品同步 | 商城抓取后台任务入口 | [x] | 已新增 `app.tasks.catalog.scrape_mall_sync` 与 Flask job API，商品库页轮询任务状态 |
 | P1 | 商品同步 | 全量抓取限速 / 断点续抓 | [x] | 已支持小批量 / 全量、页间 delay、详情页 delay、checkpoint 与 resume |
-| P1 | 商品同步 | 断点批次记录 / 失败项重跑 | [ ] | 批次 ID、页级记录、失败页记录已完成；失败页一键重跑待做 |
-| P1 | 商品同步 | 下架 / 删除策略 | [ ] | 疑似下架雏形已完成：只写 `source_payload.mall_sync`，不直接删除；复核/正式下架待做 |
+| P1 | 商品同步 | 断点批次记录 / 失败项重跑 | [x] | 已支持 `rerun_urls / failed_page_urls`，商品库最近批次可一键重跑失败页 |
+| P1 | 商品同步 | 下架 / 删除策略 | [ ] | 疑似下架雏形已完成：只写 `source_payload.mall_sync`，商品库已可按商城状态筛选；复核/正式下架待做 |
 | P1 | 商品同步 | 同步任务状态查询增强 | [x] | 已返回最近商城同步任务，并在商品库用轻量 chip 展示批次、页数、异常、疑似下架 |
 | P2 | PostgreSQL 收口 | 历史页切 PostgreSQL | [ ] | 逐步摆脱 `quote_history.db` |
 | P2 | PostgreSQL 收口 | 词库 / 模板规则读写逐步切 PostgreSQL | [ ] | 减少 JSON 依赖 |
@@ -142,6 +142,8 @@
 | P2 | 报价台 | 候选视图继续优化标准 / 紧凑模式 | [ ] | 提升大量候选时效率 |
 | P2 | 报价台 | 首页上传后切到报价台紧凑布局 | [x] | 已同步 `data-route=quotes`，避免按首页样式渲染大块遮挡 |
 | P2 | 商品库 | 默认优先展示有图商品 | [x] | 已按有图优先排序，并修正图片脚本缓存版本 |
+| P2 | 商品库 | 最近商城同步历史轻量入口 | [x] | 已展示最近批次、失败页、差异摘要，并兼容失败页重跑按钮 |
+| P2 | 启动链路 | 5000 端口统一改为 `run_server.py --port 5000` | [x] | 避免根目录 `app.py` 与 `backend/app` 同名遮蔽，保证 V2 PostgreSQL 链路稳定生效 |
 | P3 | 图搜图 | 512 维向量存储预留 | [x] | 已新增 `embedding_vector_512 vector(512)` 与 HNSW 索引 |
 | P3 | 图搜图 | 第二代视觉 embedding（CLIP / 更强 provider） | [x] | 已接入 `torch 2.5.1+cu121` / open_clip_torch，RTX 4060 GPU 验证可用 |
 | P3 | 图搜图 | 全量 CLIP 向量生成 | [ ] | 当前已生成 20 / 3300；后续分批生成 |

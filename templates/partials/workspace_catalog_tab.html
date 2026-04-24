@@ -1,9 +1,9 @@
 <div id="catalogTab" class="tab-content"{% if initial_tab != 'catalog' %} style="display: none;"{% endif %}>
     <section class="catalog-page-head">
         <div>
-            <div class="catalog-page-kicker">商品资产库</div>
-            <div class="catalog-page-title">先筛选，再看图卡。</div>
-            <div class="catalog-page-subtitle">详情放到下一步再看。</div>
+            <div class="catalog-page-kicker">赛正报价工作台 @feng</div>
+            <div class="catalog-page-title">商品库</div>
+            <div class="catalog-page-subtitle">筛选 / 同步 / 图搜图</div>
         </div>
         <div class="catalog-page-actions">
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="WorkspaceEntryActions.openProductsUpload()">
@@ -54,7 +54,7 @@
         <div class="catalog-toolbar-topbar">
             <div>
                 <div class="catalog-toolbar-heading">筛选器</div>
-                <div class="catalog-toolbar-subheading">先收窄范围，再核对商品。</div>
+                <div class="catalog-toolbar-subheading">快速定位商品。</div>
             </div>
             <div class="catalog-toolbar-actions">
                 <button class="btn btn-outline-secondary btn-sm" id="catalogResetBtn">
@@ -94,7 +94,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-xl-1 col-lg-4 col-md-6">
+            <div class="col-xl-1 col-lg-4 col-md-6 catalog-filter-col--tiny">
                 <label class="form-label">图片</label>
                 <select class="form-select" id="catalogImageFilter">
                     <option value="">全部</option>
@@ -102,7 +102,16 @@
                     <option value="no">仅无图</option>
                 </select>
             </div>
-            <div class="col-xl-2 col-lg-4 col-md-6">
+            <div class="col-xl-1 col-lg-4 col-md-6 catalog-filter-col--tiny">
+                <label class="form-label">商城</label>
+                <select class="form-select" id="catalogMallVisibilityFilter">
+                    <option value="">全部</option>
+                    <option value="seen">正常</option>
+                    <option value="missing">疑似下架</option>
+                    <option value="inactive_candidate">连续缺失</option>
+                </select>
+            </div>
+            <div class="col-xl-1 col-lg-4 col-md-6 catalog-filter-col--tiny">
                 <label class="form-label">每页数量</label>
                 <select class="form-select" id="catalogPageSize">
                     <option value="36" selected>36</option>
@@ -136,10 +145,11 @@
                         <label class="form-check-label" for="catalogMallResumeEnabled">断点续抓</label>
                     </div>
                 </div>
-                <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>先看有图、品牌清晰、供应商明确的商品。</span></div>
+                <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>默认有图优先。</span></div>
                 <div class="catalog-toolbar-note mt-2" id="catalogSyncV2Status"><i class="bi bi-database"></i><span>V2 同步状态读取中…</span></div>
                 <div class="catalog-sync-mini-strip mt-2" id="catalogMallSyncBrief" style="display: none;"></div>
                 <div class="catalog-sync-issues mt-2" id="catalogMallSyncIssues" style="display: none;"></div>
+                <div class="catalog-sync-history mt-2" id="catalogMallSyncHistory" style="display: none;"></div>
                 <div class="catalog-toolbar-note mt-2 catalog-embedding-status" id="catalogImageEmbeddingStatus"><i class="bi bi-images"></i><span>图搜图向量状态读取中…</span></div>
                 <div class="catalog-toolbar-note mt-2 catalog-embedding-job-status" id="catalogImageEmbeddingJobStatus" style="display: none;"><i class="bi bi-hourglass-split"></i><span></span></div>
             </div>

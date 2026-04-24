@@ -100,6 +100,7 @@ class MallScrapeConfig:
     fetch_detail_images: bool = False
     detail_fetch_limit: int = 0
     detail_image_limit_per_item: int = 20
+    rerun_urls: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -173,6 +174,12 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
         if overrides.get('network_exclude_patterns') is not None
         else getattr(settings, 'mall_scrape_network_exclude_patterns', None)
     )
+    rerun_urls = _dedupe_strings(_normalize_pattern_list(
+        overrides.get('rerun_urls')
+        or overrides.get('failed_page_urls')
+        or overrides.get('rerun_failed_page_urls')
+        or []
+    ))
 
     if site_adapter == DINGHUOVIP_PRODUCT_LIST_ADAPTER:
         dom_table_selector = dom_table_selector or '#productList'
@@ -224,6 +231,7 @@ def build_default_mall_scrape_config(**overrides: Any) -> MallScrapeConfig:
         ),
         detail_fetch_limit=_coerce_int(overrides.get('detail_fetch_limit'), default=getattr(settings, 'mall_scrape_detail_fetch_limit', 0), min_value=0, max_value=10000),
         detail_image_limit_per_item=_coerce_int(overrides.get('detail_image_limit_per_item'), default=getattr(settings, 'mall_scrape_detail_image_limit_per_item', 20), min_value=1, max_value=80),
+        rerun_urls=rerun_urls,
     )
 
 
@@ -602,6 +610,10 @@ class MallPlaywrightScraper:
             self.stats.warnings.append(f'调试截图保存失败: {str(exc)[:200]}')
 
     async def _visit_pages(self, page: Any) -> None:
+        if self.config.rerun_urls:
+            await self._visit_rerun_urls(page)
+            return
+
         start_page, current_url = self._resolve_resume_cursor()
         end_page = start_page + self.config.max_pages - 1
         last_page_index = start_page - 1
@@ -716,6 +728,66 @@ class MallPlaywrightScraper:
                 **checkpoint_extra,
             )
 
+    async def _visit_rerun_urls(self, page: Any) -> None:
+        total = len(self.config.rerun_urls)
+        for offset, target_url in enumerate(self.config.rerun_urls, start=1):
+            try:
+                await page.goto(target_url, wait_until='domcontentloaded', timeout=self.config.page_timeout_ms)
+            except Exception as exc:
+                self._record_failed_page(offset, target_url, 'rerun_goto_failed', exc)
+                self._write_checkpoint(
+                    status='rerun_page_failed',
+                    page_index=offset,
+                    page_url=target_url,
+                    raw_payload_count=len(self._raw_payloads),
+                    error=str(exc)[:500],
+                )
+                continue
+
+            self.visited_urls.append(page.url)
+            self.stats.pages_visited += 1
+            try:
+                await page.wait_for_load_state('networkidle', timeout=min(self.config.page_timeout_ms, 15000))
+            except Exception:
+                pass
+            await page.wait_for_timeout(self.config.page_delay_ms)
+            try:
+                dom_payloads = await self._extract_dom_payloads(page)
+                if self.config.fetch_detail_images and dom_payloads:
+                    dom_payloads = await self._enrich_payloads_with_detail_images(page, dom_payloads)
+            except Exception as exc:
+                self._record_failed_page(offset, page.url, 'rerun_extract_failed', exc)
+                dom_payloads = []
+            self._raw_payloads.extend(dom_payloads)
+            self._record_page(
+                page_index=offset,
+                url=page.url,
+                status='rerun_processed_page',
+                dom_payload_count=len(dom_payloads),
+                raw_payload_count=len(self._raw_payloads),
+            )
+            self._write_checkpoint(
+                status='rerun_processed_page',
+                page_index=offset,
+                page_url=page.url,
+                raw_payload_count=len(self._raw_payloads),
+                dom_payload_count=len(dom_payloads),
+                rerun_total=total,
+            )
+            if self.config.max_items and len(self._raw_payloads) >= self.config.max_items:
+                self.stats.checkpoint_status = 'rerun_max_items_reached'
+                break
+
+        if self.stats.checkpoint_status not in {'rerun_max_items_reached'}:
+            self.stats.checkpoint_status = 'rerun_completed'
+            self._write_checkpoint(
+                status='rerun_completed',
+                page_index=min(total, len(self.config.rerun_urls)),
+                page_url=self.visited_urls[-1] if self.visited_urls else (self.config.rerun_urls[-1] if self.config.rerun_urls else self.config.start_url),
+                raw_payload_count=len(self._raw_payloads),
+                rerun_total=total,
+            )
+
     def _record_page(
         self,
         *,
@@ -819,6 +891,7 @@ class MallPlaywrightScraper:
                     'max_items': self.config.max_items,
                     'site_adapter': self.config.site_adapter,
                     'fetch_detail_images': self.config.fetch_detail_images,
+                    'rerun_url_count': len(self.config.rerun_urls),
                 },
                 **extra,
             }

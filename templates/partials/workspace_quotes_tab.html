@@ -70,19 +70,17 @@
     </div>
 
     <div id="matchResults">
-        <div class="workspace-empty-orbit workspace-empty-orbit--quotes workspace-empty-orbit--quotes-landing">
-            <div class="quote-empty-layout quote-empty-layout--compact">
-                <div class="quote-empty-card quote-empty-stage">
-                    <span class="quote-empty-card-kicker">上传</span>
-                    <strong class="quote-empty-card-title">先传报价</strong>
-                    <div class="quote-empty-actions">
-                        <button type="button" class="btn btn-primary" onclick="WorkspaceEntryActions.openQuoteUpload()">
-                            <i class="bi bi-file-earmark-arrow-up me-2"></i>上传
-                        </button>
-                        <button type="button" class="btn btn-outline-info" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
-                            <i class="bi bi-camera me-2"></i>OCR 图片
-                        </button>
-                    </div>
+        <div class="quote-empty-state">
+            <div class="quote-empty-state-card">
+                <span class="quote-empty-card-kicker">上传</span>
+                <strong class="quote-empty-state-title">先传报价</strong>
+                <div class="quote-empty-actions">
+                    <button type="button" class="btn btn-primary" onclick="WorkspaceEntryActions.openQuoteUpload()">
+                        <i class="bi bi-file-earmark-arrow-up me-2"></i>上传
+                    </button>
+                    <button type="button" class="btn btn-outline-info" data-ocr-entry="true" onclick="WorkspaceEntryActions.openOCRUpload()">
+                        <i class="bi bi-camera me-2"></i>OCR 图片
+                    </button>
                 </div>
             </div>
         </div>

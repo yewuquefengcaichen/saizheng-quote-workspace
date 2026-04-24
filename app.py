@@ -62,6 +62,7 @@ try:
         search_similar_products as v2_search_similar_products,
     )
     from app.services.mall_sync import (
+        get_recent_mall_sync_job_summaries as v2_get_recent_mall_sync_job_summaries,
         pick_mall_scrape_options as v2_pick_mall_scrape_options,
         run_mall_scrape_sync_async as v2_run_mall_scrape_sync_async,
     )
@@ -906,6 +907,10 @@ def _normalize_v2_catalog_product_item(product, index=0, include_raw=False):
     primary_variant = variants[0] if variants else None
     images = _build_v2_product_images(product)
     first_image = images[0] if images else {}
+    source_payload = getattr(product, 'source_payload', None) or {}
+    mall_sync_payload = source_payload.get('mall_sync') if isinstance(source_payload, dict) else {}
+    mall_sync_payload = mall_sync_payload if isinstance(mall_sync_payload, dict) else {}
+    mall_visibility_status = _normalize_text_value(mall_sync_payload.get('visibility_status'))
     category_obj = getattr(product, 'category', None)
     category_text = _normalize_text_value(getattr(category_obj, 'path', None)) or _normalize_text_value(getattr(category_obj, 'name', None))
     if category_text:
@@ -932,6 +937,13 @@ def _normalize_v2_catalog_product_item(product, index=0, include_raw=False):
         'images': images,
         'image_count': len(images),
         'has_image': bool(images),
+        'mall_visibility_status': mall_visibility_status,
+        'mall_sync': {
+            'visibility_status': mall_visibility_status,
+            'last_seen_batch_id': _normalize_text_value(mall_sync_payload.get('last_seen_batch_id')),
+            'last_seen_at': _normalize_text_value(mall_sync_payload.get('last_seen_at')),
+            'missing_count': int(mall_sync_payload.get('missing_count') or 0) if str(mall_sync_payload.get('missing_count') or '').strip().isdigit() else 0,
+        } if mall_sync_payload else {},
         'search_text': _normalize_text_value(getattr(product, 'search_text', None)) or ' '.join(filter(None, [
             _normalize_text_value(getattr(product, 'product_code', None)),
             _normalize_text_value(getattr(product, 'name', None)),
@@ -1021,7 +1033,7 @@ async def _get_v2_catalog_filter_options_async(session):
     return categories, suppliers, brands
 
 
-async def _build_v2_catalog_response_async(keyword='', category='', supplier='', brand='', has_image='', page=1, page_size=24):
+async def _build_v2_catalog_response_async(keyword='', category='', supplier='', brand='', has_image='', mall_visibility='', page=1, page_size=24):
     if not V2_CATALOG_AVAILABLE:
         raise RuntimeError(f'V2 商品库不可用：{V2_CATALOG_IMPORT_ERROR or "依赖未安装"}')
 
@@ -1030,6 +1042,7 @@ async def _build_v2_catalog_response_async(keyword='', category='', supplier='',
     supplier = _normalize_text_value(supplier)
     brand = _normalize_text_value(brand)
     has_image = str(has_image or '').strip().lower()
+    mall_visibility = str(mall_visibility or '').strip().lower()
     page = max(int(page or 1), 1)
     page_size = max(1, min(int(page_size or 24), 100))
     category_path = _to_v2_category_filter_value(category)
@@ -1038,6 +1051,16 @@ async def _build_v2_catalog_response_async(keyword='', category='', supplier='',
         V2Product.primary_image_url.is_not(None),
         V2Product.id.in_(image_product_ids_stmt),
     )
+    mall_visibility_clause = V2Product.source_payload.op('->')('mall_sync').op('->>')('visibility_status')
+    mall_visibility_map = {
+        'seen': ['seen'],
+        'normal': ['seen'],
+        'missing': ['missing_in_latest_scrape'],
+        'missing_in_latest_scrape': ['missing_in_latest_scrape'],
+        'inactive_candidate': ['inactive_candidate'],
+        'inactive': ['inactive_candidate'],
+    }
+    mall_visibility_values = mall_visibility_map.get(mall_visibility, [])
 
     async with V2AsyncSessionLocal() as session:
         base_ids_stmt = (
@@ -1088,6 +1111,9 @@ async def _build_v2_catalog_response_async(keyword='', category='', supplier='',
                 .where(V2Product.primary_image_url.is_(None))
                 .where(~V2Product.id.in_(image_product_ids_stmt))
             )
+
+        if mall_visibility_values:
+            base_ids_stmt = base_ids_stmt.where(mall_visibility_clause.in_(mall_visibility_values))
 
         total = int(
             await session.scalar(
@@ -1309,12 +1335,14 @@ async def _get_v2_catalog_sync_status_async():
         if not mall_job_summary.get('exists'):
             mall_job_summary['job_type'] = 'catalog_mall_scrape_sync'
         product_count = await session.scalar(sa_select(sa_func.count()).select_from(V2Product))
-        return {
-            'success': True,
-            'job': v2_build_sync_job_summary(job),
-            'latest_mall_job': mall_job_summary,
-            'product_count': int(product_count or 0),
-        }
+    recent_mall_jobs = await v2_get_recent_mall_sync_job_summaries(limit=5)
+    return {
+        'success': True,
+        'job': v2_build_sync_job_summary(job),
+        'latest_mall_job': mall_job_summary,
+        'recent_mall_jobs': recent_mall_jobs,
+        'product_count': int(product_count or 0),
+    }
 
 
 async def _run_v2_catalog_manual_sync_async(requested_by='flask-workbench'):
@@ -2079,6 +2107,7 @@ def get_catalog_products():
     supplier = request.args.get('supplier', '', type=str)
     brand = request.args.get('brand', '', type=str)
     has_image = request.args.get('has_image', '', type=str)
+    mall_visibility = request.args.get('mall_visibility', '', type=str)
     page = request.args.get('page', default=1, type=int)
     page_size = request.args.get('page_size', default=0, type=int)
     limit = request.args.get('limit', default=0, type=int)
@@ -2094,6 +2123,7 @@ def get_catalog_products():
                 supplier=supplier,
                 brand=brand,
                 has_image=has_image,
+                mall_visibility=mall_visibility,
                 page=page,
                 page_size=page_size
             )))
