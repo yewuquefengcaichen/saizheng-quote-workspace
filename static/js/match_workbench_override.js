@@ -70,9 +70,10 @@
     const matchTab = document.getElementById('matchTab');
     if (matchTab) {
       matchTab.dataset.candidateView = normalized;
+      matchTab.classList.remove('btn-primary', 'btn-outline-secondary');
     }
     document.body?.setAttribute('data-quotes-candidate-view', normalized);
-    document.querySelectorAll('[data-candidate-view]').forEach(btn => {
+    document.querySelectorAll('[data-candidate-view].btn').forEach(btn => {
       const isActive = btn.dataset.candidateView === normalized;
       btn.classList.toggle('is-active', isActive);
       btn.classList.toggle('btn-primary', isActive);
