@@ -4292,6 +4292,20 @@
         let catalogKeywordTimer = null;
         let catalogEmbeddingJobPollTimer = null;
         let catalogMallSyncJobPollTimer = null;
+        let catalogImageSearchState = {
+            active: false,
+            loading: false,
+            searched: false,
+            results: [],
+            total: 0,
+            error: '',
+            previewUrl: '',
+            queryName: '',
+            mimeType: '',
+            provider: '',
+            modelName: '',
+            imageSearchMode: 'fast'
+        };
         let quoteCatalogSearchState = {};
         let activeQuoteCatalogModalItemIndex = null;
         let quoteCatalogSearchModalInstance = null;
@@ -4546,6 +4560,7 @@
             initSynonyms();
             initFilters();
             initCatalog();
+            initWorkspaceImagePasteBridge();
             initBatchAdjust();
             updateProductsSourceState(workspaceProductsSource, workspaceProductsCount);
             bootstrapWorkspaceScene();
@@ -4645,6 +4660,9 @@
             const mallScrapeModeSelect = document.getElementById('catalogMallScrapeMode');
             const mallMaxPagesSelect = document.getElementById('catalogMallMaxPages');
             const clipEmbeddingBtn = document.getElementById('catalogClipEmbeddingBtn');
+            const catalogImageSearchTriggerBtn = document.getElementById('catalogImageSearchTriggerBtn');
+            const catalogImagePasteBtn = document.getElementById('catalogImagePasteBtn');
+            const catalogImageSearchInput = document.getElementById('catalogImageSearchInput');
 
             if (keywordInput) {
                 keywordInput.addEventListener('input', function() {
@@ -4678,6 +4696,38 @@
                     loadCatalogProducts(1);
                 });
             }
+
+            if (catalogImageSearchTriggerBtn && catalogImageSearchInput) {
+                catalogImageSearchTriggerBtn.addEventListener('click', () => {
+                    catalogImageSearchInput.click();
+                });
+            }
+
+            if (catalogImageSearchInput) {
+                catalogImageSearchInput.addEventListener('change', function() {
+                    const file = this.files && this.files[0] ? this.files[0] : null;
+                    if (file) {
+                        searchCatalogByImage(file);
+                    }
+                    this.value = '';
+                });
+            }
+
+            if (catalogImagePasteBtn) {
+                catalogImagePasteBtn.addEventListener('click', async () => {
+                    try {
+                        const file = await readImageFileFromClipboard('catalog-search');
+                        if (!file) {
+                            throw new Error('剪贴板里没有图片');
+                        }
+                        searchCatalogByImage(file);
+                    } catch (error) {
+                        showToast('warning', error.message || '读取剪贴板图片失败');
+                    }
+                });
+            }
+
+            renderCatalogImageSearchStatus();
 
             if (syncV2Btn) {
                 syncV2Btn.addEventListener('click', triggerCatalogV2ManualSync);
@@ -5504,7 +5554,156 @@
             };
         }
 
-        function loadCatalogProducts(page = 1) {
+        function renderCatalogImageSearchStatus() {
+            const statusEl = document.getElementById('catalogImageSearchStatus');
+            if (!statusEl) return;
+
+            const state = getCatalogImageSearchState();
+            if (!state.active && !state.loading && !state.error) {
+                statusEl.innerHTML = '';
+                statusEl.style.display = 'none';
+                return;
+            }
+
+            const providerConfig = getQuoteImageSearchProviderConfig(state.imageSearchMode);
+            const previewHtml = state.previewUrl
+                ? `<img src="${escapeHtmlAttr(state.previewUrl)}" class="catalog-image-search-preview" alt="图搜预览">`
+                : '<div class="catalog-image-search-preview catalog-image-search-preview--empty"><i class="bi bi-image"></i></div>';
+            const countText = state.loading
+                ? '正在识别商品...'
+                : (state.searched ? `共 ${state.total} 个结果` : '等待识别');
+
+            statusEl.innerHTML = `
+                <div class="catalog-image-search-shell">
+                    <div class="catalog-image-search-media">${previewHtml}</div>
+                    <div class="catalog-image-search-copy">
+                        <strong>图搜商品 · ${escapeHtml(state.queryName || '未命名图片')}</strong>
+                        <span>${escapeHtml(providerConfig.label)} · ${escapeHtml(countText)}</span>
+                        ${state.error ? `<span class="text-danger">${escapeHtml(state.error)}</span>` : '<span>支持按钮读取或直接 Ctrl+V 粘贴截图。</span>'}
+                    </div>
+                    <div class="catalog-image-search-actions">
+                        <button type="button" class="btn btn-outline-secondary btn-sm" id="catalogImageSearchChangeBtn">
+                            <i class="bi bi-arrow-repeat me-1"></i>重选图片
+                        </button>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="catalogImageSearchResetBtn">
+                            <i class="bi bi-list-ul me-1"></i>恢复商品库
+                        </button>
+                    </div>
+                </div>
+            `;
+            statusEl.style.display = 'block';
+
+            document.getElementById('catalogImageSearchChangeBtn')?.addEventListener('click', () => {
+                document.getElementById('catalogImageSearchInput')?.click();
+            });
+            document.getElementById('catalogImageSearchResetBtn')?.addEventListener('click', () => {
+                resetCatalogImageSearchState({ reload: true });
+            });
+        }
+
+        function resetCatalogImageSearchState(options = {}) {
+            const currentState = getCatalogImageSearchState();
+            revokeObjectUrlIfNeeded(currentState.previewUrl);
+            catalogImageSearchState = {
+                active: false,
+                loading: false,
+                searched: false,
+                results: [],
+                total: 0,
+                error: '',
+                previewUrl: '',
+                queryName: '',
+                mimeType: '',
+                provider: '',
+                modelName: '',
+                imageSearchMode: currentState.imageSearchMode
+            };
+            renderCatalogImageSearchStatus();
+            if (options.reload) {
+                loadCatalogProducts(1, { preserveImageSearch: true });
+            }
+        }
+
+        function searchCatalogByImage(file) {
+            if (!file) return;
+            const currentState = getCatalogImageSearchState();
+            revokeObjectUrlIfNeeded(currentState.previewUrl);
+
+            const providerConfig = getQuoteImageSearchProviderConfig(currentState.imageSearchMode);
+            const previewUrl = URL.createObjectURL(file);
+            catalogImageSearchState = {
+                ...currentState,
+                active: true,
+                loading: true,
+                searched: true,
+                results: [],
+                total: 0,
+                error: '',
+                previewUrl,
+                queryName: file.name || '未命名图片',
+                mimeType: file.type || '',
+                provider: providerConfig.provider,
+                modelName: providerConfig.modelName
+            };
+            renderCatalogImageSearchStatus();
+            renderCatalogProducts();
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('top_k', '24');
+            formData.append('provider', providerConfig.provider);
+            formData.append('model_name', providerConfig.modelName);
+
+            fetch('/api/catalog/search_by_image', {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) {
+                        throw new Error(data.message || '图搜商品失败');
+                    }
+                    catalogImageSearchState = {
+                        ...getCatalogImageSearchState(),
+                        active: true,
+                        loading: false,
+                        searched: true,
+                        results: Array.isArray(data.items) ? data.items : [],
+                        total: Number(data.total || 0),
+                        error: '',
+                        previewUrl,
+                        queryName: file.name || '未命名图片',
+                        mimeType: file.type || '',
+                        provider: data.provider || providerConfig.provider,
+                        modelName: data.model_name || providerConfig.modelName
+                    };
+                    renderCatalogImageSearchStatus();
+                    renderCatalogProducts();
+                })
+                .catch(error => {
+                    catalogImageSearchState = {
+                        ...getCatalogImageSearchState(),
+                        active: true,
+                        loading: false,
+                        searched: true,
+                        results: [],
+                        total: 0,
+                        error: error.message || '图搜商品失败',
+                        previewUrl,
+                        queryName: file.name || '未命名图片',
+                        mimeType: file.type || '',
+                        provider: providerConfig.provider,
+                        modelName: providerConfig.modelName
+                    };
+                    renderCatalogImageSearchStatus();
+                    renderCatalogProducts();
+                });
+        }
+
+        function loadCatalogProducts(page = 1, options = {}) {
+            if (!options.preserveImageSearch && getCatalogImageSearchState().active) {
+                resetCatalogImageSearchState();
+            }
             const filters = getCatalogFilters();
             const params = new URLSearchParams({
                 ...filters,
@@ -5604,17 +5803,22 @@
             const paginationEl = document.getElementById('catalogPagination');
             if (!resultsEl) return;
 
-            const items = catalogState.items || [];
-            const total = catalogState.total || 0;
+            const imageSearchState = getCatalogImageSearchState();
+            const imageSearchActive = imageSearchState.active;
+            const items = imageSearchActive ? (imageSearchState.results || []) : (catalogState.items || []);
+            const total = imageSearchActive ? Number(imageSearchState.total || 0) : (catalogState.total || 0);
             const visibleCount = items.length;
-            const page = catalogState.page || 1;
-            const totalPages = catalogState.totalPages || 1;
+            const page = imageSearchActive ? 1 : (catalogState.page || 1);
+            const totalPages = imageSearchActive ? 1 : (catalogState.totalPages || 1);
+            const imageTotal = imageSearchActive
+                ? items.filter(item => !!(item.has_image || item.image_url || (item.images && item.images.length))).length
+                : (catalogState.imageTotal || 0);
             document.getElementById('catalogTotalCount').textContent = total;
             document.getElementById('catalogVisibleCount').textContent = visibleCount;
-            document.getElementById('catalogImageCount').textContent = catalogState.imageTotal || 0;
-            document.getElementById('catalogPageInfo').textContent = `${page} / ${totalPages}`;
+            document.getElementById('catalogImageCount').textContent = imageTotal;
+            document.getElementById('catalogPageInfo').textContent = imageSearchActive ? '图搜' : `${page} / ${totalPages}`;
 
-            if (!catalogState.loaded) {
+            if (!catalogState.loaded && !imageSearchActive) {
                 resultsEl.innerHTML = `
                     <div class="workspace-empty-orbit">
                         <div class="workspace-empty-orbit-visual">
@@ -5641,10 +5845,10 @@
                             <i class="bi bi-search"></i>
                         </div>
                         <div class="workspace-empty-orbit-title">没有找到商品</div>
-                        <div class="workspace-empty-orbit-copy">请调整筛选条件。</div>
+                        <div class="workspace-empty-orbit-copy">${imageSearchActive ? '请换一张图或恢复商品库。' : '请调整筛选条件。'}</div>
                         <div class="workspace-empty-orbit-pills">
-                            <span class="workspace-empty-orbit-pill">放宽关键词</span>
-                            <span class="workspace-empty-orbit-pill">重置筛选</span>
+                            <span class="workspace-empty-orbit-pill">${imageSearchActive ? '换图重试' : '放宽关键词'}</span>
+                            <span class="workspace-empty-orbit-pill">${imageSearchActive ? '恢复商品库' : '重置筛选'}</span>
                         </div>
                     </div>
                 `;
@@ -5656,7 +5860,18 @@
 
             resultsEl.innerHTML = items.map(item => renderCatalogCard(item)).join('');
             bindCatalogCardActions();
-            renderCatalogPagination();
+            if (imageSearchActive) {
+                if (paginationEl) {
+                    paginationEl.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 text-muted small px-1">
+                            <span>图搜结果共 ${total} 个</span>
+                            <span>当前展示 ${visibleCount} 个</span>
+                        </div>
+                    `;
+                }
+            } else {
+                renderCatalogPagination();
+            }
         }
 
         function renderCatalogPagination() {
@@ -7401,6 +7616,76 @@
                 : QUOTE_IMAGE_SEARCH_PROVIDERS.fast;
         }
 
+        function getCatalogImageSearchState() {
+            const rawState = catalogImageSearchState || {};
+            return {
+                active: !!rawState.active,
+                loading: !!rawState.loading,
+                searched: !!rawState.searched,
+                results: Array.isArray(rawState.results) ? rawState.results : [],
+                total: Number(rawState.total || 0),
+                error: rawState.error || '',
+                previewUrl: rawState.previewUrl || '',
+                queryName: rawState.queryName || '',
+                mimeType: rawState.mimeType || '',
+                provider: rawState.provider || '',
+                modelName: rawState.modelName || '',
+                imageSearchMode: rawState.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_CLIP ? QUOTE_IMAGE_SEARCH_MODE_CLIP : QUOTE_IMAGE_SEARCH_MODE_FAST
+            };
+        }
+
+        function revokeObjectUrlIfNeeded(url = '') {
+            const target = String(url || '').trim();
+            if (target && target.startsWith('blob:')) {
+                URL.revokeObjectURL(target);
+            }
+        }
+
+        function guessImageFileExtension(mimeType = '') {
+            const normalized = String(mimeType || '').toLowerCase();
+            if (normalized.includes('png')) return 'png';
+            if (normalized.includes('jpeg') || normalized.includes('jpg')) return 'jpg';
+            if (normalized.includes('webp')) return 'webp';
+            if (normalized.includes('gif')) return 'gif';
+            if (normalized.includes('bmp')) return 'bmp';
+            return 'png';
+        }
+
+        function createImageFileFromBlob(blob, prefix = 'clipboard-image') {
+            if (!blob) return null;
+            if (blob instanceof File) return blob;
+            const mimeType = blob.type || 'image/png';
+            const ext = guessImageFileExtension(mimeType);
+            return new File([blob], `${prefix}-${Date.now()}.${ext}`, {
+                type: mimeType,
+                lastModified: Date.now()
+            });
+        }
+
+        function extractImageFileFromPasteEvent(event, prefix = 'pasted-image') {
+            const items = Array.from(event?.clipboardData?.items || []);
+            for (const item of items) {
+                if (!String(item.type || '').startsWith('image/')) continue;
+                const file = item.getAsFile();
+                return createImageFileFromBlob(file, prefix);
+            }
+            return null;
+        }
+
+        async function readImageFileFromClipboard(prefix = 'clipboard-image') {
+            if (!navigator.clipboard || typeof navigator.clipboard.read !== 'function') {
+                throw new Error('当前浏览器不支持点击读取剪贴板，请直接 Ctrl+V 粘贴图片');
+            }
+            const items = await navigator.clipboard.read();
+            for (const item of items) {
+                const imageType = (item.types || []).find(type => String(type || '').startsWith('image/'));
+                if (!imageType) continue;
+                const blob = await item.getType(imageType);
+                return createImageFileFromBlob(blob, prefix);
+            }
+            throw new Error('剪贴板里没有图片');
+        }
+
         function setQuoteImageSearchMode(itemIndex, mode) {
             const selectedMode = mode === QUOTE_IMAGE_SEARCH_MODE_CLIP ? QUOTE_IMAGE_SEARCH_MODE_CLIP : QUOTE_IMAGE_SEARCH_MODE_FAST;
             const providerConfig = getQuoteImageSearchProviderConfig(selectedMode);
@@ -7764,12 +8049,15 @@
                                         智能 CLIP
                                     </button>
                                 </div>
-                                <div class="quote-search-modal-search-hint">${escapeHtml(imageProviderConfig.hint)}</div>
+                                <div class="quote-search-modal-search-hint">${escapeHtml(imageProviderConfig.hint)} · 支持粘贴截图</div>
                             </div>
                             <div class="quote-image-search-actions">
-                                <input type="file" class="d-none quote-catalog-image-input" data-item-index="${itemIndex}" accept="image/*">
+                                <input type="file" class="d-none quote-catalog-image-input" data-item-index="${itemIndex}" accept="image/*" capture="environment">
+                                <button class="btn btn-sm btn-outline-secondary quote-catalog-image-paste-btn" data-item-index="${itemIndex}" type="button">
+                                    <i class="bi bi-clipboard-image me-1"></i>粘贴图片
+                                </button>
                                 <button class="btn btn-sm ${imageButtonClass} quote-catalog-image-trigger-btn" data-item-index="${itemIndex}" type="button">
-                                    ${imageButtonLabel}
+                                    ${state.imageLoading ? imageButtonLabel : '<i class="bi bi-camera me-1"></i>拍照/相册'}
                                 </button>
                             </div>
                         </div>
@@ -8042,6 +8330,40 @@
                     activeTab: QUOTE_SEARCH_TAB_IMAGE
                 };
                 updateQuoteCatalogSearchPanel(itemIndex);
+            });
+        }
+
+        async function pasteImageForQuoteItem(itemIndex) {
+            try {
+                const file = await readImageFileFromClipboard(`quote-item-${itemIndex + 1}`);
+                if (!file) {
+                    throw new Error('剪贴板里没有图片');
+                }
+                searchCatalogByImageForQuoteItem(itemIndex, file);
+            } catch (error) {
+                showToast('warning', error.message || '读取剪贴板图片失败');
+            }
+        }
+
+        function initWorkspaceImagePasteBridge() {
+            if (document.body.dataset.imagePasteBridgeBound === 'true') return;
+            document.body.dataset.imagePasteBridgeBound = 'true';
+            document.addEventListener('paste', function(event) {
+                const file = extractImageFileFromPasteEvent(event);
+                if (!file) return;
+
+                const quoteModalVisible = document.getElementById('quoteCatalogSearchModal')?.classList.contains('show');
+                if (quoteModalVisible && activeQuoteCatalogModalItemIndex !== null && activeQuoteCatalogModalItemIndex !== undefined) {
+                    event.preventDefault();
+                    searchCatalogByImageForQuoteItem(activeQuoteCatalogModalItemIndex, file);
+                    return;
+                }
+
+                const isCatalogActive = document.body.dataset.route === 'catalog' || document.body.dataset.sceneTab === 'catalog';
+                if (isCatalogActive) {
+                    event.preventDefault();
+                    searchCatalogByImage(file);
+                }
             });
         }
 
@@ -8372,6 +8694,14 @@
                     const input = document.querySelector(`#quoteCatalogSearchModal .quote-catalog-image-input[data-item-index="${itemIndex}"]`)
                         || this.closest('.quote-image-search-actions')?.querySelector('.quote-catalog-image-input');
                     input?.click();
+                };
+            });
+
+            document.querySelectorAll('.quote-catalog-image-paste-btn').forEach(btn => {
+                btn.onclick = function(e) {
+                    e.stopPropagation();
+                    const itemIndex = parseInt(this.dataset.itemIndex);
+                    pasteImageForQuoteItem(itemIndex);
                 };
             });
 

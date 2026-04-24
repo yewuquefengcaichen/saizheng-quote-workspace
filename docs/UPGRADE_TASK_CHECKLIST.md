@@ -153,6 +153,8 @@
 | P3 | 图搜图 | Celery embedding 任务入口 | [x] | 已新增 `app.tasks.embedding.generate_image_embeddings` 与 FastAPI 任务 API |
 | P3 | 图搜图 | Flask embedding job 桥接 API | [x] | 已新增 `/api/catalog/image_embedding_jobs` 与状态查询 |
 | P3 | 图搜图 | 前端 embedding 任务面板 | [x] | 商品库页已显示快速 / CLIP ready-pending，并可提交每批 20 张的 CLIP 后台任务 |
+| P3 | 图搜图 | 报价台支持粘贴图片 / 拍照相册图搜 | [x] | 已支持按钮读取剪贴板、Ctrl+V 粘贴、移动端 `capture` 上传 |
+| P3 | 图搜图 | 商品库最小图搜入口 | [x] | 已新增“图搜商品 / 粘贴图片”入口和 `/api/catalog/search_by_image` 通用桥接接口 |
 | P3 | 图搜图 | 历史反馈精排 | [ ] | 把已确认行为用于 rerank |
 | P3 | 图搜图 | 拍照 / 粘贴图片入口增强 | [ ] | 更接近真实业务用法 |
 | P3 | 图搜图 | 图搜图结果缓存 | [ ] | 为性能优化做准备 |

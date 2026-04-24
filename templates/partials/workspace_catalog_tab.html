@@ -21,6 +21,13 @@
             <button type="button" class="btn btn-outline-info btn-sm" id="catalogClipEmbeddingBtn">
                 <i class="bi bi-stars me-1"></i>生成 CLIP
             </button>
+            <input type="file" class="d-none" id="catalogImageSearchInput" accept="image/*" capture="environment">
+            <button type="button" class="btn btn-outline-info btn-sm" id="catalogImageSearchTriggerBtn">
+                <i class="bi bi-camera me-1"></i>图搜商品
+            </button>
+            <button type="button" class="btn btn-outline-secondary btn-sm" id="catalogImagePasteBtn">
+                <i class="bi bi-clipboard-image me-1"></i>粘贴图片
+            </button>
             <span class="workspace-source-chip workspace-source-chip--compact" id="catalogProductsSourceChip"></span>
             <a href="{{ workspace_routes.quotes }}" class="btn btn-outline-secondary btn-sm">
                 <i class="bi bi-layout-text-window me-1"></i>去报价台
@@ -147,6 +154,7 @@
                 </div>
                 <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>默认有图优先。</span></div>
                 <div class="catalog-toolbar-note mt-2" id="catalogSyncV2Status"><i class="bi bi-database"></i><span>V2 同步状态读取中…</span></div>
+                <div class="catalog-image-search-status mt-2" id="catalogImageSearchStatus" style="display: none;"></div>
                 <div class="catalog-sync-mini-strip mt-2" id="catalogMallSyncBrief" style="display: none;"></div>
                 <div class="catalog-sync-issues mt-2" id="catalogMallSyncIssues" style="display: none;"></div>
                 <div class="catalog-sync-history mt-2" id="catalogMallSyncHistory" style="display: none;"></div>

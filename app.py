@@ -2281,6 +2281,53 @@ def catalog_search_by_image_for_quote():
         })
 
 
+@app.route('/api/catalog/search_by_image', methods=['POST'])
+def catalog_search_by_image():
+    """通用商品库图搜图入口"""
+    if not V2_IMAGE_SEARCH_AVAILABLE:
+        return jsonify({
+            'success': False,
+            'message': f'图搜图能力不可用：{V2_IMAGE_SEARCH_IMPORT_ERROR or "依赖未安装"}'
+        })
+
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': '请先选择图片'})
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': '请先选择图片'})
+
+    top_k = max(1, min(int(request.form.get('top_k', 24) or 24), 48))
+    query_text = _normalize_text_value(request.form.get('query_text')) or ''
+    spec_hint = _normalize_text_value(request.form.get('spec_hint')) or ''
+    brand_hint = _normalize_text_value(request.form.get('brand_hint')) or ''
+    provider = _normalize_text_value(request.form.get('provider')) or ''
+    model_name = _normalize_text_value(request.form.get('model_name')) or ''
+    file_bytes = file.read()
+    if not file_bytes:
+        return jsonify({'success': False, 'message': '图片内容为空'})
+
+    try:
+        result = _run_async_task(_search_catalog_by_image_async(
+            file_bytes,
+            top_k=top_k,
+            query_text=query_text,
+            spec_hint=spec_hint,
+            brand_hint=brand_hint,
+            provider=provider,
+            model_name=model_name,
+        ))
+        return jsonify({
+            'success': True,
+            **result
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'图片检索失败：{str(e)}'
+        })
+
+
 @app.route('/api/catalog/image_embedding_status', methods=['GET'])
 def get_catalog_image_embedding_status():
     """查询当前图搜图 embedding provider 状态"""
