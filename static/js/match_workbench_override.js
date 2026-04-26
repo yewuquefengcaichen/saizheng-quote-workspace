@@ -474,21 +474,21 @@
     const matchesCount = Array.isArray(result?.matches) ? result.matches.length : 0;
 
     if (result?.confirmed && result?.action === 'select') {
-      return '已确认完成，可直接纳入导出。';
+      return '已确认。';
     }
     if (!result?.confirmed && result?.action === 'select' && result?.selected_product) {
-      return '系统已预选商品，等待人工最终确认。';
+      return '待人工确认。';
     }
     if (result?.action === 'no_match') {
-      return '当前已标记无匹配，建议补充人工检索或回源确认。';
+      return '已标记无匹配。';
     }
     if (result?.action === 'ask_boss') {
-      return '当前需升级给老板判断，请补充背景和备选。';
+      return '待问老板。';
     }
     if (matchesCount > 0) {
-      return '已有推荐候选，优先核验首选商品。';
+      return '有候选商品。';
     }
-    return '暂未找到有效候选，建议直接人工检索。';
+    return '暂无候选。';
   }
 
   function renderRecommendationBrief(result, itemIndex) {
@@ -496,8 +496,8 @@
     if (!primary) {
       return `
         <div class="quote-reference-card mt-3">
-          <div class="small fw-semibold mb-1"><i class="bi bi-search me-1"></i>当前建议</div>
-          <div class="small text-muted">还没有自动推荐结果，请使用右侧人工搜索补齐。</div>
+          <div class="small fw-semibold mb-1"><i class="bi bi-search me-1"></i>候选</div>
+          <div class="small text-muted">暂无自动候选</div>
         </div>
       `;
     }
@@ -509,10 +509,10 @@
 
     return `
       <div class="quote-reference-card mt-3">
-        <div class="small fw-semibold mb-1"><i class="bi bi-stars me-1"></i>当前建议</div>
+        <div class="small fw-semibold mb-1"><i class="bi bi-stars me-1"></i>候选</div>
         <div class="small text-muted">${escapeHtml(product.name || '未命名商品')}</div>
-        <div class="small text-muted">供应商：${escapeHtml(product.supplier || '待补充')} · 参考价 ${adjustedPrice > 0 ? '¥' + adjustedPrice.toFixed(2) : '待补充'}</div>
-        <div class="small text-muted">推荐依据：${scoreText}${primary.learning_reason ? ' · ' + escapeHtml(primary.learning_reason) : ''}</div>
+        <div class="small text-muted">${escapeHtml(product.supplier || '供应商待补充')} · ${adjustedPrice > 0 ? '¥' + adjustedPrice.toFixed(2) : '待补充'}</div>
+        <div class="small text-muted">${scoreText}${primary.learning_reason ? ' · ' + escapeHtml(primary.learning_reason) : ''}</div>
       </div>
     `;
   }
@@ -545,8 +545,8 @@
     if (!activeEntry) {
       return {
         key: 'empty',
-        title: '当前没有可展开的报价项',
-        subtitle: '调整筛选条件后再继续处理。',
+        title: '暂无报价项',
+        subtitle: '调整筛选后继续。',
         count: 0
       };
     }
@@ -557,10 +557,10 @@
     if (filters.rawSearchText || filters.statusFilter !== 'all' || filters.sortFilter !== 'default') {
       return {
         key: 'filtered',
-        title: '筛选结果视图',
+        title: '筛选结果',
         subtitle: filters.rawSearchText
-          ? `当前关键字：${filters.rawSearchText}。中区只展开当前焦点项，避免回到旧式长列表。`
-          : '当前正在按筛选条件工作，中区只展开一项，左右两侧继续负责排队和核查。',
+          ? `关键词：${filters.rawSearchText}`
+          : '按筛选条件显示。',
         count: visibleItems.length,
         position: activePosition + 1
       };
@@ -573,8 +573,8 @@
     if (activeResult?.confirmed && isIssueResult(activeResult)) {
       return {
         key: 'issue',
-        title: '异常升级段',
-        subtitle: '当前项已经进入异常或升级判断，建议先补充证据、人工检索或直接升级给老板。',
+        title: '异常项',
+        subtitle: '优先处理异常。',
         count: issueCount,
         position: activePosition + 1
       };
@@ -583,8 +583,8 @@
     if (isMatchedResult(activeResult)) {
       return {
         key: 'matched',
-        title: '已确认段',
-        subtitle: '当前项已经确认完成，中区仅保留复核信息，方便快速扫尾并进入导出。',
+        title: '已确认',
+        subtitle: '当前项已确认。',
         count: matchedCount,
         position: activePosition + 1
       };
@@ -592,8 +592,8 @@
 
     return {
       key: 'pending',
-      title: '待人工确认段',
-      subtitle: '先核验当前焦点项，再决定是否切换候选、启用备选或进入人工搜索。',
+      title: '待确认',
+      subtitle: '先处理当前项。',
       count: pendingCount,
       position: activePosition + 1
     };
@@ -607,16 +607,15 @@
     const queueItems = getPriorityQueueItems(visibleItems);
     const filterLabels = getWorkbenchFilterLabels(filters);
     const suggestionText = issueCount > 0
-      ? `先处理 ${issueCount} 个异常项，再回到普通待确认项。`
+      ? `先处理 ${issueCount} 个异常项`
       : (pendingCount > 0
-        ? `异常项已清空，继续收尾 ${pendingCount} 个待确认项。`
-        : '当前已没有待确认项，可以直接检查导出准备。');
+        ? `继续处理 ${pendingCount} 个待确认项`
+        : '可直接检查导出');
 
     return `
       <aside class="match-rail">
         <div class="match-rail-card match-rail-card--pulse">
-          <div class="match-rail-heading">决策脉冲</div>
-          <div class="match-rail-copy">先看总负载、异常与 OCR 压力，再进入焦点项确认。</div>
+          <div class="match-rail-heading">概览</div>
           <div class="match-rail-stat-grid">
             <div class="match-rail-stat"><strong>${matchResults.length}</strong><span>报价项</span></div>
             <div class="match-rail-stat"><strong>${matchedCount}</strong><span>已确认</span></div>
@@ -626,7 +625,7 @@
           <div class="match-rail-focus-note">${suggestionText}</div>
         </div>
         <div class="match-rail-card match-rail-card--command">
-          <div class="match-rail-heading">当前指令层</div>
+          <div class="match-rail-heading">当前筛选</div>
           <div class="match-rail-inline-pills">
             <span class="match-rail-inline-pill">状态 · ${filterLabels.statusLabel}</span>
             <span class="match-rail-inline-pill">排序 · ${filterLabels.sortLabel}</span>
@@ -644,8 +643,7 @@
           </ul>
         </div>
         <div class="match-rail-card match-rail-card--queue">
-          <div class="match-rail-heading">优先处理队列</div>
-          <div class="match-rail-copy">默认按异常、低分未确认、普通待确认排序，减少回找与回扫。</div>
+          <div class="match-rail-heading">优先队列</div>
           <ul class="match-rail-list mt-3">
             ${queueItems.length ? queueItems.map(({ result, itemIndex }) => {
               const primary = getPrimaryCandidate(result);
@@ -1083,7 +1081,7 @@
     if (!activeEntry) {
       return `
         <aside class="match-inspector">
-          <div class="match-inspector-empty match-stream-empty">当前筛选下没有可查看的报价项。</div>
+          <div class="match-inspector-empty match-stream-empty">暂无可查看项。</div>
         </aside>
       `;
     }
@@ -1124,7 +1122,7 @@
       <aside class="match-inspector">
         <div class="match-inspector-card">
           <div class="match-inspector-heading">当前焦点</div>
-          <div class="match-inspector-copy">右侧固定保留商业信息、人工搜索与快捷确认，不再来回弹窗。</div>
+          <div class="match-inspector-copy">查看当前项。</div>
           <div class="match-inspector-media">
             <div class="candidate-visual">
               ${ProductImageManager.createImageHtml(product, 'small')}
@@ -1758,8 +1756,8 @@
     const issueCount = allResults.filter(result => !!(result?.confirmed && isIssueResult(result))).length;
     const visibleCount = Array.isArray(visibleItems) ? visibleItems.length : totalCount;
     const filtersActive = !!(filters?.rawSearchText || filters?.statusFilter !== 'all' || filters?.sortFilter !== 'default');
-    const focusEntry = getPriorityQueueItems(visibleItems.length ? visibleItems : allResults.map((result, itemIndex) => ({ result, itemIndex })), 1)[0]
-      || activeEntry
+    const focusEntry = activeEntry
+      || getPriorityQueueItems(visibleItems.length ? visibleItems : allResults.map((result, itemIndex) => ({ result, itemIndex })), 1)[0]
       || visibleItems[0]
       || null;
     const unresolvedCount = pendingCount + issueCount;
@@ -1785,18 +1783,18 @@
     `;
   }
 
-  function renderWorkbenchRail() {
+  function renderWorkbenchRail(visibleItems = [], filters = {}, activeEntry = null) {
     return '';
   }
 
-  function renderWorkbenchStream(visibleItems, filters) {
+  function renderWorkbenchStream(visibleItems, filters, activeEntry) {
     if (!visibleItems.length) {
       return `
         <section class="match-stream">
           <div class="match-inspector-empty match-stream-empty">
             <div>
-              <div class="fw-semibold mb-2">当前没有可处理项</div>
-              <div class="small">调整筛选后再继续。</div>
+              <div class="fw-semibold mb-2">没有可处理项</div>
+              <div class="small">调整筛选后继续。</div>
             </div>
           </div>
         </section>
@@ -1812,9 +1810,6 @@
     `;
   }
 
-  function renderWorkbenchInspector() {
-    return '';
-  }
   function renderWorkbenchInspector() {
     return '';
   }

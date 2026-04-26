@@ -1,9 +1,8 @@
 <div id="historyTab" class="tab-content"{% if initial_tab != 'history' %} style="display: none;"{% endif %}>
     <section class="workspace-page-head workspace-page-head--history">
         <div>
-            <div class="workspace-page-head-kicker">历史台账</div>
-            <div class="workspace-page-head-title">先看金额和客户。</div>
-            <div class="workspace-page-head-subtitle">第一屏只留金额、匹配率和动作。</div>
+            <div class="workspace-page-head-title">历史记录</div>
+            <div class="workspace-page-head-subtitle">客户 / 金额 / 匹配率</div>
         </div>
         <div class="workspace-page-head-actions">
             <a href="{{ workspace_routes.quotes }}" class="btn btn-primary btn-sm">
@@ -18,57 +17,39 @@
         </div>
     </section>
 
-    <section class="workspace-guidance-grid workspace-guidance-grid--history">
-        <article class="workspace-guidance-card">
-            <span class="workspace-guidance-kicker">Value First</span>
-            <strong class="workspace-guidance-title">先扫金额和客户</strong>
-            <p class="workspace-guidance-copy">列表先告诉你这批记录值不值得花时间打开，避免每条都点进去重新理解上下文。</p>
-        </article>
-        <article class="workspace-guidance-card">
-            <span class="workspace-guidance-kicker">Quality</span>
-            <strong class="workspace-guidance-title">再看匹配率和异常密度</strong>
-            <p class="workspace-guidance-copy">低匹配率和高异常批次优先复核，高质量批次更适合复用或直接追溯历史交付。</p>
-        </article>
-        <article class="workspace-guidance-card">
-            <span class="workspace-guidance-kicker">Action</span>
-            <strong class="workspace-guidance-title">最后决定复看、复用还是删除</strong>
-            <p class="workspace-guidance-copy">动作按钮只保留真正高频的两类操作，让历史页保持安静，不再堆一排低价值控制项。</p>
-        </article>
-    </section>
-
     <section class="history-metric-grid">
         <article class="history-metric-card">
             <span class="history-metric-label">总报价数</span>
             <strong id="statTotalCount" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">全部已归档报价批次</small>
+            <small class="history-metric-copy">全部</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">本月新增</span>
             <strong id="statMonthCount" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">本月新增的历史记录</small>
+            <small class="history-metric-copy">本月</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">累计金额</span>
             <strong id="statTotalAmount" class="history-metric-value">¥0</strong>
-            <small class="history-metric-copy">历史报价累计金额</small>
+            <small class="history-metric-copy">累计</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">平均匹配率</span>
             <strong id="statAvgRate" class="history-metric-value">0%</strong>
-            <small class="history-metric-copy">整体匹配质量健康度</small>
+            <small class="history-metric-copy">整体</small>
         </article>
     </section>
 
     <section class="history-ledger-shell">
         <div class="history-ledger-header">
             <div>
-                <div class="history-ledger-kicker">History Archive</div>
-                <div class="history-ledger-heading">报价回放账本</div>
-                <div class="history-ledger-subtitle">只留客户、金额、匹配率和动作。</div>
+                <div class="history-ledger-kicker">历史</div>
+                <div class="history-ledger-heading">报价记录</div>
+                <div class="history-ledger-subtitle">客户 / 金额 / 匹配率</div>
             </div>
             <div class="history-ledger-header-note">
                 <i class="bi bi-stars"></i>
-                <span>低匹配率优先回看。</span>
+                <span>低匹配率优先</span>
             </div>
         </div>
         <div id="historyList" class="history-ledger-list">
@@ -76,13 +57,8 @@
                 <div class="workspace-empty-orbit-visual">
                     <i class="bi bi-hourglass-split"></i>
                 </div>
-                <div class="workspace-empty-orbit-title">历史台账整理中。</div>
-                <div class="workspace-empty-orbit-copy">有记录后按金额、客户、匹配率回看。</div>
-                <div class="workspace-empty-orbit-pills">
-                    <span class="workspace-empty-orbit-pill">金额</span>
-                    <span class="workspace-empty-orbit-pill">匹配率</span>
-                    <span class="workspace-empty-orbit-pill">动作</span>
-                </div>
+                <div class="workspace-empty-orbit-title">暂无历史</div>
+                <div class="workspace-empty-orbit-copy">有记录后在这里显示。</div>
             </div>
         </div>
     </section>

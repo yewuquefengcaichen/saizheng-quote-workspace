@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+import json
+import logging
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
@@ -7,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
 from app.core.celery_app import celery_app
+from app.core.redis import get_redis
 from app.db.session import get_db_session
 from app.schemas.image_search import (
     ImageEmbeddingProviderStatus as ImageEmbeddingProviderStatusSchema,
@@ -26,6 +31,9 @@ from app.services import (
 from app.tasks.embedding import generate_image_embeddings_task
 
 router = APIRouter(prefix='/image-search', tags=['image-search'])
+logger = logging.getLogger(__name__)
+IMAGE_SEARCH_QUERY_CACHE_PREFIX = 'image-search:query:v1'
+IMAGE_SEARCH_QUERY_CACHE_TTL_SECONDS = 6 * 60 * 60
 
 
 class ImageEmbeddingJobPayload(BaseModel):
@@ -35,6 +43,67 @@ class ImageEmbeddingJobPayload(BaseModel):
     only_missing: bool = True
     commit_every: int = Field(default=5, ge=1, le=1000)
     dry_run: bool = False
+
+
+def _normalize_cache_text(value: str | None) -> str:
+    return str(value or '').strip()
+
+
+def _build_image_search_query_cache_key(
+    *,
+    file_bytes: bytes,
+    provider: str,
+    model_name: str,
+    top_k: int,
+    query_text: str | None,
+    spec_hint: str | None,
+    brand_hint: str | None,
+) -> str:
+    file_sha256 = hashlib.sha256(file_bytes).hexdigest()
+    payload = {
+        'file_sha256': file_sha256,
+        'provider': provider,
+        'model_name': model_name,
+        'top_k': int(top_k),
+        'query_text': _normalize_cache_text(query_text),
+        'spec_hint': _normalize_cache_text(spec_hint),
+        'brand_hint': _normalize_cache_text(brand_hint),
+    }
+    payload_digest = hashlib.sha256(
+        json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(',', ':')).encode('utf-8')
+    ).hexdigest()
+    return f'{IMAGE_SEARCH_QUERY_CACHE_PREFIX}:{payload_digest}'
+
+
+async def _get_cached_image_search_response(cache_key: str) -> ImageSearchResponse | None:
+    try:
+        redis = get_redis()
+        cached_payload = await redis.get(cache_key)
+    except Exception as exc:
+        logger.warning('image search cache get failed: %s', exc)
+        return None
+
+    if not cached_payload:
+        return None
+
+    try:
+        payload = json.loads(cached_payload)
+        return ImageSearchResponse.model_validate(payload)
+    except Exception as exc:
+        logger.warning('image search cache payload invalid: %s', exc)
+        return None
+
+
+async def _cache_image_search_response(cache_key: str, response: ImageSearchResponse) -> None:
+    try:
+        redis = get_redis()
+        await redis.setex(
+            cache_key,
+            IMAGE_SEARCH_QUERY_CACHE_TTL_SECONDS,
+            json.dumps(response.model_dump(mode='json'), ensure_ascii=False),
+        )
+    except Exception as exc:
+        logger.warning('image search cache set failed: %s', exc)
 
 
 @router.get('/embedding-status', response_model=ImageEmbeddingStatusResponse)
@@ -122,6 +191,19 @@ async def query_image_search(
     selected_provider = provider or DEFAULT_EMBEDDING_PROVIDER
     selected_model_name = model_name or DEFAULT_EMBEDDING_MODEL_NAME
 
+    cache_key = _build_image_search_query_cache_key(
+        file_bytes=file_bytes,
+        provider=selected_provider,
+        model_name=selected_model_name,
+        top_k=top_k,
+        query_text=query_text,
+        spec_hint=spec_hint,
+        brand_hint=brand_hint,
+    )
+    cached_response = await _get_cached_image_search_response(cache_key)
+    if cached_response is not None:
+        return cached_response
+
     try:
         query_features = compute_query_image_features_for_provider(
             file_bytes,
@@ -173,7 +255,7 @@ async def query_image_search(
         for item in candidates
     ]
 
-    return ImageSearchResponse(
+    response = ImageSearchResponse(
         provider=selected_provider,
         model_name=selected_model_name,
         vector_dim=len(query_features.vector) or DEFAULT_EMBEDDING_VECTOR_DIM,
@@ -184,6 +266,8 @@ async def query_image_search(
         total=len(response_candidates),
         candidates=response_candidates,
     )
+    await _cache_image_search_response(cache_key, response)
+    return response
 
 
 @router.get('/assets/{asset_id}/file')

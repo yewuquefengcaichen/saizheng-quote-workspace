@@ -1,9 +1,8 @@
 <div id="synonymsTab" class="tab-content"{% if initial_tab != 'synonyms' %} style="display: none;"{% endif %}>
     <section class="workspace-page-head workspace-page-head--synonyms">
         <div>
-            <div class="workspace-page-head-kicker">词库维护</div>
-            <div class="workspace-page-head-title">先修高频词。</div>
-            <div class="workspace-page-head-subtitle">只留主词、覆盖和编辑。</div>
+            <div class="workspace-page-head-title">词库</div>
+            <div class="workspace-page-head-subtitle">主词 / 变体 / 编辑</div>
         </div>
         <div class="workspace-page-head-actions">
             <button class="btn btn-primary btn-sm" id="addSynonymBtn" type="button">
@@ -18,75 +17,57 @@
         </div>
     </section>
 
-    <section class="workspace-guidance-grid workspace-guidance-grid--synonyms">
-        <article class="workspace-guidance-card">
-            <span class="workspace-guidance-kicker">Fix First</span>
-            <strong class="workspace-guidance-title">先补最常见错配词</strong>
-            <p class="workspace-guidance-copy">优先沉淀最容易导致误匹配和搜不到的叫法，让系统先在高频场景里稳定下来。</p>
-        </article>
-        <article class="workspace-guidance-card">
-            <span class="workspace-guidance-kicker">Coverage</span>
-            <strong class="workspace-guidance-title">把行业简称和内部叫法放在一起</strong>
-            <p class="workspace-guidance-copy">同一个主词下同时维护行业简称、客户叫法和内部俗称，后续搜索和候选理解会更连贯。</p>
-        </article>
-        <article class="workspace-guidance-card">
-            <span class="workspace-guidance-kicker">Feedback</span>
-            <strong class="workspace-guidance-title">每次补词都要能立刻验证</strong>
-            <p class="workspace-guidance-copy">新增后直接回报价台复核效果，避免词库变成只维护不验证的孤立配置页。</p>
-        </article>
-    </section>
-
     <section class="history-metric-grid vocabulary-metric-grid">
         <article class="history-metric-card">
             <span class="history-metric-label">主词数</span>
             <strong id="synonymMetricHeadword" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">当前维护中的主词数量</small>
+            <small class="history-metric-copy">当前</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">变体数</span>
             <strong id="synonymMetricVariant" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">全部已沉淀的别名与简称</small>
+            <small class="history-metric-copy">全部</small>
         </article>
         <article class="history-metric-card">
             <span class="history-metric-label">平均覆盖</span>
             <strong id="synonymMetricAverage" class="history-metric-value">0</strong>
-            <small class="history-metric-copy">每个主词平均挂接的变体数</small>
+            <small class="history-metric-copy">平均</small>
         </article>
         <article class="history-metric-card">
-            <span class="history-metric-label">当前建议</span>
-            <strong id="synonymMetricHint" class="history-metric-value">等待建库</strong>
-            <small class="history-metric-copy">优先补齐高频错配词</small>
+            <span class="history-metric-label">当前状态</span>
+            <strong id="synonymMetricHint" class="history-metric-value">待补充</strong>
+            <small class="history-metric-copy">高频优先</small>
         </article>
     </section>
 
     <section class="workspace-guidance-grid workspace-guidance-grid--synonyms-snapshot">
         <article class="workspace-guidance-card workspace-guidance-card--stat">
-            <span class="workspace-guidance-kicker">Snapshot</span>
+            <span class="workspace-guidance-kicker">主词</span>
             <strong class="workspace-guidance-title" id="synonymHeadwordCount">0</strong>
-            <p class="workspace-guidance-copy">当前主词快照</p>
+            <p class="workspace-guidance-copy">快照</p>
         </article>
         <article class="workspace-guidance-card workspace-guidance-card--stat">
-            <span class="workspace-guidance-kicker">Variants</span>
+            <span class="workspace-guidance-kicker">变体</span>
             <strong class="workspace-guidance-title" id="synonymVariantCount">0</strong>
-            <p class="workspace-guidance-copy">全部变体数量</p>
+            <p class="workspace-guidance-copy">数量</p>
         </article>
         <article class="workspace-guidance-card workspace-guidance-card--stat">
-            <span class="workspace-guidance-kicker">Largest Group</span>
+            <span class="workspace-guidance-kicker">最大组</span>
             <strong class="workspace-guidance-title" id="synonymLargestHeadword">-</strong>
-            <p class="workspace-guidance-copy">当前覆盖最广的主词</p>
+            <p class="workspace-guidance-copy">主词</p>
         </article>
     </section>
 
     <section class="vocabulary-ledger-shell">
         <div class="history-ledger-header">
             <div>
-                <div class="history-ledger-kicker">Vocabulary Archive</div>
-                <div class="history-ledger-heading">词库知识卡组</div>
-                <div class="history-ledger-subtitle">每张卡只留主词、覆盖和编辑。</div>
+                <div class="history-ledger-kicker">词库</div>
+                <div class="history-ledger-heading">词库卡片</div>
+                <div class="history-ledger-subtitle">主词 / 覆盖 / 编辑</div>
             </div>
             <div class="history-ledger-header-note">
                 <i class="bi bi-stars"></i>
-                <span>先修高频错配。</span>
+                <span>高频优先</span>
             </div>
         </div>
         <div id="synonymsList" class="vocabulary-card-grid">
@@ -94,13 +75,8 @@
                 <div class="workspace-empty-orbit-visual">
                     <i class="bi bi-book"></i>
                 </div>
-                <div class="workspace-empty-orbit-title">词库卡组载入中。</div>
-                <div class="workspace-empty-orbit-copy">建立后，自动匹配和人工搜索都会更稳。</div>
-                <div class="workspace-empty-orbit-pills">
-                    <span class="workspace-empty-orbit-pill">错别字</span>
-                    <span class="workspace-empty-orbit-pill">行业简称</span>
-                    <span class="workspace-empty-orbit-pill">内部叫法</span>
-                </div>
+                <div class="workspace-empty-orbit-title">暂无词库</div>
+                <div class="workspace-empty-orbit-copy">新增后在这里显示。</div>
             </div>
         </div>
     </section>

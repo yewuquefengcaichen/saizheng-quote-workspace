@@ -5900,6 +5900,255 @@ body[data-route="synonyms"] .workspace-empty-orbit-pills {
   display: none !important;
 }
 
+/* ===== Quotes workbench focus layout 20260426 ===== */
+body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus {
+  grid-template-columns: minmax(260px, 320px) minmax(0, 1fr) !important;
+  gap: 12px !important;
+  align-items: start;
+}
+
+body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus .match-rail {
+  position: sticky;
+  top: 160px;
+  align-self: start;
+  max-height: calc(100vh - 178px);
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  padding-right: 4px;
+}
+
+body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus .match-stream {
+  min-width: 0;
+}
+
+body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus .match-rail-card--queue .match-rail-list {
+  max-height: min(50vh, 640px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+body[data-route="quotes"] .quote-sheet-list--focus {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+body[data-route="quotes"] .quote-sheet-list--focus .quote-item-card {
+  margin-bottom: 0 !important;
+}
+
+body[data-route="quotes"] .quote-sheet-list--focus .quote-item-head {
+  margin-bottom: 10px;
+}
+
+@media (max-width: 1280px) {
+  body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus {
+    grid-template-columns: minmax(236px, 292px) minmax(0, 1fr) !important;
+  }
+}
+
+@media (max-width: 1080px) {
+  body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus {
+    grid-template-columns: 1fr !important;
+  }
+
+  body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus .match-rail {
+    position: relative;
+    top: auto;
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  body[data-route="quotes"] .match-workbench-shell.match-workbench-shell--focus .match-rail-card--queue .match-rail-list {
+    max-height: none;
+  }
+}
+
+/* ===== Frontend audit lock · quotes split & independent scroll 20260426 ===== */
+@media (min-width: 1200px) {
+  body[data-route="quotes"] .quote-item-body--split {
+    grid-template-columns: minmax(260px, var(--quote-left-panel-width)) 10px minmax(0, 1fr) !important;
+    align-items: start !important;
+  }
+
+  body[data-route="quotes"] .quote-item-candidates-frame {
+    min-height: 0 !important;
+  }
+
+  body[data-route="quotes"] .quote-item-context-column,
+  body[data-route="quotes"] .quote-candidate-scrollbox {
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  body[data-route="quotes"] .quote-item-context-column {
+    max-height: clamp(360px, calc(100vh - 300px), 640px) !important;
+    overflow: auto !important;
+    padding-right: 4px !important;
+  }
+
+  body[data-route="quotes"] .quote-candidate-scrollbox {
+    max-height: clamp(360px, calc(100vh - 320px), 640px) !important;
+    overflow: auto !important;
+    padding-right: 4px !important;
+  }
+}
+
+@media (max-width: 1199.98px) {
+  body[data-route="quotes"] .quote-item-context-column,
+  body[data-route="quotes"] .quote-candidate-scrollbox {
+    max-height: none !important;
+    overflow: visible !important;
+    padding-right: 0 !important;
+  }
+}
+
+body[data-route="quotes"] .quote-item-context-column {
+  max-height: clamp(320px, 46vh, 560px);
+  overflow: auto;
+  padding-right: 4px;
+  scrollbar-gutter: stable;
+}
+
+body[data-route="quotes"] .quote-item-context-column::-webkit-scrollbar {
+  width: 6px;
+}
+
+body[data-route="quotes"] .quote-item-context-column::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(100, 116, 139, 0.24);
+}
+
+body[data-route="quotes"] .quote-mapping-review {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 22px 44px rgba(15, 23, 42, 0.08);
+}
+
+body[data-route="quotes"] .quote-mapping-review-head,
+body[data-route="quotes"] .quote-mapping-review-footer {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+body[data-route="quotes"] .quote-mapping-review-kicker {
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ws-accent);
+  margin-bottom: 4px;
+}
+
+body[data-route="quotes"] .quote-mapping-review-title {
+  margin: 0;
+  font-size: 1.18rem;
+  font-weight: 800;
+  color: var(--ws-text-strong);
+}
+
+body[data-route="quotes"] .quote-mapping-review-copy {
+  margin: 6px 0 0;
+  color: var(--ws-text-muted);
+  font-size: 0.86rem;
+}
+
+body[data-route="quotes"] .quote-mapping-review-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+body[data-route="quotes"] .quote-mapping-review-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(320px, 0.8fr);
+  gap: 14px;
+}
+
+body[data-route="quotes"] .quote-mapping-review-card {
+  min-width: 0;
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(226, 232, 240, 0.92);
+  background: rgba(248, 250, 252, 0.9);
+}
+
+body[data-route="quotes"] .quote-mapping-review-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+body[data-route="quotes"] .quote-mapping-review-card-head strong {
+  color: var(--ws-text-strong);
+  font-size: 0.92rem;
+}
+
+body[data-route="quotes"] .quote-mapping-review-card-head span {
+  color: var(--ws-text-muted);
+  font-size: 0.76rem;
+}
+
+body[data-route="quotes"] .quote-mapping-review-preview {
+  max-height: min(58vh, 560px);
+  overflow: auto;
+  padding-right: 4px;
+}
+
+body[data-route="quotes"] .quote-mapping-review-footer {
+  align-items: center;
+}
+
+body[data-route="quotes"] .quote-mapping-review-footer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+body[data-route="catalog"] .workspace-shell,
+body[data-route="catalog"] #catalogTab {
+  min-height: 0;
+}
+
+@media (max-width: 1199.98px) {
+  body[data-route="quotes"] .quote-item-context-column {
+    max-height: none;
+    overflow: visible;
+    padding-right: 0;
+  }
+
+  body[data-route="quotes"] .quote-mapping-review-head,
+  body[data-route="quotes"] .quote-mapping-review-footer {
+    flex-direction: column;
+  }
+
+  body[data-route="quotes"] .quote-mapping-review-badges,
+  body[data-route="quotes"] .quote-mapping-review-footer-actions {
+    justify-content: flex-start;
+  }
+
+  body[data-route="quotes"] .quote-mapping-review-grid {
+    grid-template-columns: 1fr;
+  }
+
+  body[data-route="quotes"] .quote-mapping-review-preview {
+    max-height: none;
+  }
+}
+
 .upload-inline-options {
   display: flex;
   flex-wrap: wrap;

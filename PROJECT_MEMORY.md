@@ -110,6 +110,59 @@ print('中文测试')
 - `awk`
 - UTF-8 文本核对
 
+#### 规则 E：禁止在 Windows PowerShell 5.1 用默认编码写仓库文本文件
+
+以下操作默认都视为**高风险**：
+
+- `Set-Content`
+- `Out-File`
+- `>`
+- `>>`
+
+如果必须写文件：
+
+1. **优先用 `apply_patch`**
+2. 或显式指定 UTF-8
+3. 或直接用 Python / `Path.write_text(..., encoding='utf-8')`
+
+最低要求：
+
+```powershell
+$utf8 = New-Object System.Text.UTF8Encoding($false)
+[System.IO.File]::WriteAllText('README.md', $content, $utf8)
+```
+
+禁止再出现：
+
+- “终端里看着正常，文件实际被写坏”
+- “PowerShell 默认编码把中文落盘成问号”
+
+#### 规则 F：前端出现问号 / 乱码时，先按固定顺序排查
+
+以后不允许一看到浏览器问号，就直接判断“仓库文件坏了”。
+
+统一按这个顺序排查：
+
+1. **先看源码**
+   - `Get-Content -Encoding UTF8`
+   - 或 Python `read_text(encoding='utf-8')`
+2. **再看浏览器网络响应**
+   - HTML / JS / CSS response 里中文是否正常
+3. **再看静态资源版本号**
+   - `?v=...` 是否还是旧值
+4. **强刷 / 清缓存 / 重启服务**
+   - `Ctrl + F5`
+   - 重启 Flask / waitress
+5. 如果模板没问题、接口字段乱码：
+   - **优先查 API 返回**
+   - **再查数据库 / JSON / SQLite 真实数据**
+
+判断原则：
+
+> **终端乱码 ≠ 文件损坏**  
+> **浏览器问号 ≠ 仓库全坏**  
+> 必须先用 UTF-8 显式复核，再下结论。
+
 ### 0.4 本项目以后统一执行标准
 
 1. **仓库文本文件统一 UTF-8**
@@ -120,10 +173,13 @@ print('中文测试')
 4. 在 Windows PowerShell 5.1 中：
    - 读取 UTF-8 文件必须显式声明编码
    - 管道喂脚本前必须先切 UTF-8
+   - 默认编码写文本文件视为违规操作
 5. 以后看到问号 / 乱码，先排查：
    - 是文件坏了？
    - 还是终端解码错了？
    - 还是 PowerShell 管道把中文替换成 `?` 了？
+   - 还是浏览器缓存 / 旧进程 / 旧静态资源版本？
+6. 只要任务允许，**UTF-8 重文本检查优先用 WSL2 / bash**
 
 > 结论：**这不是“项目中文不能用”，而是 Windows PowerShell 5.1 默认编码行为不可靠。以后按本节规则执行，不允许再犯。**
 

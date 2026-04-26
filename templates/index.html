@@ -3556,7 +3556,7 @@
     <link href="/static/css/enhanced_styles.css" rel="stylesheet">
     <link href="/static/css/luxe_workspace.css" rel="stylesheet">
     <link href="/static/css/atelier_shell.css?v=20260411a" rel="stylesheet">
-    <link href="/static/css/workspace_reboot.css?v=20260424a" rel="stylesheet">
+    <link href="/static/css/workspace_reboot.css?v=20260425b" rel="stylesheet">
     <!-- Chart.js 数据可视化 -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
@@ -3711,7 +3711,7 @@
                 <div class="modal-body">
                     <div class="alert alert-info mb-3" id="mappingModalHint">
                         <i class="bi bi-lightbulb me-2"></i>
-                        系统已自动识别各列含义，请确认或修改后继续
+                        确认列后继续
                     </div>
                     <div id="mappingOcrInsights" class="mb-3" style="display: none;"></div>
                     <table class="table table-bordered" id="mappingTable">
@@ -3720,7 +3720,7 @@
                                 <th style="width: 30%">原始列名</th>
                                 <th style="width: 35%">识别为</th>
                                 <th style="width: 20%">置信度</th>
-                                <th style="width: 15%">预览数据</th>
+                                <th style="width: 15%">预览</th>
                             </tr>
                         </thead>
                         <tbody id="mappingTableBody">
@@ -3728,7 +3728,7 @@
                         </tbody>
                     </table>
                     <div class="mt-3">
-                        <h6><i class="bi bi-eye me-1"></i>数据预览（前5行）</h6>
+                        <h6><i class="bi bi-eye me-1"></i>预览（5行）</h6>
                         <div id="previewDataContainer" style="max-height: 200px; overflow-y: auto;">
                             <!-- 动态生成 -->
                         </div>
@@ -3857,7 +3857,7 @@
                         <h5 class="modal-title">
                             <i class="bi bi-file-earmark-arrow-down text-success me-2"></i>导出报价单
                         </h5>
-                        <div class="workspace-modal-subtitle">先选模板，再导出。</div>
+                        <div class="workspace-modal-subtitle">选模板后导出。</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
@@ -3866,7 +3866,7 @@
                         <div class="export-template-header">
                             <div>
                                 <label class="form-label fw-bold mb-1">模板</label>
-                                <div class="export-template-subtitle">先选模板，再定价格口径。</div>
+                                <div class="export-template-subtitle">选模板后定价。</div>
                             </div>
                             <div class="export-template-stats" id="exportTemplateStats"></div>
                         </div>
@@ -3917,40 +3917,40 @@
                                 <div class="export-template-preview-block">
                                     <div class="export-template-preview-label">已覆盖单据</div>
                                     <div class="export-template-capability-doc-grid" id="exportTemplateCapabilityDocs">
-                                        <span class="export-template-preview-empty">选择商城模板后查看</span>
+                                        <span class="export-template-preview-empty">选择后查看</span>
                                     </div>
                                 </div>
                                 <div class="export-template-preview-block">
                                     <div class="export-template-preview-label">变量标记结构</div>
                                     <div class="export-template-capability-doc-grid" id="exportTemplateCapabilityMarkers">
-                                        <span class="export-template-preview-empty">选择商城模板后查看</span>
+                                        <span class="export-template-preview-empty">选择后查看</span>
                                     </div>
                                 </div>
                                 <div class="export-template-preview-block">
                                     <div class="export-template-preview-label">使用规则</div>
                                     <ul class="export-template-capability-rule-list" id="exportTemplateCapabilityRules">
-                                        <li class="export-template-preview-empty">选择商城模板后查看</li>
+                                        <li class="export-template-preview-empty">选择后查看</li>
                                     </ul>
                                 </div>
                                 <div class="export-template-preview-block">
                                     <div class="export-template-preview-label">最适合内置的产品功能</div>
                                     <div class="export-template-chip-list" id="exportTemplateCapabilityFeatures">
-                                        <span class="export-template-preview-empty">选择商城模板后查看</span>
+                                        <span class="export-template-preview-empty">选择后查看</span>
                                     </div>
                                 </div>
                             </div>
                             <div class="export-template-capability-validator-grid">
                                 <div class="export-template-preview-block">
-                                    <div class="export-template-preview-label">模板就绪度校验说明</div>
-                                    <div class="export-template-validator-summary" id="exportTemplateValidatorSummary">选择商城模板后，这里会显示模板上传后的自动校验重点。</div>
+                                    <div class="export-template-preview-label">模板校验</div>
+                                    <div class="export-template-validator-summary" id="exportTemplateValidatorSummary">选择后查看校验重点。</div>
                                     <div class="export-template-validator-section-list mt-2" id="exportTemplateValidatorSections">
-                                        <div class="export-template-preview-empty">选择商城模板后查看</div>
+                                        <div class="export-template-preview-empty">选择后查看</div>
                                     </div>
                                 </div>
                                 <div class="export-template-preview-block">
                                     <div class="export-template-preview-label">自动校验输出</div>
                                     <div class="export-template-validator-output-list" id="exportTemplateValidatorOutputs">
-                                        <div class="export-template-preview-empty">选择商城模板后查看</div>
+                                        <div class="export-template-preview-empty">选择后查看</div>
                                     </div>
                                 </div>
                             </div>
@@ -3959,7 +3959,7 @@
                             <div class="export-template-hook-header">
                                 <div>
                                     <div class="export-template-preview-label mb-1">商城模板扩展钩子</div>
-                                    <div class="small text-muted">先展示后续单据方向，不改变当前导出行为。</div>
+                                    <div class="small text-muted">仅预览扩展方向。</div>
                                 </div>
                                 <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary-subtle">预留能力</span>
                             </div>
@@ -3971,7 +3971,7 @@
                         <div class="export-template-doc-header">
                             <div>
                                 <div class="export-template-roadmap-title mb-1">单据中心预留入口</div>
-                                <div class="export-template-doc-subtitle" id="exportTemplateDocSubtitle">选择商城模板后，这里会显示可继续承接的单据方向。</div>
+                                <div class="export-template-doc-subtitle" id="exportTemplateDocSubtitle">选择后查看扩展单据。</div>
                             </div>
                             <span class="badge rounded-pill bg-primary-subtle text-primary-emphasis border border-primary-subtle">下一阶段</span>
                         </div>
@@ -3980,16 +3980,16 @@
                             <div class="export-template-doc-detail-header">
                                 <div>
                                     <div class="export-template-preview-label mb-1">当前选中的单据方向</div>
-                                    <div class="small text-muted" id="exportTemplateDocDetailHint">点击上方卡片后，这里会显示当前单据方向说明。</div>
+                                    <div class="small text-muted" id="exportTemplateDocDetailHint">点卡片后查看。</div>
                                 </div>
                                 <span class="qe-badge qe-badge-neutral" id="exportTemplateDocDetailStatus">未选择</span>
                             </div>
                             <div class="export-template-doc-detail-title" id="exportTemplateDocDetailTitle">请选择单据方向</div>
-                            <div class="export-template-doc-detail-desc" id="exportTemplateDocDetailDesc">当前仅做商城模板扩展预览，不改变实际导出流程。</div>
+                            <div class="export-template-doc-detail-desc" id="exportTemplateDocDetailDesc">仅预览，不影响导出。</div>
                             <div class="export-template-doc-detail-grid">
                                 <div class="export-template-doc-detail-block">
                                     <div class="export-template-preview-label">适用场景</div>
-                                    <div class="small text-muted" id="exportTemplateDocDetailScenario">选择单据方向后，这里会显示推荐使用场景。</div>
+                                    <div class="small text-muted" id="exportTemplateDocDetailScenario">选择后查看。</div>
                                 </div>
                                 <div class="export-template-doc-detail-block">
                                     <div class="export-template-preview-label">继承字段</div>
@@ -4005,15 +4005,15 @@
                                 </div>
                                 <div class="export-template-doc-detail-block">
                                     <div class="export-template-preview-label">当前阶段</div>
-                                    <div class="small text-muted" id="exportTemplateDocDetailReadiness">这里会显示当前单据方向的接入准备说明。</div>
+                                    <div class="small text-muted" id="exportTemplateDocDetailReadiness">显示接入状态。</div>
                                 </div>
                                 <div class="export-template-doc-detail-block">
                                     <div class="export-template-preview-label">落地顺序</div>
-                                    <div class="small text-muted" id="exportTemplateDocDetailRollout">这里会显示当前单据方向更适合在哪个阶段落地。</div>
+                                    <div class="small text-muted" id="exportTemplateDocDetailRollout">显示落地顺序。</div>
                                 </div>
                                 <div class="export-template-doc-detail-block">
                                     <div class="export-template-preview-label">优先价值</div>
-                                    <div class="small text-muted" id="exportTemplateDocDetailValue">这里会显示当前单据方向为什么值得优先接入。</div>
+                                    <div class="small text-muted" id="exportTemplateDocDetailValue">显示优先级。</div>
                                 </div>
                             </div>
                             <div class="export-template-doc-detail-grid mt-2">
@@ -4070,7 +4070,7 @@
                             </div>
                             <div class="export-template-doc-detail-block mt-2">
                                 <div class="export-template-preview-label">接入提示</div>
-                                <div class="small text-muted" id="exportTemplateDocDetailNextStep">当前仅展示未来接入方向，不改变真实导出流程。</div>
+                                <div class="small text-muted" id="exportTemplateDocDetailNextStep">仅预览，不影响导出。</div>
                             </div>
                         </div>
                     </div>
@@ -4099,7 +4099,7 @@
                         <div class="export-modal-sidebar-header">
                             <div class="export-modal-sidebar-kicker">Delivery Controls</div>
                             <div class="export-modal-sidebar-title">右侧完成最终导出配置</div>
-                            <div class="export-modal-sidebar-copy">格式、价格口径、客户抬头与导出预览被集中到一个侧栏，不再打断模板浏览与决策流。</div>
+                            <div class="export-modal-sidebar-copy">右侧统一设置格式、价格和抬头。</div>
                         </div>
                     <div class="mb-3 export-control-card export-control-card--format">
                         <label class="form-label fw-bold">导出格式</label>
@@ -4176,15 +4176,15 @@
                         <h5 class="modal-title">
                             <i class="bi bi-percent text-warning me-2"></i>批量价格调整
                         </h5>
-                        <div class="workspace-modal-subtitle">先决定调整方式，再预览影响范围，最后统一回写到当前工作台。</div>
+                        <div class="workspace-modal-subtitle">设置后统一回写。</div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body workspace-modal-body workspace-modal-body--adjust">
                     <div class="modal-control-intro">
                         <div class="modal-control-intro-kicker">Batch Adjust</div>
-                        <div class="modal-control-intro-title">统一改价，但不要失去影响范围感知。</div>
-                        <div class="modal-control-intro-copy">调整类型、幅度、作用范围与回写结果被拆成独立卡片，先看影响，再执行批量写回。</div>
+                        <div class="modal-control-intro-title">批量改价</div>
+                        <div class="modal-control-intro-copy">设置影响范围后执行。</div>
                     </div>
                     <div class="mb-3 modal-control-card">
                         <label class="form-label">调整类型</label>
@@ -4304,7 +4304,7 @@
             mimeType: '',
             provider: '',
             modelName: '',
-            imageSearchMode: 'fast'
+            imageSearchMode: 'clip'
         };
         let quoteCatalogSearchState = {};
         let activeQuoteCatalogModalItemIndex = null;
@@ -4315,18 +4315,18 @@
         const QUOTE_IMAGE_SEARCH_MODE_CLIP = 'clip';
         const QUOTE_IMAGE_SEARCH_PROVIDERS = {
             fast: {
-                label: '快速图搜',
-                shortLabel: '快速',
+                label: '近似图',
+                shortLabel: '近似图',
                 provider: 'local_hash_embedding',
                 modelName: 'phash_dhash_128d_v1',
-                hint: '速度快，适合先粗筛'
+                hint: '按外形近似找图，适合同图 / 近似图，不适合拍照实物主识别'
             },
             clip: {
                 label: '智能图搜',
                 shortLabel: '智能 CLIP',
                 provider: 'clip_local',
                 modelName: 'openclip_vit_b_32_512d',
-                hint: '更懂图片语义，已用 RTX 4060 生成部分向量'
+                hint: '默认推荐，更懂商品语义，适合拍照 / 截图 / 实物识别'
             }
         };
         let workspaceProductsSource = document.body.dataset.productsSource || 'none';
@@ -4584,13 +4584,17 @@
             }
 
             if (initialTab === 'match') {
+                if (restorePendingQuoteMappingReviewFromSession()) {
+                    return;
+                }
                 checkCanStartMatch().finally(() => {
                     renderMatchResults(true);
                 });
             }
         }
 
-        function activateQuoteWorkbenchAfterUpload() {
+        function activateQuoteWorkbenchAfterUpload(options = {}) {
+            const skipRender = !!options.skipRender;
             if (document.body.dataset.route !== 'quotes' || window.location.pathname !== '/quotes') {
                 window.location.href = '{{ workspace_routes.quotes }}';
                 return;
@@ -4613,7 +4617,9 @@
                 document.body.dataset.route = 'quotes';
                 document.body.dataset.page = 'workspace-quotes';
             }
-            requestAnimationFrame(() => renderMatchResults(true));
+            if (!skipRender) {
+                requestAnimationFrame(() => renderMatchResults(true));
+            }
         }
 
         // =============== 标签页切换 ===============
@@ -6020,16 +6026,16 @@
                         </div>
                     </div>
                     <div class="catalog-intro-preview">
-                        <span class="catalog-intro-label">简介</span>
-                        <p>${escapeHtml(introPreview || '暂无简介')}</p>
+                        <span class="catalog-intro-label">摘要</span>
+                        <p>${escapeHtml(introPreview || '暂无')}</p>
                     </div>
                     <div class="catalog-card-footer">
                         <div class="catalog-footer-note">
                             <i class="bi bi-stars"></i>
-                            <span>${hasImage ? '查看详情与图片' : '查看详情'}</span>
+                            <span>详情</span>
                         </div>
                         <button class="btn btn-outline-primary btn-sm catalog-detail-btn" data-product-code="${escapeHtmlAttr(item.code || '')}">
-                            <i class="bi bi-eye me-1"></i>查看详情
+                            <i class="bi bi-eye me-1"></i>详情
                         </button>
                     </div>
                 </div>
@@ -6417,13 +6423,326 @@
         }
 
         let cachedParseResult = null;
+        const PENDING_QUOTE_MAPPING_STORAGE_KEY = 'pendingQuoteMappingReview';
+
+        function isQuoteWorkbenchRoute() {
+            return document.body.dataset.route === 'quotes' || window.location.pathname === '{{ workspace_routes.quotes }}';
+        }
+
+        function persistPendingQuoteMappingReview(parseResult) {
+            if (!parseResult) return;
+            try {
+                sessionStorage.setItem(PENDING_QUOTE_MAPPING_STORAGE_KEY, JSON.stringify(parseResult));
+            } catch (error) {
+                console.warn('暂存待确认列映射失败:', error);
+            }
+        }
+
+        function readPendingQuoteMappingReview() {
+            try {
+                const raw = sessionStorage.getItem(PENDING_QUOTE_MAPPING_STORAGE_KEY);
+                return raw ? JSON.parse(raw) : null;
+            } catch (error) {
+                console.warn('读取待确认列映射失败:', error);
+                return null;
+            }
+        }
+
+        function clearPendingQuoteMappingReview() {
+            try {
+                sessionStorage.removeItem(PENDING_QUOTE_MAPPING_STORAGE_KEY);
+            } catch (error) {
+                console.warn('清理待确认列映射失败:', error);
+            }
+        }
+
+        function getColumnTypeOptions() {
+            return [
+                { value: '', label: '-- 忽略 --' },
+                { value: 'seq', label: '序号' },
+                { value: 'name', label: '产品名称' },
+                { value: 'spec', label: '规格型号' },
+                { value: 'color', label: '颜色' },
+                { value: 'quantity', label: '数量' },
+                { value: 'unit', label: '单位' },
+                { value: 'price', label: '单价' },
+                { value: 'brand', label: '品牌' },
+                { value: 'category', label: '分类' },
+                { value: 'remark', label: '备注' }
+            ];
+        }
+
+        function buildColumnMappingOptionsHtml(detectedType = '') {
+            return getColumnTypeOptions().map(option => {
+                const selected = option.value === detectedType ? 'selected' : '';
+                return `<option value="${option.value}" ${selected}>${option.label}</option>`;
+            }).join('');
+        }
+
+        function buildColumnMappingConfidenceHtml(mapping = {}, source = 'excel') {
+            const fromTemplate = mapping.from_template;
+            const confidence = Number(mapping.confidence || 0);
+            const needsConfirm = !!mapping.needs_confirm;
+
+            if (fromTemplate) {
+                return `<span class="qe-badge qe-badge-info">模板</span>`;
+            }
+            if (confidence >= 0.8) {
+                return `<span class="qe-badge qe-badge-success">${Math.round(confidence * 100)}%</span>`;
+            }
+            if (confidence >= 0.5) {
+                return `<span class="qe-badge qe-badge-warning">${Math.round(confidence * 100)}%</span>`;
+            }
+            if (confidence > 0) {
+                return `<span class="qe-badge qe-badge-secondary">${Math.round(confidence * 100)}%</span>`;
+            }
+
+            const unresolved = `<span class="qe-badge qe-badge-danger">未识别</span>`;
+            return needsConfirm && source === 'ocr'
+                ? `${unresolved} <span class="qe-badge qe-badge-danger">需复核</span>`
+                : unresolved;
+        }
+
+        function buildColumnMappingTableRowsHtml(parseResult = {}) {
+            const columnMapping = parseResult.column_mapping || {};
+            const preview = Array.isArray(parseResult.preview) ? parseResult.preview : [];
+            const rawHeaders = Array.isArray(parseResult.raw_headers) ? parseResult.raw_headers : [];
+            const matchedTemplate = parseResult.matched_template || null;
+            const source = parseResult.source || 'excel';
+
+            let effectiveMapping = columnMapping;
+            if (matchedTemplate && matchedTemplate.column_mapping) {
+                effectiveMapping = {};
+                for (let colIdx in columnMapping) {
+                    effectiveMapping[colIdx] = { ...columnMapping[colIdx] };
+                    if (matchedTemplate.column_mapping[colIdx]) {
+                        effectiveMapping[colIdx].detected_type = matchedTemplate.column_mapping[colIdx];
+                        effectiveMapping[colIdx].from_template = matchedTemplate.name;
+                    }
+                }
+            }
+
+            let rowsHtml = '';
+
+            if (matchedTemplate) {
+                rowsHtml += `
+                    <tr class="table-info">
+                        <td colspan="4">
+                            <i class="bi bi-bookmark-check me-2"></i>
+                            已识别模板：<strong>${escapeHtml(matchedTemplate.name || '未命名模板')}</strong>
+                        </td>
+                    </tr>
+                `;
+            }
+
+            for (let colIdx = 0; colIdx < rawHeaders.length; colIdx++) {
+                const mapping = effectiveMapping[colIdx] || {};
+                const detectedType = mapping.detected_type || '';
+                const originalHeader = mapping.original_header || rawHeaders[colIdx];
+                const needsConfirm = !!mapping.needs_confirm;
+                let previewVal = '';
+
+                if (preview.length > 0) {
+                    const firstRow = preview[0] || {};
+                    previewVal = firstRow['original_col_' + colIdx] || firstRow[detectedType] || '';
+                    previewVal = String(previewVal || '');
+                    if (previewVal.length > 20) {
+                        previewVal = previewVal.slice(0, 20) + '...';
+                    }
+                }
+
+                rowsHtml += `
+                    <tr class="${needsConfirm && source === 'ocr' ? 'table-warning' : ''}">
+                        <td><strong>${escapeHtml(String(originalHeader || '未命名列'))}</strong></td>
+                        <td>
+                            <select class="form-select form-select-sm column-type-select" data-col-idx="${colIdx}">
+                                ${buildColumnMappingOptionsHtml(detectedType)}
+                            </select>
+                        </td>
+                        <td class="text-center">${buildColumnMappingConfidenceHtml(mapping, source)}</td>
+                        <td class="text-muted small">${escapeHtml(previewVal)}</td>
+                    </tr>
+                `;
+            }
+
+            return rowsHtml;
+        }
+
+        function buildColumnMappingPreviewHtml(parseResult = {}) {
+            const preview = Array.isArray(parseResult.preview) ? parseResult.preview : [];
+            const rawHeaders = Array.isArray(parseResult.raw_headers) ? parseResult.raw_headers : [];
+            const lowConfidenceRows = Array.isArray(parseResult.low_confidence_rows) ? parseResult.low_confidence_rows : [];
+            const source = parseResult.source || 'excel';
+
+            let previewHtml = '<div class="table-responsive"><table class="table table-sm table-bordered align-middle"><thead><tr>';
+            rawHeaders.forEach(header => {
+                previewHtml += `<th>${escapeHtml(String(header || ''))}</th>`;
+            });
+            previewHtml += '</tr></thead><tbody>';
+
+            preview.forEach((row, rowIndex) => {
+                const isLowConfidenceRow = lowConfidenceRows.includes(rowIndex);
+                previewHtml += `<tr class="${isLowConfidenceRow ? 'table-warning' : ''}">`;
+                for (let i = 0; i < rawHeaders.length; i++) {
+                    const value = row['original_col_' + i] || '';
+                    previewHtml += `<td>${escapeHtml(String(value || ''))}</td>`;
+                }
+                previewHtml += '</tr>';
+            });
+
+            previewHtml += '</tbody></table></div>';
+
+            if (source === 'ocr' && Array.isArray(parseResult.raw_text) && parseResult.raw_text.length > 0) {
+                const rawTextHtml = parseResult.raw_text.slice(0, 30).map(item => {
+                    const text = String(item.text || '');
+                    const confidenceValue = Number(item.confidence || 0);
+                    const confidence = item.confidence ? `${Math.round(confidenceValue * 100)}%` : '-';
+                    const badgeClass = confidenceValue >= 0.8
+                        ? 'qe-badge qe-badge-success'
+                        : (confidenceValue >= 0.6 ? 'qe-badge qe-badge-warning' : 'qe-badge qe-badge-danger');
+                    return `
+                        <div class="ocr-reference-line">
+                            <span>${escapeHtml(text)}</span>
+                            <span class="badge ${badgeClass} flex-shrink-0">${confidence}</span>
+                        </div>
+                    `;
+                }).join('');
+
+                previewHtml += `
+                    <div class="quote-reference-card mt-3">
+                        <h6><i class="bi bi-eye me-1"></i>OCR 原文</h6>
+                        <div style="max-height: 200px; overflow-y: auto;">
+                            ${rawTextHtml}
+                        </div>
+                    </div>
+                `;
+            }
+
+            return previewHtml;
+        }
+
+        function renderQuoteMappingReviewInline(parseResult) {
+            cachedParseResult = parseResult;
+            activateQuoteWorkbenchAfterUpload({ skipRender: true });
+
+            const container = document.getElementById('matchResults');
+            if (!container) return;
+
+            const source = parseResult.source || 'excel';
+            const lowConfidenceRows = Array.isArray(parseResult.low_confidence_rows) ? parseResult.low_confidence_rows : [];
+            const matchedTemplate = parseResult.matched_template || null;
+            const sourceLabel = source === 'ocr' ? 'OCR 校对' : '列映射';
+            const sourceHint = source === 'ocr' ? '先核对识别结果。' : '确认后匹配。';
+
+            container.innerHTML = `
+                <section class="quote-mapping-review" id="quoteMappingReviewPanel">
+                    <div class="quote-mapping-review-head">
+                        <div>
+                            <div class="quote-mapping-review-kicker">${sourceLabel}</div>
+                            <h3 class="quote-mapping-review-title">确认列映射</h3>
+                            <p class="quote-mapping-review-copy">${sourceHint}</p>
+                        </div>
+                        <div class="quote-mapping-review-badges">
+                            ${matchedTemplate ? `<span class="quote-workspace-summary-pill">模板 ${escapeHtml(matchedTemplate.name || '已识别')}</span>` : ''}
+                            ${lowConfidenceRows.length ? `<span class="quote-workspace-summary-pill is-issue">低置信度 ${lowConfidenceRows.length} 行</span>` : ''}
+                        </div>
+                    </div>
+
+                    <div class="quote-mapping-review-grid">
+                        <article class="quote-mapping-review-card">
+                            <div class="quote-mapping-review-card-head">
+                                <strong>列映射</strong>
+                                <span>确认后匹配</span>
+                            </div>
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered align-middle mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th style="width: 30%">原始列名</th>
+                                            <th style="width: 34%">识别为</th>
+                                            <th style="width: 18%">置信度</th>
+                                            <th style="width: 18%">预览</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${buildColumnMappingTableRowsHtml(parseResult)}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </article>
+
+                        <article class="quote-mapping-review-card">
+                            <div class="quote-mapping-review-card-head">
+                                <strong>预览</strong>
+                                <span>5行</span>
+                            </div>
+                            <div class="quote-mapping-review-preview">
+                                ${buildColumnMappingPreviewHtml(parseResult)}
+                            </div>
+                        </article>
+                    </div>
+
+                    <div class="quote-mapping-review-footer">
+                        <div class="quote-mapping-review-footer-meta">
+                            ${source === 'ocr' ? '<span class="text-muted small">先核对名称/规格/数量/单位。</span>' : '<span class="text-muted small">确认后进入报价。</span>'}
+                        </div>
+                        <div class="quote-mapping-review-footer-actions">
+                            ${source === 'ocr' ? '' : '<button type="button" class="btn btn-outline-success" id="quoteMappingSaveTemplateBtn"><i class="bi bi-bookmark-plus me-1"></i>保存模板</button>'}
+                            <button type="button" class="btn btn-outline-secondary" id="quoteMappingCancelBtn">取消本次上传</button>
+                            <button type="button" class="btn btn-primary" id="quoteMappingConfirmBtn"><i class="bi bi-check-lg me-1"></i>确认并开始匹配</button>
+                        </div>
+                    </div>
+                </section>
+            `;
+
+            document.getElementById('quoteMappingConfirmBtn')?.addEventListener('click', confirmColumnMapping);
+            document.getElementById('quoteMappingCancelBtn')?.addEventListener('click', cancelPendingQuoteMappingReview);
+            document.getElementById('quoteMappingSaveTemplateBtn')?.addEventListener('click', showSaveTemplateDialog);
+
+            const quoteStatus = document.getElementById('quoteStatus');
+            if (quoteStatus) {
+                quoteStatus.innerHTML = `
+                    <span class="status-badge status-pending">
+                        <i class="bi bi-table me-1"></i>待确认列映射
+                    </span>
+                `;
+            }
+        }
+
+        function restorePendingQuoteMappingReviewFromSession() {
+            if (!isQuoteWorkbenchRoute()) return false;
+            const parseResult = readPendingQuoteMappingReview();
+            if (!parseResult) return false;
+            renderQuoteMappingReviewInline(parseResult);
+            return true;
+        }
+
+        function cancelPendingQuoteMappingReview() {
+            clearPendingQuoteMappingReview();
+            cachedParseResult = null;
+
+            const quoteStatus = document.getElementById('quoteStatus');
+            if (quoteStatus) {
+                quoteStatus.innerHTML = `
+                    <span class="status-badge status-pending">
+                        <i class="bi bi-hourglass me-1"></i>等待上传
+                    </span>
+                `;
+            }
+
+            checkCanStartMatch().finally(() => {
+                activateQuoteWorkbenchAfterUpload({ skipRender: false });
+            });
+        }
 
         function smartUploadFile(input) {
             if (!input.files.length) return;
 
+            const selectedFile = input.files[0];
             const formData = new FormData();
-            const fileName = input.files[0].name;
-            formData.append('file', input.files[0]);
+            const fileName = selectedFile.name;
+            formData.append('file', selectedFile);
+            input.value = '';
 
             showLoading('正在智能解析 ' + fileName + '...');
 
@@ -6456,6 +6775,16 @@
         function showColumnMappingModal(parseResult) {
             cachedParseResult = parseResult;
 
+            if (isQuoteWorkbenchRoute()) {
+                persistPendingQuoteMappingReview(parseResult);
+                renderQuoteMappingReviewInline(parseResult);
+                return;
+            }
+
+            persistPendingQuoteMappingReview(parseResult);
+            window.location.href = '{{ workspace_routes.quotes }}';
+            return;
+
             const columnMapping = parseResult.column_mapping || {};
             const preview = parseResult.preview || [];
             const rawHeaders = parseResult.raw_headers || [];
@@ -6474,8 +6803,8 @@
             const modalHint = document.getElementById('mappingModalHint');
             if (modalHint) {
                 modalHint.innerHTML = source === 'ocr'
-                    ? '<i class="bi bi-lightbulb me-2"></i>请先校对OCR识别结果，低置信度字段会优先标出，确认列类型无误后再进入匹配'
-                    : '<i class="bi bi-lightbulb me-2"></i>系统已自动识别各列含义，请确认或修改后继续';
+                    ? '<i class="bi bi-lightbulb me-2"></i>先校对OCR结果，低置信度会标出。'
+                    : '<i class="bi bi-lightbulb me-2"></i>确认列后继续';
             }
 
             if (ocrInsights) {
@@ -6488,11 +6817,11 @@
                                 <div>
                                     <div class="fw-semibold text-warning-emphasis mb-1"><i class="bi bi-stars me-1"></i>OCR校对提示</div>
                                     <div class="small text-muted">
-                                        检测到 <strong>${lowConfidenceRows.length}</strong> 行低置信度内容，建议优先核对名称、规格、数量和单位。
+                                        低置信度 <strong>${lowConfidenceRows.length}</strong> 行，先核对名称/规格/数量/单位。
                                     </div>
                                 </div>
                                 <div class="small text-muted">
-                                    ${identifierPreview.length ? `识别标识：${identifierPreview.join(' / ')}` : '已进入统一模板学习链路'}
+                                    ${identifierPreview.length ? `识别标识：${identifierPreview.join(' / ')}` : '已进入模板学习'}
                                 </div>
                             </div>
                         </div>
@@ -6650,7 +6979,9 @@
         }
 
         function confirmColumnMapping() {
-            const selects = document.querySelectorAll('.column-type-select');
+            const inlineSelects = document.querySelectorAll('#quoteMappingReviewPanel .column-type-select');
+            const modalSelects = document.querySelectorAll('#columnMappingModal .column-type-select');
+            const selects = inlineSelects.length ? inlineSelects : modalSelects;
             const mapping = {};
 
             selects.forEach(select => {
@@ -6680,8 +7011,11 @@
             .then(result => {
                 hideLoading();
                 if (result.success) {
-                    // 关闭模态框
-                    bootstrap.Modal.getInstance(document.getElementById('columnMappingModal')).hide();
+                    const mappingModal = bootstrap.Modal.getInstance(document.getElementById('columnMappingModal'));
+                    mappingModal?.hide?.();
+                    clearPendingQuoteMappingReview();
+                    cachedParseResult = null;
+                    document.getElementById('quoteMappingReviewPanel')?.remove();
 
                     document.getElementById('quoteStatus').innerHTML = `
                         <span class="status-badge status-matched">
@@ -6694,8 +7028,8 @@
                     showToast('success', result.message);
 
                     setTimeout(() => {
-                        activateQuoteWorkbenchAfterUpload();
-                    }, 300);
+                        activateQuoteWorkbenchAfterUpload({ skipRender: false });
+                    }, 150);
                 } else {
                     showToast('error', result.message, true);
                 }
@@ -6890,7 +7224,7 @@
                     cardClass: 'confirmed',
                     badgeClass: 'qe-badge qe-badge-success',
                     label: '已确认',
-                    summary: '当前项已经确认，可直接纳入导出结果。'
+                    summary: '已确认，可导出。'
                 };
             }
 
@@ -6900,7 +7234,7 @@
                     cardClass: 'no-match',
                     badgeClass: 'qe-badge qe-badge-danger',
                     label: '无匹配',
-                    summary: '当前项已明确无匹配，建议保留人工结论或继续补充信息。'
+                    summary: '已标记无匹配。'
                 };
             }
 
@@ -6910,7 +7244,7 @@
                     cardClass: 'no-match',
                     badgeClass: 'qe-badge qe-badge-warning',
                     label: '需问老板',
-                    summary: '当前项需要业务确认口径后再做最终选择。'
+                    summary: '待确认口径。'
                 };
             }
 
@@ -6920,7 +7254,7 @@
                     cardClass: 'pending',
                     badgeClass: 'qe-badge qe-badge-info',
                     label: '已自动预选',
-                    summary: '系统已经给出预选候选，但仍需人工确认。'
+                    summary: '已预选，待确认。'
                 };
             }
 
@@ -6930,7 +7264,7 @@
                     cardClass: 'pending',
                     badgeClass: 'qe-badge qe-badge-neutral',
                     label: '待确认',
-                    summary: '当前已有候选商品，等待你做最终判断。'
+                    summary: '请选择候选。'
                 };
             }
 
@@ -6939,7 +7273,7 @@
                 cardClass: 'no-match',
                 badgeClass: 'qe-badge qe-badge-warning',
                 label: '待处理',
-                summary: '当前还没有形成稳定候选，建议优先人工搜索或补充信息。'
+                summary: '请先搜索商品。'
             };
         }
 
@@ -7090,9 +7424,11 @@
                     </div>
                     <div class="workspace-empty-orbit-title">${escapeHtml(title)}</div>
                     <div class="workspace-empty-orbit-copy">${escapeHtml(copy)}</div>
+                    ${pills.length ? `
                     <div class="workspace-empty-orbit-pills">
                         ${pills.map(item => `<span class="workspace-empty-orbit-pill">${escapeHtml(item)}</span>`).join('')}
                     </div>
+                    ` : ''}
                     ${actionHtml ? `<div class="decision-atlas-actions justify-content-center mt-4">${actionHtml}</div>` : ''}
                 </div>
             `;
@@ -7105,30 +7441,30 @@
             return `
                 <div class="match-rail">
                     <div class="match-rail-card">
-                        <div class="match-rail-heading">决策队列</div>
-                        <div class="match-rail-copy">左侧只负责排顺序。先把异常、低分和未确认项提到前面，再进入单项确认，不再整页来回扫。</div>
+                        <div class="match-rail-heading">队列</div>
+                        <div class="match-rail-copy">左侧按优先级排队。</div>
                         <div class="match-rail-stat-grid">
                             <div class="match-rail-stat">
                                 <strong>${entries.length}</strong>
-                                <span>当前可见项</span>
+                                <span>当前</span>
                             </div>
                             <div class="match-rail-stat">
                                 <strong>${urgentCount}</strong>
-                                <span>优先处理</span>
+                                <span>高优先</span>
                             </div>
                             <div class="match-rail-stat">
                                 <strong>${confirmedVisibleCount}</strong>
-                                <span>当前已确认</span>
+                                <span>已确认</span>
                             </div>
                             <div class="match-rail-stat">
                                 <strong>${Math.max(entries.length - confirmedVisibleCount, 0)}</strong>
-                                <span>仍待处理</span>
+                                <span>待处理</span>
                             </div>
                         </div>
                     </div>
                     <div class="match-rail-card">
                         <div class="match-rail-heading">当前排序</div>
-                        <div class="match-rail-copy">默认按风险和待确认优先。你也可以继续使用上方搜索、状态和排序做更细的工作分流。</div>
+                        <div class="match-rail-copy">默认按风险和待确认排序。</div>
                         <ul class="match-rail-list">
                             ${entries.map(({ result, originalIndex }) => {
                                 const queryItem = result.query_item || {};
@@ -7339,8 +7675,8 @@
             if (!candidateOptions.length) {
                 candidateOptions.push(`
                     <li class="match-inspector-option">
-                        <strong>当前建议</strong>
-                        <span>还没有稳定候选，先人工搜索。</span>
+                        <strong>候选</strong>
+                        <span>暂无稳定候选。</span>
                     </li>
                 `);
             }
@@ -7376,8 +7712,8 @@
             if (!signalOptions.length) {
                 signalOptions.push(`
                     <li class="match-inspector-option">
-                        <strong>学习信号</strong>
-                        <span>暂无更多历史信号，先看候选和人工搜索。</span>
+                        <strong>信号</strong>
+                        <span>暂无历史信号。</span>
                     </li>
                 `);
             }
@@ -7391,27 +7727,26 @@
                 searchSummary = `已搜 "${searchState.keyword || ''}" · ${searchState.total || 0} 个。`;
             }
 
-            let nextStepText = '先看首选，再决定确认 / 无匹配 / 问老板。';
+            let nextStepText = '请选择候选或标记状态。';
             if (statusMeta.key === 'matched') {
-                nextStepText = '当前项已可导出。';
+                nextStepText = '已可导出。';
             } else if (statusMeta.key === 'no-match') {
-                nextStepText = '先保留无匹配，或去商品库继续查。';
+                nextStepText = '保留无匹配或继续查。';
             } else if (statusMeta.key === 'ask-boss') {
-                nextStepText = '先确认口径，再回来选。';
+                nextStepText = '先确认口径。';
             }
 
             return `
                 <div class="match-inspector">
                     <div class="match-inspector-card">
                         <div class="match-inspector-heading">快速核查</div>
-                        <div class="match-inspector-copy">少来回跳。</div>
                         <div class="match-inspector-media">
                             <div>
-                                ${productForImage ? ProductImageManager.createImageHtml(productForImage, 'small') : '<div class="match-inspector-empty">暂无建议商品</div>'}
+                                ${productForImage ? ProductImageManager.createImageHtml(productForImage, 'small') : '<div class="match-inspector-empty">暂无候选</div>'}
                             </div>
                             <div>
                                 <div class="fw-semibold">${escapeHtml(primaryProduct.name || queryItem.name || '待确认商品')}</div>
-                                <div class="small text-muted">${escapeHtml(primaryProduct.supplier || (primaryMatch ? '当前建议商品' : '当前暂无稳定候选'))}</div>
+                                <div class="small text-muted">${escapeHtml(primaryProduct.supplier || (primaryMatch ? '候选商品' : '暂无候选'))}</div>
                                 <div class="match-stream-badge-row mt-2">
                                     <span class="match-stream-badge"><i class="bi bi-wallet2"></i>${formatNumericPrice(queryItem.price)}</span>
                                     ${primaryMatch ? `<span class="match-stream-badge"><i class="bi bi-bullseye"></i>参考 ${Math.round((Number(primaryMatch.score || 0) || 0) * 100)}%</span>` : ''}
@@ -7437,7 +7772,7 @@
                             </div>
                         </div>
                         <div class="match-inspector-section">
-                            <div class="match-inspector-section-title">建议</div>
+                            <div class="match-inspector-section-title">候选</div>
                             <ul class="match-inspector-option-list">
                                 ${candidateOptions.join('')}
                             </ul>
@@ -7491,9 +7826,9 @@
             if (!matchResults || matchResults.length === 0) {
                 container.innerHTML = renderMatchWorkbenchEmptyState(
                     'bi-layout-text-window',
-                    '报价确认台正在等待第一份结果流入',
-                    '先从总览页导入商品库，再上传报价单或 OCR 图片。系统会把筛选、人工确认、搜索核对和导出准备收进同一条连续工作流。',
-                    ['先导入商品库', '再上传报价单或 OCR 图片', '开始匹配后回到这里确认']
+                    '先上传报价单',
+                    '上传后开始匹配。',
+                    []
                 );
                 updateStats();
                 return;
@@ -7508,9 +7843,9 @@
             if (!entries.length) {
                 container.innerHTML = renderMatchWorkbenchEmptyState(
                     'bi-search',
-                    '当前筛选条件下没有找到可处理的报价项',
-                    '试着放宽关键字、状态或排序方式，让待处理项重新出现在你的工作台里。',
-                    ['放宽关键词', '恢复全部状态', '回到默认排序'],
+                    '没有符合条件的报价项',
+                    '调整筛选后重试。',
+                    [],
                     '<button class="btn btn-outline-primary btn-sm" type="button" onclick="document.getElementById(\'resetFilterBtn\')?.click()"><i class="bi bi-arrow-counterclockwise me-1"></i>重置筛选</button>'
                 );
                 updateStats();
@@ -7533,14 +7868,13 @@
             container.innerHTML = `
                 <div class="decision-atlas">
                     <div class="decision-atlas-main">
-                        <div class="decision-atlas-eyebrow">Decision Overview</div>
-                        <div class="decision-atlas-title">先排优先级，再处理当前项，让报价确认回到一条更流畅的决策线里。</div>
-                        <div class="decision-atlas-copy">默认不再把所有报价项平铺成旧式后台长列表，而是把可见范围、风险项、确认进度和当前焦点收进同一块总览里。</div>
+                        <div class="decision-atlas-eyebrow">状态</div>
+                        <div class="decision-atlas-title">报价状态</div>
                         <div class="decision-stat-grid">
-                            <div class="decision-stat-card"><strong>${totalCount}</strong><span>本次报价总项</span></div>
-                            <div class="decision-stat-card"><strong>${visibleCount}</strong><span>当前可见范围</span></div>
-                            <div class="decision-stat-card"><strong>${confirmedCount}</strong><span>已确认可导出</span></div>
-                            <div class="decision-stat-card"><strong>${urgentCount + issueCount}</strong><span>风险与优先处理</span></div>
+                            <div class="decision-stat-card"><strong>${totalCount}</strong><span>总项</span></div>
+                            <div class="decision-stat-card"><strong>${visibleCount}</strong><span>当前</span></div>
+                            <div class="decision-stat-card"><strong>${confirmedCount}</strong><span>已确认</span></div>
+                            <div class="decision-stat-card"><strong>${urgentCount + issueCount}</strong><span>待处理</span></div>
                         </div>
                         <div class="decision-progress-track">
                             <span style="width: ${Math.min(Math.max(completionRate, 0), 100)}%;"></span>
@@ -7548,25 +7882,24 @@
                         <div class="decision-progress-meta">
                             <span>确认进度</span>
                             <strong>${completionRate}%</strong>
-                            <span>${confirmedCount} / ${totalCount} 已可直接用于导出</span>
+                            <span>${confirmedCount} / ${totalCount}</span>
                         </div>
                     </div>
                     <div class="decision-atlas-side">
-                        <div class="decision-atlas-eyebrow">Focus Rule</div>
-                        <div class="decision-atlas-title">当前焦点: ${escapeHtml(activeName)}</div>
-                        <div class="decision-atlas-copy">风险项、低分项和未确认项会优先进入左侧队列。中间只展开当前项，右侧用更短的块保留关键核查信息。</div>
+                        <div class="decision-atlas-eyebrow">当前项</div>
+                        <div class="decision-atlas-title">${escapeHtml(activeName)}</div>
                         <div class="decision-focus-pills">
-                            <span class="decision-focus-pill"><i class="bi bi-exclamation-diamond"></i>${urgentCount} 个高优先项</span>
-                            <span class="decision-focus-pill"><i class="bi bi-check2-square"></i>${pendingCount + issueCount} 个待收口项</span>
+                            <span class="decision-focus-pill"><i class="bi bi-exclamation-diamond"></i>${urgentCount} 个高优先</span>
+                            <span class="decision-focus-pill"><i class="bi bi-check2-square"></i>${pendingCount + issueCount} 个待处理</span>
                             <span class="decision-focus-pill"><i class="bi bi-compass"></i>${escapeHtml(activeStatus.label)}</span>
                         </div>
                         <div class="decision-focus-card">
-                            <div class="decision-focus-title">当前建议</div>
+                            <div class="decision-focus-title">状态</div>
                             <div class="decision-focus-copy">${escapeHtml(activeStatus.summary)}</div>
                         </div>
                         <div class="decision-atlas-actions">
                             <button class="btn btn-primary btn-sm" type="button" onclick="showExportOptionsForCurrentMatch()">
-                                <i class="bi bi-box-arrow-up-right me-1"></i>进入导出配置
+                                <i class="bi bi-box-arrow-up-right me-1"></i>导出
                             </button>
                             <a class="btn btn-outline-secondary btn-sm" href="{{ workspace_routes.templates }}">
                                 <i class="bi bi-files me-1"></i>模板中心
@@ -7605,7 +7938,7 @@
                 imageMimeType: rawState.imageMimeType || '',
                 provider: rawState.provider || '',
                 modelName: rawState.modelName || '',
-                imageSearchMode: rawState.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_CLIP ? QUOTE_IMAGE_SEARCH_MODE_CLIP : QUOTE_IMAGE_SEARCH_MODE_FAST,
+                imageSearchMode: rawState.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_FAST ? QUOTE_IMAGE_SEARCH_MODE_FAST : QUOTE_IMAGE_SEARCH_MODE_CLIP,
                 activeTab: rawState.activeTab || QUOTE_SEARCH_TAB_TEXT
             };
         }
@@ -7630,7 +7963,7 @@
                 mimeType: rawState.mimeType || '',
                 provider: rawState.provider || '',
                 modelName: rawState.modelName || '',
-                imageSearchMode: rawState.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_CLIP ? QUOTE_IMAGE_SEARCH_MODE_CLIP : QUOTE_IMAGE_SEARCH_MODE_FAST
+                imageSearchMode: rawState.imageSearchMode === QUOTE_IMAGE_SEARCH_MODE_FAST ? QUOTE_IMAGE_SEARCH_MODE_FAST : QUOTE_IMAGE_SEARCH_MODE_CLIP
             };
         }
 
@@ -8042,11 +8375,11 @@
                                 <strong>${escapeHtml(state.imageQueryName || '上传图片后直接找 SKU')}</strong>
                                 <div class="quote-search-modal-search-hint">${imageProviderMeta ? escapeHtml(imageProviderMeta) : '拍照 / 截图 / 主图'}</div>
                                 <div class="btn-group btn-group-sm quote-image-provider-toggle mt-2" role="group" aria-label="图搜模式">
-                                    <button class="btn ${fastModeActive ? 'btn-info' : 'btn-outline-info'} quote-image-provider-option" data-item-index="${itemIndex}" data-image-search-mode="${QUOTE_IMAGE_SEARCH_MODE_FAST}" type="button">
-                                        快速图搜
-                                    </button>
                                     <button class="btn ${clipModeActive ? 'btn-info' : 'btn-outline-info'} quote-image-provider-option" data-item-index="${itemIndex}" data-image-search-mode="${QUOTE_IMAGE_SEARCH_MODE_CLIP}" type="button">
                                         智能 CLIP
+                                    </button>
+                                    <button class="btn ${fastModeActive ? 'btn-info' : 'btn-outline-info'} quote-image-provider-option" data-item-index="${itemIndex}" data-image-search-mode="${QUOTE_IMAGE_SEARCH_MODE_FAST}" type="button">
+                                        近似图
                                     </button>
                                 </div>
                                 <div class="quote-search-modal-search-hint">${escapeHtml(imageProviderConfig.hint)} · 支持粘贴截图</div>
@@ -8946,7 +9279,7 @@
                 .then(response => response.json())
                 .then(result => {
                     if (result.success) {
-                        renderHistoryList(result.history);
+                        renderHistoryList(result.history, result.history_source || '');
                     } else {
                         document.getElementById('historyList').innerHTML = `
                             <div class="text-center py-4 text-muted">
@@ -8958,28 +9291,45 @@
                 });
         }
 
-        function renderHistoryList(history) {
+        function getHistorySourceLabel(source) {
+            if (source === 'postgres_v2') return 'PostgreSQL V2';
+            if (source === 'sqlite_legacy') return 'SQLite Legacy';
+            if (source) return String(source);
+            return '';
+        }
+
+        function renderHistorySourceBadge(source) {
+            const sourceLabel = getHistorySourceLabel(source);
+            if (!sourceLabel) return '';
+            return `
+                <div class="mb-3">
+                    <span class="badge text-bg-light border">数据源 ${escapeHtml(sourceLabel)}</span>
+                </div>
+            `;
+        }
+
+        function renderHistoryList(history, historySource = '') {
             const container = document.getElementById('historyList');
             const recentMetaEl = document.getElementById('historyRecentMeta');
             const bestRateEl = document.getElementById('historyBestRate');
             const accumulatedAmountEl = document.getElementById('historyAccumulatedAmount');
+            const sourceLabel = getHistorySourceLabel(historySource);
+            const sourceBadge = renderHistorySourceBadge(historySource);
 
             if (!history || history.length === 0) {
-                if (recentMetaEl) recentMetaEl.textContent = '暂无记录';
+                if (recentMetaEl) {
+                    recentMetaEl.textContent = sourceLabel ? `暂无记录 · ${sourceLabel}` : '暂无记录';
+                }
                 if (bestRateEl) bestRateEl.textContent = '0%';
                 if (accumulatedAmountEl) accumulatedAmountEl.textContent = '¥0.00';
                 container.innerHTML = `
+                    ${sourceBadge}
                     <div class="workspace-empty-orbit workspace-empty-orbit--history">
                         <div class="workspace-empty-orbit-visual">
                             <i class="bi bi-inbox"></i>
                         </div>
-                        <div class="workspace-empty-orbit-title">还没有可回放的历史记录。</div>
-                        <div class="workspace-empty-orbit-copy">当第一份报价被导出后，这里就会开始收集客户、金额和质量信号，供你之后回看和复盘。</div>
-                        <div class="workspace-empty-orbit-pills">
-                            <span class="workspace-empty-orbit-pill">先完成一份报价</span>
-                            <span class="workspace-empty-orbit-pill">自动归档进历史</span>
-                            <span class="workspace-empty-orbit-pill">后续回放复盘</span>
-                        </div>
+                        <div class="workspace-empty-orbit-title">暂无历史</div>
+                        <div class="workspace-empty-orbit-copy">导出后会自动归档到这里。</div>
                     </div>
                 `;
                 return;
@@ -9013,12 +9363,14 @@
             if (recentMetaEl) {
                 const customer = latest?.customer_name || '未命名客户';
                 const createdAt = latest?.created_at || '最近一次';
-                recentMetaEl.textContent = `${customer} · ${createdAt}`;
+                recentMetaEl.textContent = sourceLabel
+                    ? `${customer} · ${createdAt} · ${sourceLabel}`
+                    : `${customer} · ${createdAt}`;
             }
             if (bestRateEl) bestRateEl.textContent = `${bestRate}%`;
             if (accumulatedAmountEl) accumulatedAmountEl.textContent = `¥${accumulatedAmount.toFixed(2)}`;
 
-            let html = '<div class="history-ledger-stack">';
+            let html = `${sourceBadge}<div class="history-ledger-stack">`;
 
             history.forEach(h => {
                 const matchRate = h.total_items > 0 ? Math.round(h.matched_items / h.total_items * 100) : 0;
@@ -9644,13 +9996,13 @@
 
             if (!shouldShow) {
                 summaryEl.textContent = '这里会根据模板制作指南显示可覆盖的单据类型、变量标记和落地能力。';
-                docsEl.innerHTML = '<span class="export-template-preview-empty">选择商城模板后查看</span>';
-                markersEl.innerHTML = '<span class="export-template-preview-empty">选择商城模板后查看</span>';
-                rulesEl.innerHTML = '<li class="export-template-preview-empty">选择商城模板后查看</li>';
-                featuresEl.innerHTML = '<span class="export-template-preview-empty">选择商城模板后查看</span>';
-                validatorSummaryEl.textContent = '选择商城模板后，这里会显示模板上传后的自动校验重点。';
-                validatorSectionsEl.innerHTML = '<div class="export-template-preview-empty">选择商城模板后查看</div>';
-                validatorOutputsEl.innerHTML = '<div class="export-template-preview-empty">选择商城模板后查看</div>';
+                docsEl.innerHTML = '<span class="export-template-preview-empty">选择后查看</span>';
+                markersEl.innerHTML = '<span class="export-template-preview-empty">选择后查看</span>';
+                rulesEl.innerHTML = '<li class="export-template-preview-empty">选择后查看</li>';
+                featuresEl.innerHTML = '<span class="export-template-preview-empty">选择后查看</span>';
+                validatorSummaryEl.textContent = '选择后查看校验重点。';
+                validatorSectionsEl.innerHTML = '<div class="export-template-preview-empty">选择后查看</div>';
+                validatorOutputsEl.innerHTML = '<div class="export-template-preview-empty">选择后查看</div>';
                 return;
             }
 
@@ -9736,17 +10088,17 @@
 
             if (!doc) {
                 detailEl.classList.add('d-none');
-                hintEl.textContent = '点击上方卡片后，这里会显示当前单据方向说明。';
+                hintEl.textContent = '点卡片后查看。';
                 statusEl.className = 'qe-badge qe-badge-neutral';
                 statusEl.textContent = '未选择';
                 titleEl.textContent = '请选择单据方向';
-                descEl.textContent = '当前仅做商城模板扩展预览，不改变实际导出流程。';
-                scenarioEl.textContent = '选择单据方向后，这里会显示推荐使用场景。';
+                descEl.textContent = '仅预览，不影响导出。';
+                scenarioEl.textContent = '选择后查看。';
                 fieldsEl.innerHTML = '<span class="export-template-preview-empty">选择单据方向后查看</span>';
                 prerequisitesEl.innerHTML = '<span class="export-template-preview-empty">选择单据方向后查看</span>';
-                readinessEl.textContent = '这里会显示当前单据方向的接入准备说明。';
-                rolloutEl.textContent = '这里会显示当前单据方向更适合在哪个阶段落地。';
-                valueEl.textContent = '这里会显示当前单据方向为什么值得优先接入。';
+                readinessEl.textContent = '显示接入状态。';
+                rolloutEl.textContent = '显示落地顺序。';
+                valueEl.textContent = '显示优先级。';
                 readinessGridEl.innerHTML = '<div class="export-template-preview-empty">选择单据方向后查看</div>';
                 mustFieldsEl.innerHTML = '<span class="export-template-preview-empty">选择单据方向后查看</span>';
                 optionalFieldsEl.innerHTML = '<span class="export-template-preview-empty">选择单据方向后查看</span>';
@@ -9755,7 +10107,7 @@
                 variantsEl.innerHTML = '<li class="export-template-preview-empty">选择单据方向后查看</li>';
                 coverageFieldsEl.innerHTML = '<span class="export-template-preview-empty">选择单据方向后查看</span>';
                 checklistEl.innerHTML = '<li class="export-template-preview-empty">选择单据方向后查看</li>';
-                nextStepEl.textContent = '当前仅展示未来接入方向，不改变真实导出流程。';
+                nextStepEl.textContent = '仅预览，不影响导出。';
                 return;
             }
 
@@ -9764,13 +10116,13 @@
             statusEl.className = getMallExtensionStatusBadgeClass(doc.status);
             statusEl.textContent = getMallExtensionStatusLabel(doc.status);
             titleEl.textContent = doc.label || doc.key || '扩展单据';
-            descEl.textContent = doc.description || '后续会在这里接入对应单据模板能力。';
-            scenarioEl.textContent = doc.scenario || '适合在当前商城报价模板的基础上继续向下游单据延展。';
+            descEl.textContent = doc.description || '后续接入对应单据。';
+            scenarioEl.textContent = doc.scenario || '适合继续扩展。';
             fieldsEl.innerHTML = renderTemplateChipList(doc.inherited_fields || []);
             prerequisitesEl.innerHTML = renderTemplateChipList(doc.prerequisites || []);
-            readinessEl.textContent = doc.readiness_note || '当前阶段先完成入口和字段准备，后续再逐步接入真实单据能力。';
+            readinessEl.textContent = doc.readiness_note || '先完成入口和字段。';
             rolloutEl.textContent = formatMallRolloutLabel(doc.rollout_order);
-            valueEl.textContent = doc.value_summary || '当前先补齐说明层与字段层，后续再根据业务价值决定实际接入顺序。';
+            valueEl.textContent = doc.value_summary || '按业务价值接入。';
             readinessGridEl.innerHTML = renderReadinessStat(doc.readiness_score || 0);
             mustFieldsEl.innerHTML = renderTemplateChipList(doc.must_have_fields || []);
             optionalFieldsEl.innerHTML = renderTemplateChipList(doc.optional_fields || []);
@@ -9779,7 +10131,7 @@
             variantsEl.innerHTML = renderTemplateFlowList(doc.template_variants || []);
             coverageFieldsEl.innerHTML = renderTemplateChipList(doc.field_focus || []);
             checklistEl.innerHTML = renderTemplateFlowList(doc.landing_checklist || []);
-            nextStepEl.textContent = doc.next_step || '当前阶段先保留入口与说明，后续再把真实单据生成能力接进来。';
+            nextStepEl.textContent = doc.next_step || '后续接入真实单据。';
         }
 
 
@@ -9824,7 +10176,7 @@
 
             const actionText = getMallExtensionActionLabel(status);
             const statusText = getMallExtensionStatusLabel(status);
-            showToast('info', `${escapeHtml(label)}入口暂未真正开放，当前用于展示扩展方向。状态：${escapeHtml(statusText)}，建议：${escapeHtml(actionText)}。`);
+            showToast('info', `${escapeHtml(label)}暂未开放。状态：${escapeHtml(statusText)}；建议：${escapeHtml(actionText)}。`);
         }
 
         function renderMallDocumentPlaceholders(template) {
@@ -9839,7 +10191,7 @@
 
             if (!shouldShow) {
                 gridEl.innerHTML = '';
-                subtitleEl.textContent = '选择商城模板后，这里会显示可继续承接的单据方向。';
+                subtitleEl.textContent = '选择后查看扩展单据。';
                 updateMallDocumentDetail(null);
                 return;
             }
@@ -10926,13 +11278,13 @@
     <!-- 设置管理：公司信息、PDF导出 -->
     <script src="/static/js/settings.js?v=20260413a"></script>
     <!-- 商品图片展示 -->
-    <script src="/static/js/product_images.js?v=20260424a"></script>
+    <script src="/static/js/product_images.js?v=20260425b"></script>
     <!-- OCR图片识别 -->
     <script src="/static/js/ocr_manager.js?v=20260413a"></script>
     <!-- 合同生成 -->
     <script src="/static/js/contract_manager.js"></script>
     <!-- 匹配工作台覆盖逻辑 -->
-    <script src="/static/js/match_workbench_override.js?v=20260424a"></script>
+    <script src="/static/js/match_workbench_override.js?v=20260425c"></script>
 </body>
 </html>
 

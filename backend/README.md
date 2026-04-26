@@ -2,6 +2,8 @@
 
 `backend/` 是赛正报价工作台的 V2 后端底座，目标是把 legacy 的 JSON / SQLite 工作流逐步迁到更稳的现代架构上。
 
+当前阶段：**v0.9.1 上线前最后收口**。
+
 当前已经承接：
 
 - PostgreSQL 商品库
@@ -73,7 +75,7 @@ http://127.0.0.1:8001/health
 当前状态：
 
 - `local_hash_embedding / phash_dhash_128d_v1`：生产可用，写入 `embedding_vector vector(128)`
-- `clip_local / openclip_vit_b_32_512d`：依赖已接入，写入 `embedding_vector_512 vector(512)`；当前已生成首批 20 条，可继续批量生成
+- `clip_local / openclip_vit_b_32_512d`：依赖已接入，写入 `embedding_vector_512 vector(512)`；当前已完成全量生成 `3300 / 3300`，`pending_assets = 0`
 
 ### 商品同步
 
@@ -120,10 +122,22 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py
 backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --dry-run --limit 1
 ```
 
-生成 CLIP 向量：
+增量生成 CLIP 向量：
 
 ```powershell
 backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --provider clip_local --model-name openclip_vit_b_32_512d --limit 20 --commit-every 5
+```
+
+全量 / 增量 CLIP 分批慢跑（推荐）：
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings_batch.py --provider clip_local --model-name openclip_vit_b_32_512d --batch-size 20 --commit-every 5 --sleep-seconds 1.5
+```
+
+按批次数限制（例如先跑 50 批）：
+
+```powershell
+backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings_batch.py --provider clip_local --model-name openclip_vit_b_32_512d --batch-size 20 --max-batches 50
 ```
 
 说明：
@@ -131,8 +145,9 @@ backend\.venv\Scripts\python.exe backend\scripts\generate_image_embeddings.py --
 - 当前 Windows 环境使用 RTX 4060 验证通过的 CUDA 版：`torch==2.5.1+cu121`
 - 这个 CUDA 来自 PyTorch wheel，只安装在 `backend\.venv`，不会改系统 CUDA Toolkit 或其他 Conda 环境
 - 首次运行会从 Hugging Face / OpenCLIP 下载模型权重
-- 全量 3300 张 ready 资产即使用 GPU 也建议分批执行，不建议阻塞前台页面
-- 当前实测安全批量建议先用 `--limit 10~20`；后续接入后台任务后再扩大批量
+- 当前本地 CLIP 首轮全量已完成：`3300 / 3300`，`pending_assets = 0`
+- 若商城有新品、补图或失败资产，建议继续分批执行增量补跑，不阻塞前台页面
+- `--limit 10~20` 现在主要用于增量补跑、依赖验证或回归，不再代表全量完成度
 
 ---
 

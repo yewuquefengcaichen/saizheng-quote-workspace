@@ -2,9 +2,7 @@
     <section class="dashboard-focus-shell" id="workspaceIngress">
         <div class="dashboard-focus-header">
             <div>
-                <div class="dashboard-focus-kicker">首页入口</div>
-                <div class="dashboard-focus-title">先导商品，再导报价。</div>
-                <div class="dashboard-focus-subtitle">首页只留高频动作。其他说明统一去说明页。</div>
+                <div class="dashboard-focus-title">商品库 → 报价单</div>
             </div>
             <div class="dashboard-focus-links">
                 <a href="{{ workspace_routes.templates }}" class="dashboard-link-chip"><i class="bi bi-files"></i>模板中心</a>
@@ -22,7 +20,7 @@
                     <div class="focus-step-meta">
                         <div>
                             <div class="focus-step-title">上传商品库</div>
-                            <div class="focus-step-copy">先把商品底座补齐，后面匹配会更稳。</div>
+                            <div class="focus-step-copy">先导入。</div>
                         </div>
                         <div id="productsStatus" class="mb-0">
                         {% if products_loaded %}
@@ -54,12 +52,6 @@
                         <span class="upload-zone-cta"><i class="bi bi-hand-index-thumb me-2"></i>选择商品库文件</span>
                         <input type="file" id="productsFile" accept=".xls,.xlsx">
                     </label>
-
-                    <div class="focus-step-foot">
-                        <span class="focus-step-pill"><i class="bi bi-tags"></i>品牌 / 分类 / 单位</span>
-                        <span class="focus-step-pill"><i class="bi bi-building"></i>供应商与价格</span>
-                        <span class="focus-step-pill"><i class="bi bi-image"></i>图片与详情</span>
-                    </div>
                 </div>
             </div>
 
@@ -72,7 +64,7 @@
                     <div class="focus-step-meta">
                         <div>
                             <div class="focus-step-title">上传报价单</div>
-                            <div class="focus-step-copy">Excel 和 OCR 都进同一个确认台。</div>
+                            <div class="focus-step-copy">Excel / OCR</div>
                         </div>
                         <div id="quoteStatus" class="mb-0">
                             <span class="status-badge status-pending">
@@ -95,14 +87,7 @@
                         <button type="button" class="btn btn-outline-info btn-lg" id="ocrUploadBtn" data-ocr-entry="true">
                             <i class="bi bi-camera me-2"></i>OCR 图片识别
                         </button>
-                        <small class="text-muted">图片报价单也走同一流程</small>
                         <input type="file" id="ocrFile" accept="image/*" style="display: none;">
-                    </div>
-
-                    <div class="focus-step-foot">
-                        <span class="focus-step-pill"><i class="bi bi-file-earmark-spreadsheet"></i>Excel 报价</span>
-                        <span class="focus-step-pill"><i class="bi bi-camera"></i>OCR 图片</span>
-                        <span class="focus-step-pill"><i class="bi bi-check2-square"></i>统一确认</span>
                     </div>
                 </div>
             </div>
@@ -110,8 +95,7 @@
 
         <div class="dashboard-enter-bar">
             <div class="dashboard-enter-copy">
-                <div class="dashboard-enter-title">准备好后，直接进入报价台。</div>
-                <div class="dashboard-enter-note">确认完成后再去模板中心导出。</div>
+                <div class="dashboard-enter-title">直接去报价台</div>
             </div>
             <button class="btn btn-primary btn-lg" id="startMatchBtn" disabled>
                 <i class="bi bi-lightning-charge me-2"></i>进入报价确认台

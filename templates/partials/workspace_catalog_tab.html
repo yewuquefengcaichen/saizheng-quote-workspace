@@ -1,9 +1,7 @@
 <div id="catalogTab" class="tab-content"{% if initial_tab != 'catalog' %} style="display: none;"{% endif %}>
     <section class="catalog-page-head">
         <div>
-            <div class="catalog-page-kicker">赛正报价工作台 @feng</div>
             <div class="catalog-page-title">商品库</div>
-            <div class="catalog-page-subtitle">筛选 / 同步 / 图搜图</div>
         </div>
         <div class="catalog-page-actions">
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="WorkspaceEntryActions.openProductsUpload()">
@@ -61,7 +59,6 @@
         <div class="catalog-toolbar-topbar">
             <div>
                 <div class="catalog-toolbar-heading">筛选器</div>
-                <div class="catalog-toolbar-subheading">快速定位商品。</div>
             </div>
             <div class="catalog-toolbar-actions">
                 <button class="btn btn-outline-secondary btn-sm" id="catalogResetBtn">
@@ -152,7 +149,7 @@
                         <label class="form-check-label" for="catalogMallResumeEnabled">断点续抓</label>
                     </div>
                 </div>
-                <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>默认有图优先。</span></div>
+                <div class="catalog-toolbar-note" id="catalogToolbarHint"><i class="bi bi-grid-3x3-gap"></i><span>优先显示有图</span></div>
                 <div class="catalog-toolbar-note mt-2" id="catalogSyncV2Status"><i class="bi bi-database"></i><span>V2 同步状态读取中…</span></div>
                 <div class="catalog-image-search-status mt-2" id="catalogImageSearchStatus" style="display: none;"></div>
                 <div class="catalog-sync-mini-strip mt-2" id="catalogMallSyncBrief" style="display: none;"></div>

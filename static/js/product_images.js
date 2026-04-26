@@ -40,6 +40,71 @@ const ProductImageManager = {
         return '';
     },
 
+    getLocalDisplayUrl(product, index = 0, image = null) {
+        const normalizedImage = image || {};
+        const imageProxyUrl = this.normalizeUrl(normalizedImage.proxy_url || '');
+        if (this.isPreferredLocalUrl(imageProxyUrl)) {
+            return imageProxyUrl;
+        }
+
+        const imageUrl = this.normalizeUrl(normalizedImage.url || '');
+        if (this.isPreferredLocalUrl(imageUrl)) {
+            return imageUrl;
+        }
+
+        const imageSourceUrl = this.normalizeUrl(normalizedImage.source_url || '');
+        if (this.isPreferredLocalUrl(imageSourceUrl)) {
+            return imageSourceUrl;
+        }
+
+        return this.getProxyUrl(product, index) || '';
+    },
+
+    isPreferredLocalUrl(url) {
+        const normalizedUrl = String(url || '').trim();
+        if (!normalizedUrl) return false;
+        return normalizedUrl.startsWith('/api/catalog/image_asset/')
+            || normalizedUrl.startsWith('/api/product/image-proxy')
+            || normalizedUrl.startsWith('/api/');
+    },
+
+    getImagePriorityScore(image, preferredUrl = '') {
+        if (!image) return 0;
+
+        const normalizedPreferredUrl = this.normalizeUrl(preferredUrl || '');
+        const proxyUrl = this.normalizeUrl(image.proxy_url || '');
+        const directUrl = this.normalizeUrl(image.url || '');
+        const sourceUrl = this.normalizeUrl(image.source_url || '');
+        const candidates = [proxyUrl, directUrl, sourceUrl].filter(Boolean);
+
+        let score = 0;
+        if (normalizedPreferredUrl && candidates.includes(normalizedPreferredUrl)) {
+            score += 100;
+        }
+        if (candidates.some(url => this.isPreferredLocalUrl(url))) {
+            score += 50;
+        }
+        if (proxyUrl) {
+            score += 10;
+        }
+        return score;
+    },
+
+    prioritizeImages(images, preferredUrl = '') {
+        if (!Array.isArray(images) || images.length <= 1) {
+            return Array.isArray(images) ? images : [];
+        }
+
+        return images
+            .map((image, index) => ({
+                image,
+                index,
+                score: this.getImagePriorityScore(image, preferredUrl)
+            }))
+            .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+            .map(item => item.image);
+    },
+
     /**
      * 获取商品图片URL
      * @param {Object} product - 商品对象
@@ -48,18 +113,23 @@ const ProductImageManager = {
     getImageUrl(product) {
         if (!product) return '';
 
-        if (product.image_url) {
-            const imageUrl = this.normalizeUrl(product.image_url);
-            if (imageUrl) return imageUrl;
-        }
-
-        if (product.source_image_url) {
-            return this.normalizeUrl(product.source_image_url);
+        const productImageUrl = this.normalizeUrl(product.image_url || '');
+        if (this.isPreferredLocalUrl(productImageUrl)) {
+            return productImageUrl;
         }
 
         const images = this.getImages(product);
         if (images.length > 0) {
-            return images[0].url || images[0].proxy_url || images[0].source_url || '';
+            const displayUrl = this.getDisplayUrl(images[0], product, 0) || this.getViewerUrl(images[0], product, 0);
+            if (displayUrl) return displayUrl;
+        }
+
+        if (productImageUrl) {
+            return productImageUrl;
+        }
+
+        if (product.source_image_url) {
+            return this.normalizeUrl(product.source_image_url);
         }
 
         const proxyUrl = this.getProxyUrl(product);
@@ -70,14 +140,18 @@ const ProductImageManager = {
         return '';
     },
 
-    getDisplayUrl(image) {
-        if (!image) return '';
-        return image.proxy_url || this.normalizeUrl(image.source_url || image.url || '') || '';
+    getDisplayUrl(image, product = null, index = 0) {
+        if (!image && !product) return '';
+        const localUrl = this.getLocalDisplayUrl(product, index, image);
+        if (localUrl) return localUrl;
+        return this.normalizeUrl(image?.source_url || image?.url || '') || '';
     },
 
-    getViewerUrl(image) {
-        if (!image) return '';
-        return image.proxy_url || this.normalizeUrl(image.source_url || image.url || '') || '';
+    getViewerUrl(image, product = null, index = 0) {
+        if (!image && !product) return '';
+        const localUrl = this.getLocalDisplayUrl(product, index, image);
+        if (localUrl) return localUrl;
+        return this.normalizeUrl(image?.source_url || image?.url || '') || '';
     },
 
     getSourceUrl(image) {
@@ -110,37 +184,59 @@ const ProductImageManager = {
         }
 
         let images = [];
+        const productImageUrl = this.normalizeUrl(product.image_url || '');
+        const productSourceImageUrl = this.normalizeUrl(product.source_image_url || '');
 
         if (product.images && product.images.length > 0) {
             images = product.images.map((img, index) => {
-                const sourceUrl = this.normalizeUrl(img.source_url || img.url);
+                const directUrl = this.normalizeUrl(img.url || '');
+                const sourceUrl = this.normalizeUrl(img.source_url || '');
                 const explicitProxyUrl = this.normalizeUrl(img.proxy_url || img.thumb || '');
-                const legacyProxyUrl = this.getProxyUrl(product, index) || '';
-                const proxyUrl = explicitProxyUrl || (!sourceUrl ? legacyProxyUrl : '');
+                const proxyUrl = this.getLocalDisplayUrl(product, index, img)
+                    || explicitProxyUrl
+                    || (this.isPreferredLocalUrl(directUrl) ? directUrl : '');
                 return {
                     ...img,
-                    url: proxyUrl || sourceUrl,
-                    source_url: sourceUrl,
+                    url: proxyUrl || directUrl || sourceUrl,
+                    source_url: sourceUrl || (this.isPreferredLocalUrl(directUrl) ? '' : directUrl),
                     proxy_url: proxyUrl
                 };
             });
-            const productImageUrl = this.normalizeUrl(product.image_url || '');
-            if (productImageUrl && productImageUrl.startsWith('/api/') && !images.some(img => (img.url || img.proxy_url) === productImageUrl)) {
-                images.unshift({
-                    url: productImageUrl,
-                    title: product.name || '',
-                    source_url: this.normalizeUrl(product.source_image_url || ''),
-                    proxy_url: productImageUrl
+            if (this.isPreferredLocalUrl(productImageUrl)) {
+                const existingIndex = images.findIndex(img => {
+                    const candidates = [
+                        this.normalizeUrl(img.proxy_url || ''),
+                        this.normalizeUrl(img.url || ''),
+                        this.normalizeUrl(img.source_url || '')
+                    ];
+                    return candidates.includes(productImageUrl);
                 });
+                if (existingIndex >= 0) {
+                    const [matchedImage] = images.splice(existingIndex, 1);
+                    images.unshift({
+                        ...matchedImage,
+                        url: matchedImage.url || productImageUrl,
+                        source_url: matchedImage.source_url || productSourceImageUrl,
+                        proxy_url: matchedImage.proxy_url || productImageUrl
+                    });
+                } else {
+                    images.unshift({
+                        url: productImageUrl,
+                        title: product.name || '',
+                        source_url: productSourceImageUrl,
+                        proxy_url: productImageUrl
+                    });
+                }
             }
         } else if (product.image_url || product.source_image_url) {
-            const explicitImageUrl = this.normalizeUrl(product.image_url || '');
+            const explicitImageUrl = productImageUrl;
             const sourceUrl = this.normalizeUrl(product.source_image_url || product.image_url || '');
+            const proxyUrl = this.getLocalDisplayUrl(product);
             images = [{
-                url: explicitImageUrl || sourceUrl,
+                url: proxyUrl || explicitImageUrl || sourceUrl,
                 title: product.name || '',
                 source_url: sourceUrl,
-                proxy_url: explicitImageUrl && explicitImageUrl.startsWith('/api/') ? explicitImageUrl : ''
+                proxy_url: proxyUrl || (this.isPreferredLocalUrl(explicitImageUrl) ? explicitImageUrl : '')
             }];
         } else if (product.intro) {
             images = this.extractImagesFromIntro(product.intro, product);
@@ -155,6 +251,8 @@ const ProductImageManager = {
                 }];
             }
         }
+
+        images = this.prioritizeImages(images, productImageUrl);
 
         if (cacheKey) {
             this.imageCache.set(cacheKey, images);
@@ -172,8 +270,8 @@ const ProductImageManager = {
         return extractedImages.map((img, index) => ({
             ...img,
             source_url: this.normalizeUrl(img.source_url || img.url),
-            proxy_url: '',
-            url: this.normalizeUrl(img.url) || this.getProxyUrl(product, index)
+            proxy_url: this.getProxyUrl(product, index) || '',
+            url: this.getProxyUrl(product, index) || this.normalizeUrl(img.url)
         }));
     },
 
@@ -560,10 +658,12 @@ const ProductImageManager = {
         const sizeStyle = size === 'large' ? 'width: 120px; height: 120px;' :
                           size === 'medium' ? 'width: 80px; height: 80px;' :
                           'width: 60px; height: 60px;';
-        const displayUrl = this.getDisplayUrl(firstImage) || this.getViewerUrl(firstImage) || this.placeholderDataUrl();
+        const displayUrl = this.getDisplayUrl(firstImage, product, 0) || this.getViewerUrl(firstImage, product, 0) || this.placeholderDataUrl();
         const fallbackUrl = this.getSourceUrl(firstImage);
         const payload = this.buildViewerPayload(images);
-        const loading = size === 'large' ? 'eager' : 'lazy';
+        const route = document.body?.dataset?.route || '';
+        const eagerOnQuotes = route === 'quotes' && size !== 'large';
+        const loading = size === 'large' || eagerOnQuotes ? 'eager' : 'lazy';
         const decoding = 'async';
         const errorPlaceholderHtml = this.escapeHtmlAttr(`<div class="product-image-placeholder"><i class="bi bi-image"></i><span>图片加载失败</span></div>${imageHint}`);
 
@@ -575,7 +675,7 @@ const ProductImageManager = {
                      style="${sizeStyle}"
                      loading="${loading}"
                      decoding="${decoding}"
-                     fetchpriority="${size === 'large' ? 'high' : 'auto'}"
+                     fetchpriority="${size === 'large' || eagerOnQuotes ? 'high' : 'auto'}"
                      data-fallback-src="${this.escapeHtmlAttr(fallbackUrl || '')}"
                      onclick="ProductImageManager.openViewer(JSON.parse(decodeURIComponent('${payload}')))"
                      onerror="ProductImageManager.handleImageError(this, '${errorPlaceholderHtml}')">
@@ -618,8 +718,8 @@ const ProductImageManager = {
 
         const payload = this.buildViewerPayload(images);
         const html = images.map((img, index) => {
-            const displayUrl = this.getDisplayUrl(img) || this.getViewerUrl(img) || this.placeholderDataUrl();
-            const fallbackUrl = this.getViewerUrl(img) || '';
+            const displayUrl = this.getDisplayUrl(img, product, index) || this.getViewerUrl(img, product, index) || this.placeholderDataUrl();
+            const fallbackUrl = this.getSourceUrl(img) || '';
             return `
             <img class="product-image-thumb"
                  src="${this.escapeHtmlAttr(displayUrl)}"

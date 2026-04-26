@@ -14,7 +14,7 @@ from sqlalchemy import Select, and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import settings
-from app.models import Brand, Category, ImageAsset, ImageEmbedding, Product, ProductImage, ProductVariant
+from app.models import Brand, Category, ImageAsset, ImageEmbedding, MatchFeedback, Product, ProductImage, ProductVariant
 from app.services.image_pipeline import get_archive_root
 
 
@@ -29,6 +29,9 @@ CLIP_PLACEHOLDER_VECTOR_DIM = 512
 CLIP_MODEL_ALIASES = {
     CLIP_PLACEHOLDER_MODEL_NAME: ('ViT-B-32', 'openai'),
 }
+IMAGE_FEEDBACK_RERANK_MAX_BOOST = 0.08
+IMAGE_FEEDBACK_CONFIRM_COUNT_SATURATION = 6
+IMAGE_FEEDBACK_WEIGHT_SATURATION_DELTA = 0.4
 
 
 @dataclass(slots=True)
@@ -311,14 +314,74 @@ def compute_substring_bonus(query_text: str | None, candidate_text: str | None) 
     return 0.0
 
 
+def _normalize_feedback_product_code(value: str | None) -> str:
+    return str(value or '').strip()
+
+
+def _compute_feedback_boost(confirm_count: int, avg_feedback_weight: float) -> float:
+    safe_count = max(0, int(confirm_count or 0))
+    safe_avg_weight = max(1.0, float(avg_feedback_weight or 1.0))
+    count_factor = min(1.0, safe_count / IMAGE_FEEDBACK_CONFIRM_COUNT_SATURATION)
+    weight_factor = min(1.0, (safe_avg_weight - 1.0) / IMAGE_FEEDBACK_WEIGHT_SATURATION_DELTA)
+    blended = count_factor * 0.7 + weight_factor * 0.3
+    return max(0.0, min(IMAGE_FEEDBACK_RERANK_MAX_BOOST, blended * IMAGE_FEEDBACK_RERANK_MAX_BOOST))
+
+
+async def _load_feedback_boost_by_product_id(
+    session: AsyncSession,
+    *,
+    product_id_to_code: dict[int, str],
+) -> dict[int, float]:
+    code_to_product_ids: dict[str, set[int]] = {}
+    for product_id, product_code in product_id_to_code.items():
+        normalized_code = _normalize_feedback_product_code(product_code)
+        if not normalized_code:
+            continue
+        code_to_product_ids.setdefault(normalized_code, set()).add(int(product_id))
+    if not code_to_product_ids:
+        return {}
+
+    feedback_rows = (
+        await session.execute(
+            select(
+                MatchFeedback.selected_product_code,
+                func.count(MatchFeedback.id).label('confirm_count'),
+                func.avg(func.coalesce(MatchFeedback.feedback_weight, 1.0)).label('avg_feedback_weight'),
+            )
+            .where(
+                MatchFeedback.action == 'select',
+                MatchFeedback.selected_product_code.in_(list(code_to_product_ids.keys())),
+            )
+            .group_by(MatchFeedback.selected_product_code)
+        )
+    ).all()
+
+    boost_by_product_id: dict[int, float] = {}
+    for row in feedback_rows:
+        normalized_code = _normalize_feedback_product_code(row.selected_product_code)
+        if not normalized_code:
+            continue
+        boost = _compute_feedback_boost(
+            confirm_count=int(row.confirm_count or 0),
+            avg_feedback_weight=float(row.avg_feedback_weight or 1.0),
+        )
+        if boost <= 0:
+            continue
+        for product_id in code_to_product_ids.get(normalized_code, set()):
+            boost_by_product_id[int(product_id)] = boost
+    return boost_by_product_id
+
+
 def rerank_image_candidates(
     candidates: list[ImageSearchCandidateResult],
     *,
     query_text: str | None = None,
     spec_hint: str | None = None,
     brand_hint: str | None = None,
+    feedback_boost_by_product_id: dict[int, float] | None = None,
 ) -> list[ImageSearchCandidateResult]:
     has_hint = any(str(value or '').strip() for value in [query_text, spec_hint, brand_hint])
+    feedback_boost_by_product_id = feedback_boost_by_product_id or {}
     reranked: list[ImageSearchCandidateResult] = []
 
     for item in candidates:
@@ -360,6 +423,13 @@ def rerank_image_candidates(
                 reasons.append(f'规{round(spec_score * 100)}')
             if brand_score > 0:
                 reasons.append(f'牌{round(brand_score * 100)}')
+
+        feedback_boost = 0.0
+        if item.product_id is not None:
+            feedback_boost = float(feedback_boost_by_product_id.get(int(item.product_id), 0.0) or 0.0)
+        if feedback_boost > 0:
+            rerank_score += feedback_boost
+            reasons.append(f'馈+{round(feedback_boost * 100)}')
 
         reranked.append(
             ImageSearchCandidateResult(
@@ -589,6 +659,10 @@ async def search_similar_products(
     brand_hint: str | None = None,
 ) -> list[ImageSearchCandidateResult]:
     has_rerank_hint = any(str(value or '').strip() for value in [query_text, spec_hint, brand_hint])
+    retrieval_limit = max(
+        top_k * (10 if provider == DEFAULT_EMBEDDING_PROVIDER and has_rerank_hint else 6 if has_rerank_hint else 4),
+        24,
+    )
     vector_column = get_embedding_vector_column(len(query_vector))
     embedding_rows = (
         await session.execute(
@@ -604,7 +678,7 @@ async def search_similar_products(
                 vector_column.is_not(None),
             )
             .order_by('distance')
-            .limit(max(top_k * (6 if has_rerank_hint else 4), 24))
+            .limit(retrieval_limit)
         )
     ).all()
 
@@ -649,7 +723,16 @@ async def search_similar_products(
     results: list[ImageSearchCandidateResult] = []
     seen_products: set[int] = set()
 
-    for row in product_rows:
+    sorted_product_rows = sorted(
+        product_rows,
+        key=lambda row: (
+            float(distance_by_asset.get(int(row.asset_id), 999.0)),
+            0 if bool(row.is_primary) else 1,
+            int(row.asset_id),
+        ),
+    )
+
+    for row in sorted_product_rows:
         asset_id = int(row.asset_id)
         distance = distance_by_asset.get(asset_id)
         if distance is None:
@@ -685,13 +768,24 @@ async def search_similar_products(
                 resolved_url=row.resolved_url,
             )
         )
-        if len(results) >= top_k:
+        if len(results) >= retrieval_limit:
             break
+
+    product_id_to_code = {
+        int(item.product_id): item.product_code
+        for item in results
+        if item.product_id is not None and _normalize_feedback_product_code(item.product_code)
+    }
+    feedback_boost_by_product_id = await _load_feedback_boost_by_product_id(
+        session,
+        product_id_to_code=product_id_to_code,
+    ) if product_id_to_code else {}
 
     reranked_results = rerank_image_candidates(
         results,
         query_text=query_text,
         spec_hint=spec_hint,
         brand_hint=brand_hint,
+        feedback_boost_by_product_id=feedback_boost_by_product_id,
     )
     return reranked_results[:top_k]

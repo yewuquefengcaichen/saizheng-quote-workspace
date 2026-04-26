@@ -1,9 +1,8 @@
 <section class="template-focus-shell" id="templatesBrowser">
     <div class="template-focus-head">
         <div>
-            <div class="template-focus-kicker">模板中心</div>
-            <div class="template-focus-title">先选模板，再导出</div>
-            <div class="template-focus-subtitle">高频放前面，其他放下面。</div>
+            <div class="template-focus-title">模板中心</div>
+            <div class="template-focus-subtitle">选择导出模板</div>
         </div>
         <div class="template-focus-actions">
             <button type="button" class="btn btn-primary" id="openExportCenterBtn">
@@ -13,29 +12,29 @@
                 <i class="bi bi-layout-text-window me-2"></i>去报价台
             </a>
             <a href="{{ workspace_routes.guide }}" class="btn btn-outline-secondary">
-                <i class="bi bi-journal-text me-2"></i>流程说明
+                <i class="bi bi-journal-text me-2"></i>说明
             </a>
         </div>
     </div>
 
     <div class="template-priority-grid">
         <article class="template-priority-card template-priority-card--featured">
-            <div class="template-priority-kicker">高频模板</div>
+            <div class="template-priority-kicker">高频</div>
             <div class="template-priority-title">待选报价单（下拉框）</div>
-            <div class="template-priority-copy">保留候选下拉，适合客服 / 销售二次选品。</div>
+            <div class="template-priority-copy">保留候选下拉。</div>
             <button type="button" class="btn btn-outline-primary btn-sm" onclick="selectExportTemplate('dropdown_default')">
-                <i class="bi bi-list-ul me-1"></i>选这个
+                <i class="bi bi-list-ul me-1"></i>使用
             </button>
         </article>
         <article class="template-priority-card">
-            <div class="template-priority-kicker">标准交付</div>
+            <div class="template-priority-kicker">标准</div>
             <div class="template-priority-title">标准报价单</div>
-            <div class="template-priority-copy">确认完成后直接导出，最常用。</div>
+            <div class="template-priority-copy">直接导出。</div>
         </article>
         <article class="template-priority-card">
-            <div class="template-priority-kicker">商城链路</div>
+            <div class="template-priority-kicker">商城</div>
             <div class="template-priority-title">商城报价 / 订货 / 发货</div>
-            <div class="template-priority-copy">要走商城单据链路时再用。</div>
+            <div class="template-priority-copy">商城链路用。</div>
         </article>
     </div>
 

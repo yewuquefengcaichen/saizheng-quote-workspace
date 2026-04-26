@@ -16,7 +16,7 @@ import re
 import sys
 import threading
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 # 导入自定义模块
@@ -39,10 +39,15 @@ try:
         Brand as V2Brand,
         Category as V2Category,
         ImageAsset as V2ImageAsset,
+        MatchFeedback as V2MatchFeedback,
+        ParseTemplate as V2ParseTemplate,
         Product as V2Product,
         ProductImage as V2ProductImage,
         ProductVariant as V2ProductVariant,
+        QuoteBatch as V2QuoteBatch,
+        QuoteItem as V2QuoteItem,
         Supplier as V2Supplier,
+        Synonym as V2Synonym,
     )
     from app.services.catalog_sync import (
         LegacyCatalogSyncService as V2LegacyCatalogSyncService,
@@ -1471,13 +1476,144 @@ def _find_catalog_product_by_code(product_code):
     return ProductImageHandler.find_product_by_code(products_data, product_code)
 
 
-def load_synonyms():
-    """加载同义词库"""
-    synonyms_file = os.path.join(app.config['UPLOAD_FOLDER'], 'synonyms.json')
+def _get_synonyms_json_path():
+    return os.path.join(app.config['UPLOAD_FOLDER'], 'synonyms.json')
+
+
+def _normalize_synonym_list(values):
+    normalized = []
+    seen = set()
+
+    raw_values = values if isinstance(values, (list, tuple, set)) else [values]
+    for value in raw_values:
+        text = _normalize_text_value(value)
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(text)
+
+    return normalized
+
+
+def _normalize_synonyms_mapping(synonyms):
+    normalized = {}
+    if not isinstance(synonyms, dict):
+        return normalized
+
+    for canonical_term, synonym_values in synonyms.items():
+        canonical = _normalize_text_value(canonical_term)
+        if not canonical:
+            continue
+
+        synonym_list = _normalize_synonym_list(synonym_values)
+        if canonical not in normalized:
+            normalized[canonical] = []
+
+        seen = {item.lower() for item in normalized[canonical]}
+        for synonym in synonym_list:
+            key = synonym.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized[canonical].append(synonym)
+
+    return normalized
+
+
+def _load_synonyms_from_json():
+    synonyms_file = _get_synonyms_json_path()
     if os.path.exists(synonyms_file):
         with open(synonyms_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            return _normalize_synonyms_mapping(json.load(f))
     return {}
+
+
+def _save_synonyms_to_json(synonyms):
+    synonyms_file = _get_synonyms_json_path()
+    Path(synonyms_file).parent.mkdir(parents=True, exist_ok=True)
+    with open(synonyms_file, 'w', encoding='utf-8') as f:
+        json.dump(_normalize_synonyms_mapping(synonyms), f, ensure_ascii=False, indent=2)
+
+
+def _resolve_v2_synonym_runtime():
+    session_factory = globals().get('V2AsyncSessionLocal')
+    synonym_model = globals().get('V2Synonym')
+    if session_factory and synonym_model:
+        return session_factory, synonym_model, ''
+
+    try:
+        from app.db.session import AsyncSessionLocal as runtime_session_factory
+        from app.models import Synonym as runtime_synonym_model
+        return runtime_session_factory, runtime_synonym_model, ''
+    except Exception as exc:
+        return None, None, str(exc)
+
+
+async def _load_v2_synonyms_async():
+    session_factory, synonym_model, error = _resolve_v2_synonym_runtime()
+    if session_factory is None or synonym_model is None:
+        raise RuntimeError(error or 'V2 同义词表不可用')
+
+    async with session_factory() as session:
+        rows = (
+            await session.scalars(
+                sa_select(synonym_model)
+                .order_by(
+                    synonym_model.canonical_term.asc(),
+                    synonym_model.weight.desc(),
+                    synonym_model.synonym_term.asc(),
+                )
+            )
+        ).all()
+
+    synonyms = {}
+    for row in rows:
+        canonical = _normalize_text_value(getattr(row, 'canonical_term', ''))
+        synonym = _normalize_text_value(getattr(row, 'synonym_term', ''))
+        if not canonical or not synonym:
+            continue
+        synonyms.setdefault(canonical, [])
+        if synonym.lower() not in {item.lower() for item in synonyms[canonical]}:
+            synonyms[canonical].append(synonym)
+
+    return synonyms
+
+
+async def _replace_v2_synonyms_async(synonyms, source_type='flask_workspace'):
+    session_factory, synonym_model, error = _resolve_v2_synonym_runtime()
+    if session_factory is None or synonym_model is None:
+        raise RuntimeError(error or 'V2 同义词表不可用')
+
+    normalized = _normalize_synonyms_mapping(synonyms)
+    async with session_factory() as session:
+        await session.execute(synonym_model.__table__.delete())
+
+        for canonical, synonym_list in normalized.items():
+            for synonym in synonym_list:
+                session.add(
+                    synonym_model(
+                        canonical_term=canonical,
+                        synonym_term=synonym,
+                        source_type=source_type,
+                        is_bidirectional=True,
+                        weight=1,
+                        notes='Updated by Flask synonym workspace',
+                    )
+                )
+
+        await session.commit()
+
+
+def load_synonyms():
+    """加载同义词库"""
+    try:
+        return _run_async_task(_load_v2_synonyms_async())
+    except Exception as exc:
+        print(f'从 PostgreSQL V2 读取同义词失败，回退到 JSON：{exc}')
+        return _load_synonyms_from_json()
 
 
 def get_match_feedback_rows(query_signature: str = '', normalized_name: str = '', normalized_spec: str = '', normalized_unit: str = '', mapping_signature: str = ''):
@@ -1510,9 +1646,42 @@ def match_quote_items(items, synonyms=None, use_ai=None):
 
 def save_synonyms(synonyms):
     """保存同义词库"""
-    synonyms_file = os.path.join(app.config['UPLOAD_FOLDER'], 'synonyms.json')
-    with open(synonyms_file, 'w', encoding='utf-8') as f:
-        json.dump(synonyms, f, ensure_ascii=False, indent=2)
+    normalized = _normalize_synonyms_mapping(synonyms)
+    session_factory, synonym_model, runtime_error = _resolve_v2_synonym_runtime()
+    v2_expected = bool(session_factory and synonym_model)
+    v2_saved = False
+    json_saved = False
+    errors = []
+
+    if v2_expected:
+        try:
+            _run_async_task(_replace_v2_synonyms_async(normalized))
+            v2_saved = True
+        except Exception as exc:
+            errors.append(f'PostgreSQL V2 写入失败：{exc}')
+            print(errors[-1])
+    elif runtime_error:
+        print(f'V2 同义词写入不可用，继续写 JSON：{runtime_error}')
+
+    try:
+        _save_synonyms_to_json(normalized)
+        json_saved = True
+    except Exception as exc:
+        errors.append(f'JSON 写入失败：{exc}')
+        print(errors[-1])
+
+    if v2_expected and not v2_saved:
+        raise RuntimeError(errors[0] if errors else 'PostgreSQL V2 写入失败')
+
+    if not json_saved and not v2_saved:
+        raise RuntimeError(errors[0] if errors else '同义词保存失败')
+
+    return {
+        'synonyms': normalized,
+        'v2_saved': v2_saved,
+        'json_saved': json_saved,
+        'errors': errors,
+    }
 
 
 def _make_export_template(key, export_format, label, description, supports_price_types, source='system',
@@ -3129,26 +3298,37 @@ def get_supplier_variants():
 @app.route('/api/get_synonyms', methods=['GET'])
 def get_synonyms():
     """获取同义词库"""
-    synonyms = load_synonyms()
-    return jsonify({
-        'success': True,
-        'synonyms': synonyms
-    })
+    try:
+        synonyms = load_synonyms()
+        return jsonify({
+            'success': True,
+            'synonyms': synonyms
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'加载同义词失败：{str(e)}',
+            'synonyms': _load_synonyms_from_json()
+        }), 500
 
 
 @app.route('/api/add_synonym', methods=['POST'])
 def add_synonym():
     """添加同义词"""
-    data = request.get_json()
-    word = data.get('word', '').strip()
+    data = request.get_json(silent=True) or {}
+    word = _normalize_text_value(data.get('word'))
     synonyms_list = data.get('synonyms', [])
 
     if not word:
         return jsonify({'success': False, 'message': '主词不能为空'})
 
-    synonyms = load_synonyms()
-    synonyms[word] = synonyms_list
-    save_synonyms(synonyms)
+    try:
+        synonyms = load_synonyms()
+        synonyms[word] = synonyms_list
+        save_result = save_synonyms(synonyms)
+        synonyms = save_result.get('synonyms', synonyms)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'添加失败：{str(e)}'}), 500
 
     # 更新匹配器的同义词
     if matcher:
@@ -3160,16 +3340,20 @@ def add_synonym():
 @app.route('/api/update_synonym', methods=['POST'])
 def update_synonym():
     """更新同义词"""
-    data = request.get_json()
-    word = data.get('word', '').strip()
+    data = request.get_json(silent=True) or {}
+    word = _normalize_text_value(data.get('word'))
     synonyms_list = data.get('synonyms', [])
 
     if not word:
         return jsonify({'success': False, 'message': '主词不能为空'})
 
-    synonyms = load_synonyms()
-    synonyms[word] = synonyms_list
-    save_synonyms(synonyms)
+    try:
+        synonyms = load_synonyms()
+        synonyms[word] = synonyms_list
+        save_result = save_synonyms(synonyms)
+        synonyms = save_result.get('synonyms', synonyms)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'更新失败：{str(e)}'}), 500
 
     if matcher:
         matcher.update_synonyms(synonyms)
@@ -3180,13 +3364,17 @@ def update_synonym():
 @app.route('/api/delete_synonym', methods=['POST'])
 def delete_synonym():
     """删除同义词"""
-    data = request.get_json()
-    word = data.get('word', '').strip()
+    data = request.get_json(silent=True) or {}
+    word = _normalize_text_value(data.get('word'))
 
     synonyms = load_synonyms()
     if word in synonyms:
         del synonyms[word]
-        save_synonyms(synonyms)
+        try:
+            save_result = save_synonyms(synonyms)
+            synonyms = save_result.get('synonyms', synonyms)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'删除失败：{str(e)}'}), 500
         if matcher:
             matcher.update_synonyms(synonyms)
         return jsonify({'success': True, 'message': '删除成功'})
@@ -3196,49 +3384,304 @@ def delete_synonym():
 
 # =============== 解析模板管理 ===============
 
-def load_templates():
-    """加载解析模板库"""
-    templates_file = os.path.join(app.config['UPLOAD_FOLDER'], 'parse_templates.json')
+def _get_templates_json_path():
+    return os.path.join(app.config['UPLOAD_FOLDER'], 'parse_templates.json')
+
+
+def _normalize_template_datetime_text(value):
+    if value is None:
+        return ''
+    if isinstance(value, datetime):
+        return value.strftime('%Y-%m-%d %H:%M:%S')
+    text = _normalize_text_value(value)
+    if not text:
+        return ''
+    try:
+        if 'T' in text:
+            parsed = datetime.fromisoformat(text.replace('Z', '+00:00'))
+            return parsed.strftime('%Y-%m-%d %H:%M:%S')
+    except Exception:
+        pass
+    if len(text) >= 19:
+        return text[:19]
+    return text
+
+
+def _normalize_template_mapping(mapping):
+    if not isinstance(mapping, dict):
+        return {}
+    normalized = {}
+    for key, value in mapping.items():
+        key_text = _normalize_text_value(key)
+        value_text = _normalize_text_value(value)
+        if not key_text or not value_text:
+            continue
+        normalized[key_text] = value_text
+    return normalized
+
+
+def _normalize_template_identifiers(identifiers):
+    raw = identifiers
+    if raw is None:
+        raw = []
+    if not isinstance(raw, (list, tuple, set)):
+        raw = [raw]
+
+    normalized = []
+    seen = set()
+    for identifier in raw:
+        text = _normalize_text_value(identifier)
+        if not text:
+            continue
+        key = text.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        normalized.append(text)
+    return normalized
+
+
+def _normalize_template_payload(template_payload):
+    if not isinstance(template_payload, dict):
+        return None
+
+    name = _normalize_text_value(template_payload.get('name'))
+    if not name:
+        return None
+
+    normalized = dict(template_payload)
+    normalized['name'] = name
+    normalized['source_type'] = _normalize_text_value(template_payload.get('source_type')) or 'excel'
+    normalized['header_rows'] = _safe_int(template_payload.get('header_rows'), default=1, min_value=1)
+    normalized['column_mapping'] = _normalize_template_mapping(template_payload.get('column_mapping') or {})
+    normalized['last_confirmed_mapping'] = _normalize_template_mapping(
+        template_payload.get('last_confirmed_mapping') or normalized['column_mapping']
+    )
+    normalized['identifiers'] = _normalize_template_identifiers(template_payload.get('identifiers'))
+    normalized['header_signature'] = _normalize_text_value(template_payload.get('header_signature'))
+    normalized['identifier_signature'] = _normalize_text_value(template_payload.get('identifier_signature'))
+    normalized['usage_count'] = _safe_int(template_payload.get('usage_count'), default=0, min_value=0)
+    normalized['confirm_count'] = _safe_int(template_payload.get('confirm_count'), default=0, min_value=0)
+    normalized['manual_save_count'] = _safe_int(template_payload.get('manual_save_count'), default=0, min_value=0)
+    normalized['template_hit_count'] = _safe_int(template_payload.get('template_hit_count'), default=0, min_value=0)
+    normalized['mapping_change_count'] = _safe_int(template_payload.get('mapping_change_count'), default=0, min_value=0)
+    normalized['mapping_signature'] = _normalize_text_value(template_payload.get('mapping_signature'))
+    normalized['last_mapping_changed'] = bool(template_payload.get('last_mapping_changed'))
+    normalized['last_used_at'] = _normalize_template_datetime_text(template_payload.get('last_used_at'))
+    normalized['created_at'] = _normalize_template_datetime_text(template_payload.get('created_at'))
+    normalized['updated_at'] = _normalize_template_datetime_text(template_payload.get('updated_at'))
+    return normalized
+
+
+def _normalize_templates_data(templates_data):
+    templates = []
+    payload = templates_data if isinstance(templates_data, dict) else {}
+    for template in payload.get('templates', []) or []:
+        normalized = _normalize_template_payload(template)
+        if normalized:
+            templates.append(normalized)
+    return {'templates': templates}
+
+
+def _build_template_payload_from_v2_row(template_row):
+    payload = dict(getattr(template_row, 'source_payload', None) or {})
+    payload.update({
+        'name': _normalize_text_value(getattr(template_row, 'name', '')),
+        'source_type': _normalize_text_value(getattr(template_row, 'source_type', '')) or 'excel',
+        'header_rows': getattr(template_row, 'header_rows', None),
+        'column_mapping': getattr(template_row, 'column_mapping', None),
+        'last_confirmed_mapping': getattr(template_row, 'last_confirmed_mapping', None),
+        'identifiers': getattr(template_row, 'identifiers', None),
+        'header_signature': getattr(template_row, 'header_signature', None),
+        'identifier_signature': getattr(template_row, 'identifier_signature', None),
+        'usage_count': getattr(template_row, 'usage_count', 0),
+        'confirm_count': getattr(template_row, 'confirm_count', 0),
+        'manual_save_count': getattr(template_row, 'manual_save_count', 0),
+        'template_hit_count': getattr(template_row, 'template_hit_count', 0),
+        'mapping_change_count': getattr(template_row, 'mapping_change_count', 0),
+        'mapping_signature': getattr(template_row, 'mapping_signature', None),
+        'last_mapping_changed': bool(getattr(template_row, 'last_mapping_changed', False)),
+        'last_used_at': _normalize_template_datetime_text(getattr(template_row, 'last_used_at', None)),
+        'created_at': _normalize_template_datetime_text(getattr(template_row, 'created_at', None)),
+        'updated_at': _normalize_template_datetime_text(getattr(template_row, 'updated_at', None)),
+    })
+    return _normalize_template_payload(payload)
+
+
+def _load_templates_from_json():
+    templates_file = _get_templates_json_path()
     if os.path.exists(templates_file):
         with open(templates_file, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            return _normalize_templates_data(json.load(f))
     return {'templates': []}
 
 
-def upsert_template_record(template_payload):
-    """新增或更新模板记录"""
-    if not template_payload or not template_payload.get('name'):
-        return None
+def _save_templates_to_json(templates_data):
+    templates_file = _get_templates_json_path()
+    Path(templates_file).parent.mkdir(parents=True, exist_ok=True)
+    with open(templates_file, 'w', encoding='utf-8') as f:
+        json.dump(_normalize_templates_data(templates_data), f, ensure_ascii=False, indent=2)
 
-    templates_data = load_templates()
-    templates = templates_data.setdefault('templates', [])
 
-    for idx, template in enumerate(templates):
-        if template.get('name') == template_payload.get('name'):
-            templates[idx] = template_payload
-            save_templates(templates_data)
-            return template_payload
+def _resolve_v2_parse_template_runtime():
+    session_factory = globals().get('V2AsyncSessionLocal')
+    template_model = globals().get('V2ParseTemplate')
+    if session_factory and template_model:
+        return session_factory, template_model, ''
 
-    templates.append(template_payload)
-    save_templates(templates_data)
-    return template_payload
+    try:
+        from app.db.session import AsyncSessionLocal as runtime_session_factory
+        from app.models import ParseTemplate as runtime_template_model
+        return runtime_session_factory, runtime_template_model, ''
+    except Exception as exc:
+        return None, None, str(exc)
+
+
+async def _load_v2_templates_async():
+    session_factory, template_model, error = _resolve_v2_parse_template_runtime()
+    if session_factory is None or template_model is None:
+        raise RuntimeError(error or 'V2 模板表不可用')
+
+    async with session_factory() as session:
+        rows = (
+            await session.scalars(
+                sa_select(template_model)
+                .order_by(template_model.last_used_at.desc(), template_model.updated_at.desc(), template_model.name.asc())
+            )
+        ).all()
+
+    templates = []
+    for row in rows:
+        template_payload = _build_template_payload_from_v2_row(row)
+        if template_payload:
+            templates.append(template_payload)
+    return {'templates': templates}
+
+
+def _apply_template_payload_to_v2_row(template_row, template_payload):
+    normalized = _normalize_template_payload(template_payload) or {}
+    template_row.source_type = normalized.get('source_type') or 'excel'
+    template_row.header_rows = normalized.get('header_rows')
+    template_row.column_mapping = normalized.get('column_mapping') or {}
+    template_row.last_confirmed_mapping = normalized.get('last_confirmed_mapping') or normalized.get('column_mapping') or {}
+    template_row.identifiers = normalized.get('identifiers') or []
+    template_row.header_signature = normalized.get('header_signature') or ''
+    template_row.identifier_signature = normalized.get('identifier_signature') or ''
+    template_row.usage_count = _safe_int(normalized.get('usage_count'), default=0, min_value=0)
+    template_row.confirm_count = _safe_int(normalized.get('confirm_count'), default=0, min_value=0)
+    template_row.manual_save_count = _safe_int(normalized.get('manual_save_count'), default=0, min_value=0)
+    template_row.template_hit_count = _safe_int(normalized.get('template_hit_count'), default=0, min_value=0)
+    template_row.mapping_change_count = _safe_int(normalized.get('mapping_change_count'), default=0, min_value=0)
+    template_row.mapping_signature = normalized.get('mapping_signature') or ''
+    template_row.last_mapping_changed = bool(normalized.get('last_mapping_changed'))
+    template_row.source_payload = normalized
+
+
+async def _replace_v2_templates_async(templates_data):
+    session_factory, template_model, error = _resolve_v2_parse_template_runtime()
+    if session_factory is None or template_model is None:
+        raise RuntimeError(error or 'V2 模板表不可用')
+
+    normalized = _normalize_templates_data(templates_data)
+    async with session_factory() as session:
+        await session.execute(template_model.__table__.delete())
+        for template_payload in normalized.get('templates', []):
+            row = template_model(name=template_payload.get('name', ''))
+            _apply_template_payload_to_v2_row(row, template_payload)
+            session.add(row)
+        await session.commit()
+    return normalized
+
+
+def load_templates():
+    """加载解析模板库"""
+    try:
+        return _run_async_task(_load_v2_templates_async())
+    except Exception as exc:
+        print(f'从 PostgreSQL V2 读取模板失败，回退到 JSON：{exc}')
+        return _load_templates_from_json()
 
 
 def save_templates(templates_data):
     """保存解析模板库"""
-    templates_file = os.path.join(app.config['UPLOAD_FOLDER'], 'parse_templates.json')
-    with open(templates_file, 'w', encoding='utf-8') as f:
-        json.dump(templates_data, f, ensure_ascii=False, indent=2)
+    normalized = _normalize_templates_data(templates_data)
+    session_factory, template_model, runtime_error = _resolve_v2_parse_template_runtime()
+    v2_expected = bool(session_factory and template_model)
+    v2_saved = False
+    json_saved = False
+    errors = []
+
+    if v2_expected:
+        try:
+            normalized = _run_async_task(_replace_v2_templates_async(normalized))
+            v2_saved = True
+        except Exception as exc:
+            errors.append(f'PostgreSQL V2 写入失败：{exc}')
+            print(errors[-1])
+    elif runtime_error:
+        print(f'V2 模板写入不可用，继续写 JSON：{runtime_error}')
+
+    try:
+        _save_templates_to_json(normalized)
+        json_saved = True
+    except Exception as exc:
+        errors.append(f'JSON 写入失败：{exc}')
+        print(errors[-1])
+
+    if v2_expected and not v2_saved:
+        raise RuntimeError(errors[0] if errors else 'PostgreSQL V2 写入失败')
+
+    if not json_saved and not v2_saved:
+        raise RuntimeError(errors[0] if errors else '模板保存失败')
+
+    return {
+        'templates_data': normalized,
+        'v2_saved': v2_saved,
+        'json_saved': json_saved,
+        'errors': errors,
+    }
+
+
+def upsert_template_record(template_payload):
+    """新增或更新模板记录"""
+    normalized_payload = _normalize_template_payload(template_payload)
+    if not normalized_payload:
+        return None
+
+    templates_data = load_templates()
+    templates = templates_data.setdefault('templates', [])
+    replaced = False
+    for idx, template in enumerate(templates):
+        if _normalize_text_value(template.get('name')) == normalized_payload.get('name'):
+            templates[idx] = normalized_payload
+            replaced = True
+            break
+    if not replaced:
+        templates.append(normalized_payload)
+
+    save_result = save_templates(templates_data)
+    synced_templates = (save_result.get('templates_data') or {}).get('templates', [])
+    for template in synced_templates:
+        if _normalize_text_value(template.get('name')) == normalized_payload.get('name'):
+            return template
+    return normalized_payload
 
 
 @app.route('/api/get_templates', methods=['GET'])
 def get_templates():
     """获取所有解析模板"""
-    templates_data = load_templates()
-    return jsonify({
-        'success': True,
-        'templates': templates_data.get('templates', [])
-    })
+    try:
+        templates_data = load_templates()
+        return jsonify({
+            'success': True,
+            'templates': templates_data.get('templates', [])
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': f'加载模板失败：{str(e)}',
+            'templates': _load_templates_from_json().get('templates', [])
+        }), 500
 
 
 @app.route('/api/save_template', methods=['POST'])
@@ -3246,8 +3689,8 @@ def save_template():
     """保存解析模板"""
     global parse_result_cache
 
-    data = request.get_json() or {}
-    name = data.get('name', '').strip()
+    data = request.get_json(silent=True) or {}
+    name = _normalize_text_value(data.get('name'))
     column_mapping = data.get('column_mapping', {})
     header_rows = data.get('header_rows', 1)
     identifiers = data.get('identifiers', [])  # 用于匹配模板的关键词
@@ -3280,7 +3723,7 @@ def save_template():
 
     existing_template = None
     for template in templates:
-        if template.get('name') == name:
+        if _normalize_text_value(template.get('name')) == name:
             existing_template = template
             break
 
@@ -3306,7 +3749,10 @@ def save_template():
         )
         message = f'模板 "{name}" 保存成功'
 
-    upsert_template_record(template_payload)
+    try:
+        template_payload = upsert_template_record(template_payload)
+    except Exception as e:
+        return jsonify({'success': False, 'message': f'保存模板失败：{str(e)}'}), 500
 
     if parse_result_cache is not None:
         parse_result_cache = parse_result
@@ -3323,15 +3769,21 @@ def save_template():
 @app.route('/api/delete_template', methods=['POST'])
 def delete_template():
     """删除解析模板"""
-    data = request.get_json()
-    name = data.get('name', '').strip()
+    data = request.get_json(silent=True) or {}
+    name = _normalize_text_value(data.get('name'))
+    if not name:
+        return jsonify({'success': False, 'message': '模板名称不能为空'})
 
     templates_data = load_templates()
-    original_count = len(templates_data['templates'])
-    templates_data['templates'] = [t for t in templates_data['templates'] if t['name'] != name]
+    templates = templates_data.setdefault('templates', [])
+    original_count = len(templates)
+    templates_data['templates'] = [t for t in templates if _normalize_text_value(t.get('name')) != name]
 
     if len(templates_data['templates']) < original_count:
-        save_templates(templates_data)
+        try:
+            save_templates(templates_data)
+        except Exception as e:
+            return jsonify({'success': False, 'message': f'删除失败：{str(e)}'}), 500
         return jsonify({'success': True, 'message': f'模板 "{name}" 已删除'})
 
     return jsonify({'success': False, 'message': '模板不存在'})
@@ -3339,27 +3791,308 @@ def delete_template():
 
 # =============== 报价历史记录 ===============
 
+def _get_v2_quote_history_source_filename(quote_id: int, source_type: str = 'workspace_quote_history') -> str:
+    safe_id = max(int(quote_id or 0), 0)
+    prefix = 'legacy_quote_history' if source_type == 'legacy_history' else 'workspace_quote_history'
+    return f'{prefix}_{safe_id}'
+
+
+def _get_v2_quote_history_public_id(batch) -> int:
+    source_filename = _normalize_text_value(getattr(batch, 'source_filename', None))
+    for prefix in ('legacy_quote_history_', 'workspace_quote_history_'):
+        if source_filename.startswith(prefix):
+            suffix = source_filename[len(prefix):]
+            if suffix.isdigit():
+                return int(suffix)
+    return int(getattr(batch, 'id', 0) or 0)
+
+
+def _normalize_v2_quote_history_item(item) -> dict[str, object]:
+    payload = getattr(item, 'source_payload', None) or {}
+    return {
+        'item_name': _normalize_text_value(getattr(item, 'raw_name', None)),
+        'item_quantity': float(getattr(item, 'quantity', None) or 0) if getattr(item, 'quantity', None) is not None else 0,
+        'item_unit': _normalize_text_value(getattr(item, 'unit', None)),
+        'item_price': float(payload.get('legacy_item_price') or payload.get('item_price') or 0) if payload.get('legacy_item_price') is not None or payload.get('item_price') is not None else 0,
+        'budget_price': float(payload.get('budget_price') or getattr(item, 'target_price', None) or 0) if (payload.get('budget_price') is not None or getattr(item, 'target_price', None) is not None) else 0,
+        'product_name': _normalize_text_value(payload.get('legacy_product_name') or payload.get('product_name')),
+        'product_code': _normalize_text_value(payload.get('product_code')),
+        'supplier': _normalize_text_value(payload.get('legacy_supplier') or payload.get('supplier')),
+        'match_score': float(payload.get('legacy_match_score') or payload.get('match_score') or 0) if payload.get('legacy_match_score') is not None or payload.get('match_score') is not None else 0,
+    }
+
+
+def _normalize_v2_quote_history_batch(batch, include_items: bool = False) -> dict[str, object]:
+    payload = getattr(batch, 'source_payload', None) or {}
+    total_items = int(getattr(batch, 'total_items', 0) or 0)
+    matched_items = int(getattr(batch, 'confirmed_items', 0) or 0)
+    total_amount = payload.get('total_amount')
+    total_amount_value = float(total_amount or 0) if total_amount is not None else 0
+    created_at = getattr(batch, 'imported_at', None) or getattr(batch, 'parsed_at', None) or getattr(batch, 'created_at', None)
+    normalized = {
+        'id': _get_v2_quote_history_public_id(batch),
+        'created_at': created_at.isoformat() if created_at else '',
+        'customer_name': _normalize_text_value(payload.get('customer_name')),
+        'quote_file': _normalize_text_value(payload.get('quote_file')),
+        'total_items': total_items,
+        'matched_items': matched_items,
+        'total_amount': total_amount_value,
+        'export_file': _normalize_text_value(payload.get('export_file')),
+        'remark': _normalize_text_value(payload.get('remark')),
+        'history_source': 'postgres_v2',
+        'source_type': _normalize_text_value(getattr(batch, 'source_type', None)),
+    }
+    if include_items:
+        items = list(getattr(batch, 'items', []) or [])
+        items.sort(key=lambda row: int(getattr(row, 'row_number', 0) or 0))
+        normalized['items'] = [_normalize_v2_quote_history_item(row) for row in items]
+    return normalized
+
+
+async def _load_v2_quote_batch_by_history_id_async(quote_id: int):
+    if not V2_CATALOG_AVAILABLE:
+        return None
+    safe_id = max(int(quote_id or 0), 0)
+    legacy_source_filename = _get_v2_quote_history_source_filename(safe_id, source_type='legacy_history')
+    workspace_source_filename = _get_v2_quote_history_source_filename(safe_id, source_type='workspace_quote_history')
+    async with V2AsyncSessionLocal() as session:
+        return await session.scalar(
+            sa_select(V2QuoteBatch)
+            .options(selectinload(V2QuoteBatch.items))
+            .where(
+                or_(
+                    V2QuoteBatch.id == safe_id,
+                    V2QuoteBatch.source_filename == legacy_source_filename,
+                    V2QuoteBatch.source_filename == workspace_source_filename,
+                )
+            )
+            .order_by(V2QuoteBatch.id.desc())
+            .limit(1)
+        )
+
+
+async def _get_v2_quote_history_list_async(limit: int = 50, offset: int = 0) -> list[dict[str, object]]:
+    if not V2_CATALOG_AVAILABLE:
+        return []
+    limit = max(1, min(int(limit or 50), 200))
+    offset = max(int(offset or 0), 0)
+    async with V2AsyncSessionLocal() as session:
+        batches = list(
+            (
+                await session.scalars(
+                    sa_select(V2QuoteBatch)
+                    .where(V2QuoteBatch.source_type.in_(['legacy_history', 'workspace_quote_history']))
+                    .order_by(V2QuoteBatch.imported_at.desc(), V2QuoteBatch.created_at.desc(), V2QuoteBatch.id.desc())
+                    .offset(offset)
+                    .limit(limit)
+                )
+            ).all()
+        )
+    return [_normalize_v2_quote_history_batch(batch) for batch in batches]
+
+
+async def _get_v2_quote_history_detail_async(quote_id: int):
+    batch = await _load_v2_quote_batch_by_history_id_async(quote_id)
+    if batch is None:
+        return None
+    return _normalize_v2_quote_history_batch(batch, include_items=True)
+
+
+async def _save_v2_quote_history_async(quote_id: int, quote_data: dict[str, object]) -> dict[str, object]:
+    if not V2_CATALOG_AVAILABLE:
+        return {'success': False, 'message': 'V2 不可用'}
+
+    safe_id = max(int(quote_id or 0), 0)
+    source_filename = _get_v2_quote_history_source_filename(safe_id, source_type='workspace_quote_history')
+    imported_at = datetime.now(timezone.utc)
+    items = list(quote_data.get('items') or [])
+    product_codes = sorted({str(item.get('product_code') or '').strip() for item in items if str(item.get('product_code') or '').strip()})
+
+    async with V2AsyncSessionLocal() as session:
+        batch = await session.scalar(
+            sa_select(V2QuoteBatch)
+            .where(V2QuoteBatch.source_filename == source_filename)
+            .limit(1)
+        )
+        if batch is None:
+            batch = V2QuoteBatch(source_type='workspace_quote_history', source_filename=source_filename)
+            session.add(batch)
+            await session.flush()
+
+        product_map: dict[str, object] = {}
+        variant_map: dict[str, object] = {}
+        if product_codes:
+            products = list((await session.scalars(sa_select(V2Product).where(V2Product.product_code.in_(product_codes)))).all())
+            product_map = {str(getattr(product, 'product_code', '') or ''): product for product in products if getattr(product, 'product_code', None)}
+            variants = list((await session.scalars(sa_select(V2ProductVariant).where(V2ProductVariant.sku_code.in_(product_codes)))).all())
+            variant_map = {str(getattr(variant, 'sku_code', '') or ''): variant for variant in variants if getattr(variant, 'sku_code', None)}
+
+        batch.import_status = 'completed'
+        batch.parse_status = 'completed'
+        batch.total_items = int(quote_data.get('total_items') or 0)
+        batch.confirmed_items = int(quote_data.get('matched_items') or 0)
+        batch.unmatched_items = max(batch.total_items - batch.confirmed_items, 0)
+        batch.imported_at = imported_at
+        batch.parsed_at = imported_at
+        batch.source_payload = {
+            'sqlite_quote_id': safe_id,
+            'customer_name': quote_data.get('customer_name', ''),
+            'quote_file': quote_data.get('quote_file', ''),
+            'total_amount': quote_data.get('total_amount', 0),
+            'export_file': quote_data.get('export_file', ''),
+            'remark': quote_data.get('remark', ''),
+        }
+
+        existing_items = list(
+            (
+                await session.scalars(
+                    sa_select(V2QuoteItem).where(V2QuoteItem.batch_id == batch.id)
+                )
+            ).all()
+        )
+        for existing_item in existing_items:
+            await session.delete(existing_item)
+        await session.flush()
+
+        for row_number, item in enumerate(items, start=1):
+            product_code = str(item.get('product_code') or '').strip()
+            product = product_map.get(product_code)
+            variant = variant_map.get(product_code)
+            session.add(
+                V2QuoteItem(
+                    batch_id=batch.id,
+                    row_number=row_number,
+                    raw_name=str(item.get('item_name') or '').strip() or '未命名项',
+                    raw_spec=None,
+                    raw_brand=None,
+                    raw_model=None,
+                    quantity=item.get('item_quantity') or 0,
+                    unit=item.get('item_unit') or '',
+                    target_price=item.get('budget_price') or item.get('item_price') or 0,
+                    normalized_name=str(item.get('item_name') or '').strip(),
+                    selected_product_id=getattr(product, 'id', None),
+                    selected_variant_id=getattr(variant, 'id', None),
+                    match_status='matched' if product_code else 'pending',
+                    quote_status='confirmed' if product_code else 'unconfirmed',
+                    note=None,
+                    source_payload={
+                        'sqlite_quote_id': safe_id,
+                        'item_price': item.get('item_price') or 0,
+                        'budget_price': item.get('budget_price') or 0,
+                        'product_name': item.get('product_name') or '',
+                        'product_code': product_code,
+                        'supplier': item.get('supplier') or '',
+                        'match_score': item.get('match_score') or 0,
+                    },
+                )
+            )
+        await session.commit()
+
+    return {'success': True, 'quote_id': safe_id, 'history_source': 'postgres_v2'}
+
+
+async def _delete_v2_quote_history_async(quote_id: int) -> bool:
+    if not V2_CATALOG_AVAILABLE:
+        return False
+    batch = await _load_v2_quote_batch_by_history_id_async(quote_id)
+    if batch is None:
+        return False
+    async with V2AsyncSessionLocal() as session:
+        delete_batch = await session.get(V2QuoteBatch, getattr(batch, 'id', None))
+        if delete_batch is None:
+            return False
+        await session.delete(delete_batch)
+        await session.commit()
+    return True
+
+
+async def _get_v2_quote_statistics_async() -> dict[str, object]:
+    if not V2_CATALOG_AVAILABLE:
+        return {}
+    async with V2AsyncSessionLocal() as session:
+        batches = list(
+            (
+                await session.scalars(
+                    sa_select(V2QuoteBatch)
+                    .where(V2QuoteBatch.source_type.in_(['legacy_history', 'workspace_quote_history']))
+                    .order_by(V2QuoteBatch.imported_at.desc(), V2QuoteBatch.created_at.desc(), V2QuoteBatch.id.desc())
+                )
+            ).all()
+        )
+
+    now = datetime.now(timezone.utc)
+    month_total = 0
+    total_amount = 0.0
+    rate_values: list[float] = []
+    for batch in batches:
+        imported_at = getattr(batch, 'imported_at', None) or getattr(batch, 'created_at', None)
+        if imported_at and imported_at.year == now.year and imported_at.month == now.month:
+            month_total += 1
+        payload = getattr(batch, 'source_payload', None) or {}
+        try:
+            total_amount += float(payload.get('total_amount') or 0)
+        except Exception:
+            total_amount += 0.0
+        total_items = int(getattr(batch, 'total_items', 0) or 0)
+        confirmed_items = int(getattr(batch, 'confirmed_items', 0) or 0)
+        if total_items > 0:
+            rate_values.append(confirmed_items / total_items)
+
+    avg_match_rate = round((sum(rate_values) / len(rate_values) * 100) if rate_values else 0, 1)
+    return {
+        'total_count': len(batches),
+        'month_count': month_total,
+        'total_amount': total_amount,
+        'avg_match_rate': avg_match_rate,
+        'history_source': 'postgres_v2',
+    }
+
 @app.route('/api/get_quote_history', methods=['GET'])
 def get_quote_history():
     """获取报价历史记录列表"""
-    if quote_db is None:
-        return jsonify({'success': False, 'message': '数据库未初始化'})
-
     limit = request.args.get('limit', 50, type=int)
     offset = request.args.get('offset', 0, type=int)
+
+    if V2_CATALOG_AVAILABLE:
+        try:
+            history = _run_async_task(_get_v2_quote_history_list_async(limit, offset))
+            return jsonify({
+                'success': True,
+                'history': history,
+                'count': len(history),
+                'history_source': 'postgres_v2',
+            })
+        except Exception:
+            pass
+
+    if quote_db is None:
+        return jsonify({'success': False, 'message': '数据库未初始化'})
 
     history = quote_db.get_history_list(limit, offset)
 
     return jsonify({
         'success': True,
         'history': history,
-        'count': len(history)
+        'count': len(history),
+        'history_source': 'sqlite_legacy',
     })
 
 
 @app.route('/api/get_quote_detail/<int:quote_id>', methods=['GET'])
 def get_quote_detail(quote_id):
     """获取报价详情"""
+    if V2_CATALOG_AVAILABLE:
+        try:
+            detail = _run_async_task(_get_v2_quote_history_detail_async(quote_id))
+            if detail:
+                return jsonify({
+                    'success': True,
+                    'detail': detail,
+                    'history_source': 'postgres_v2',
+                })
+        except Exception:
+            pass
+
     if quote_db is None:
         return jsonify({'success': False, 'message': '数据库未初始化'})
 
@@ -3427,20 +4160,35 @@ def save_quote_history():
 
     quote_id = quote_db.save_quote(quote_data)
 
+    if V2_CATALOG_AVAILABLE:
+        try:
+            _run_async_task(_save_v2_quote_history_async(quote_id, quote_data))
+        except Exception:
+            pass
+
     return jsonify({
         'success': True,
         'message': '报价记录已保存',
-        'quote_id': quote_id
+        'quote_id': quote_id,
+        'history_source': 'sqlite_legacy',
     })
 
 
 @app.route('/api/delete_quote_history/<int:quote_id>', methods=['DELETE'])
 def delete_quote_history(quote_id):
     """删除报价历史记录"""
-    if quote_db is None:
-        return jsonify({'success': False, 'message': '数据库未初始化'})
+    sqlite_success = False
+    if quote_db is not None:
+        sqlite_success = quote_db.delete_quote(quote_id)
 
-    success = quote_db.delete_quote(quote_id)
+    v2_success = False
+    if V2_CATALOG_AVAILABLE:
+        try:
+            v2_success = bool(_run_async_task(_delete_v2_quote_history_async(quote_id)))
+        except Exception:
+            v2_success = False
+
+    success = sqlite_success or v2_success
 
     if success:
         return jsonify({'success': True, 'message': '记录已删除'})
@@ -3451,6 +4199,17 @@ def delete_quote_history(quote_id):
 @app.route('/api/get_quote_statistics', methods=['GET'])
 def get_quote_statistics():
     """获取报价统计数据"""
+    if V2_CATALOG_AVAILABLE:
+        try:
+            stats = _run_async_task(_get_v2_quote_statistics_async())
+            return jsonify({
+                'success': True,
+                'statistics': stats,
+                'history_source': 'postgres_v2',
+            })
+        except Exception:
+            pass
+
     if quote_db is None:
         return jsonify({'success': False, 'message': '数据库未初始化'})
 
@@ -3458,7 +4217,8 @@ def get_quote_statistics():
 
     return jsonify({
         'success': True,
-        'statistics': stats
+        'statistics': stats,
+        'history_source': 'sqlite_legacy',
     })
 
 

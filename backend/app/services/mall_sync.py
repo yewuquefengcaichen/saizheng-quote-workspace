@@ -189,6 +189,7 @@ async def run_mall_scrape_sync_async(
             )
 
     return {
+        'success': True,
         **sync_result,
         'mall_batch': mall_batch,
         'scrape': {
